@@ -1,4 +1,4 @@
-# DIRTSTRUCK (BUTTLOADS 2)
+# BUTTLOADS 2
 
 First-person digging prototype. Excavate a small backyard claim, expose and collect copper, iron and crystal, sell at the hopper, upgrade the cutter, bag and scanner, and reach the buried signal.
 

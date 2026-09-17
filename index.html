@@ -45,13 +45,72 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),mix=(a,b,t)=>a+(b-a)*t;
 const edges=[];for(let a=0;a<8;a++)for(let axis=0;axis<3;axis++){const b=a^(1<<axis);if(a<b)edges.push([a,b]);}
 const linear=x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;};
 const color=c=>c.map(x=>linear(x)*255);
-const grass=color([134,112,71]),earth=color([147,101,67]),clay=color([172,113,72]),shale=color([99,102,111]),deep=color([58,76,86]);
-function soilColor(x,y,z,ny){
- const d=-y,noise=.92+.08*Math.sin(x*2.4+z*1.7+y*9)+.045*Math.sin(y*3.7+x*.6);
- let a=d<3?earth:d<14?clay:d<27?shale:deep,b=d<3?clay:d<14?shale:deep;
- let t=d<3?0:d<14?clamp((d-12)/2,0,1):clamp((d-25)/2,0,1);
- if(y>-.6&&ny>.65){a=grass;b=earth;t=clamp(-y/.6,0,1)*.55;}
- return a.map((v,c)=>Math.round(clamp(mix(v,b[c],t)*noise,0,255)));
+const grass=color([108,128,70]),earth=color([94,66,45]),clay=color([178,98,54]),shale=color([86,96,112]),deep=color([64,56,78]),granite=color([19,18,23]);
+const veinColors=[color([238,112,32]),color([64,150,205]),color([40,242,188])];
+// Deterministic seeded RNG, copied so worker and main-thread kernel instances agree.
+function random(seed){let v=seed>>>0;return()=>{v+=0x6D2B79F5;let t=v;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function hash3(x,y,z){const h=Math.sin(x*12.9898+y*78.233+z*37.719)*43758.5453;return h-Math.floor(h);}
+function generateVeins(seed){
+ const rng=random((seed^0x9e3779b9)>>>0),list=[];
+ for(let i=0;i<56;i++){const depth=2+rng()*37,x=clamp((rng()-.5)*16,-8.5,8.5),z=clamp((rng()-.5)*16,-8.5,8.5),kind=depth>26?2:depth>11?1:0,r=1.9+rng()*.7;list.push({x,y:-depth,z,kind,r});}
+ return list;
+}
+function makeBoulders(seed){
+ // 10-14 ellipsoid boulders in shale/deep rock, clear of the machine chamber and mineral pocket cavities from baseDensity.
+ const rng=random((seed^0x2545F491)>>>0),avoid=[{x:2,y:-37,z:-3,r:7.5},{x:-4,y:-18,z:-1,r:4.5}],target=10+Math.floor(rng()*5),list=[];let guard=0;
+ while(list.length<target&&guard++<4000){
+  const depth=14+rng()*29,x=(rng()-.5)*15,z=(rng()-.5)*15,y=-depth,rx=.75+rng()*.75,ry=.75+rng()*.75,rz=.75+rng()*.75;
+  let bad=false;for(const a of avoid)if(Math.hypot(x-a.x,y-a.y,z-a.z)<a.r){bad=true;break;}
+  if(!bad)for(const o of list)if(Math.hypot(x-o.x,y-o.y,z-o.z)<(rx+Math.max(o.rx,o.ry,o.rz))*.85){bad=true;break;}
+  if(!bad)list.push({x,y,z,rx,ry,rz});
+ }
+ return list;
+}
+let boulderCache=new Map();
+function getBoulders(seed){let b=boulderCache.get(seed);if(!b){b=makeBoulders(seed);boulderCache.set(seed,b);}return b;}
+function hardness(x,y,z,seed){
+ const list=getBoulders(seed);let best=0;
+ for(let i=0;i<list.length;i++){const o=list[i],q=((x-o.x)/o.rx)**2+((y-o.y)/o.ry)**2+((z-o.z)/o.rz)**2;if(q<1.15){const f=Math.min(1,1.15-q);if(f>best)best=f;}}
+ return best;
+}
+function nearChunk(items,cx,cy,cz,rFn){
+ const lo0=cx*SIZE-1.2,hi0=cx*SIZE+SIZE+1.2,lo1=cy*SIZE-1.2,hi1=cy*SIZE+SIZE+1.2,lo2=cz*SIZE-1.2,hi2=cz*SIZE+SIZE+1.2,out=[];
+ for(let i=0;i<items.length;i++){const v=items[i],r=rFn(v);if(v.x+r>lo0&&v.x-r<hi0&&v.y+r>lo1&&v.y-r<hi1&&v.z+r>lo2&&v.z-r<hi2)out.push(v);}
+ return out;
+}
+function soilColor(x,y,z,ny,s){
+ const d=-y,roll=1.2*Math.sin(x*.10+z*.07+1.7)+.5*Math.sin(x*.23-z*.18+4.1),rd=d+roll;
+ const noise=.92+.08*Math.sin(x*2.4+z*1.7+y*9)+.045*Math.sin(y*3.7+x*.6);
+ let a=rd<3?earth:rd<14?clay:rd<27?shale:deep,b=rd<3?clay:rd<14?shale:deep;
+ let t=rd<3?0:rd<14?clamp((rd-12)/2,0,1):clamp((rd-25)/2,0,1);
+ let rgb=a.map((v,c)=>mix(v,b[c],t)*noise);
+ // Shale horizontal banding: 1 m alternating stripes, faded in near its own layer.
+ if(rd>=9&&rd<31){const band=Math.sin(y*Math.PI*2)>=0?1:-1,bw=clamp((rd-9)/4,0,1)*clamp((31-rd)/4,0,1);for(let c=0;c<3;c++)rgb[c]*=1+band*.08*bw;}
+ // Deep rock coarse speckle.
+ if(rd>=24){const sp=hash3(Math.floor(x*1.3),Math.floor(y*1.3),Math.floor(z*1.3)),bw=clamp((rd-24)/4,0,1);for(let c=0;c<3;c++)rgb[c]*=1+(sp-.5)*.3*bw;}
+ // Ceilings read darker; walls carry faint vertical streaks.
+ if(ny<-.2){const k=clamp((-ny-.2)/.2,0,1);for(let c=0;c<3;c++)rgb[c]*=1-.25*k;}
+ const wall=1-Math.min(1,Math.abs(ny)*1.4);if(wall>0){const streak=Math.sin(x*9.1+z*6.3)*.5+.5;for(let c=0;c<3;c++)rgb[c]*=1+(streak-.5)*.12*wall;}
+ if(y>-.6&&ny>.65){const gt=clamp(-y/.6,0,1)*.55;rgb=grass.map((v,c)=>mix(rgb[c],v,gt));}
+ // Ore veins glitter through the rock before the nugget itself is exposed.
+ const veins=s.veins;
+ for(let i=0;i<veins.length;i++){
+  const v=veins[i],dx=x-v.x,dy=y-v.y,dz=z-v.z,dist=Math.sqrt(dx*dx+dy*dy+dz*dz);if(dist>=v.r)continue;
+  const rr=dist/v.r,falloff=1-rr*rr;
+  // Low-frequency bands (wavelength a couple of metres) so streaks are visible
+  // vertex-to-vertex at the 0.5 m grid step, instead of aliasing into flat noise.
+  const band1=Math.sin(x*2.3+z*1.6+y*.7)*.5+.5,band2=Math.sin(x*1.1-z*2.4+y*1.3)*.5+.5,fleck=.32+.4*band1+.28*band2;
+  const glow=clamp(falloff*fleck*1.85,0,.92);
+  if(glow>0){const vc=veinColors[v.kind];for(let c=0;c<3;c++)rgb[c]=mix(rgb[c],vc[c],glow);}
+ }
+ // Hard rock boulders read as near-black granite with light speckle.
+ const boulders=s.boulders;
+ for(let i=0;i<boulders.length;i++){
+  const o=boulders[i],q=((x-o.x)/o.rx)**2+((y-o.y)/o.ry)**2+((z-o.z)/o.rz)**2;if(q>=1.15)continue;
+  const f=clamp(1.15-q,0,1),sp=hash3(Math.floor(x*2.1),Math.floor(y*2.1),Math.floor(z*2.1));
+  for(let c=0;c<3;c++)rgb[c]=mix(rgb[c],granite[c]*(.5+sp*1.15),f);
+ }
+ return rgb.map(v=>Math.round(clamp(v,0,255)));
 }
   function liveCell(s,x,y,z) {
     const {n,m,m2,C,C2,p,step,ox,oy,oz,values,v,offsets}=s;
@@ -71,7 +130,7 @@ function soilColor(x,y,z,ny){
     const a=s.positions,b=s.normals,col=s.colors;let changed=a[j]!==Math.fround(px)||a[j+1]!==Math.fround(py)||a[j+2]!==Math.fround(pz)||b[j]!==Math.fround(nx)||b[j+1]!==Math.fround(ny)||b[j+2]!==Math.fround(nz);
     a[j]=px;a[j+1]=py;a[j+2]=pz;b[j]=nx;b[j+1]=ny;b[j+2]=nz;
     s.precise[j]=px;s.precise[j+1]=py;s.precise[j+2]=pz;
-    const rgb=soilColor(px,py,pz,ny);for(let c=0;c<3;c++){if(col[j+c]!==rgb[c])changed=true;col[j+c]=rgb[c];}
+    const rgb=soilColor(px,py,pz,ny,s);for(let c=0;c<3;c++){if(col[j+c]!==rgb[c])changed=true;col[j+c]=rgb[c];}
     if(changed){s.vertexLow=Math.min(s.vertexLow,j);s.vertexHigh=Math.max(s.vertexHigh,j+3);}
   }  function liveFace(s,eid,a,b,c,d,inside) {
     let slot=s.edgeSlot[eid];
@@ -99,12 +158,13 @@ function soilColor(x,y,z,ny){
     if(inside!==(values[i+m]<0))liveFace(s,e+1,c-1-C2,c-1,c,c-C2,inside);else liveFace(s,e+1,-1);
     if(inside!==(values[i+m2]<0))liveFace(s,e+2,c-1-C,c-C,c,c-1,inside);else liveFace(s,e+2,-1);
   }
-function create(cx,cy,cz,fieldValues){
+function create(cx,cy,cz,fieldValues,seed){
  const n=N,m=n+4,C=n+1,cap=C*C*C,F=n*n*n*3;
- const s={p:{placement:1},n,m,m2:m*m,C,C2:C*C,step:SIZE/n,ox:cx*n,oy:cy*n,oz:cz*n,
+ const s={p:{placement:1},n,m,m2:m*m,C,C2:C*C,step:SIZE/n,ox:cx*n,oy:cy*n,oz:cz*n,seed,
  values:fieldValues,positions:new Float32Array(cap*3),precise:new Float64Array(cap*3),normals:new Float32Array(cap*3),colors:new Uint8Array(cap*3),active:new Uint8Array(cap),activeCount:0,
  triangles:new Uint16Array(F*6),quads:new Uint16Array(F*4),edgeSlot:new Int32Array(F).fill(-1),owners:new Int32Array(F),faceCount:0,
  v:new Float32Array(8),triScratch:new Uint16Array(6),offsets:[0,1,m,m+1,m*m,m*m+1,m*m+m,m*m+m+1],dirtySamples:null,
+ veins:nearChunk(generateVeins(seed),cx,cy,cz,vv=>vv.r),boulders:nearChunk(getBoulders(seed),cx,cy,cz,oo=>Math.max(oo.rx,oo.ry,oo.rz)*1.15),
  vertexLow:Infinity,vertexHigh:0,indexLow:Infinity,indexHigh:0,topologyChanged:false,cellsVisited:0,samplesChanged:0};
  for(let z=-1;z<n;z++)for(let y=-1;y<n;y++)for(let x=-1;x<n;x++)liveCell(s,x,y,z);
  for(let z=0;z<n;z++)for(let y=0;y<n;y++)for(let x=0;x<n;x++)liveEdge(s,x,y,z);
@@ -120,7 +180,8 @@ function update(s,box){
  for(let z=lz;z<=hz;z++)for(let y=ly;y<=hy;y++)for(let x=lx;x<=hx;x++)liveCell(s,x,y,z);
  for(let z=Math.max(0,lz);z<=Math.min(n-1,hz+1);z++)for(let y=Math.max(0,ly);y<=Math.min(n-1,hy+1);y++)for(let x=Math.max(0,lx);x<=Math.min(n-1,hx+1);x++)liveEdge(s,x,y,z);
 }
-return {create,update,N,SIZE};
+function soilColorAt(x,y,z,ny,seed){return soilColor(x,y,z,ny,{veins:generateVeins(seed),boulders:getBoulders(seed)});}
+return {create,update,N,SIZE,generateVeins,hardness,soilColorAt};
 }
 
 (() => {
@@ -131,11 +192,11 @@ const K=createDigKernel(),chunks=new Map(),keys=new Set(),dirty=new Set(),collid
 let field=new Float32Array(TOTAL),ore=[],running=false,ready=false,locked=false,firing=false,lookDrag=null,lastTarget=null;
 let yaw=0,pitch=-.38,elapsed=0,lastTime=0,accumulator=0,time=0,shadowDirty=true,saveDirty=false,lastSave=0,lastEditTime=0,previousScreen='start',resumeAfterAbout=false;
 let toastUntil=0,pickupUntil=0,scanUntil=0,lastInteraction='',lastFloorNormal=new V(0,1,0),sound=null,digVoice=null,humGain=null;
-let lastPickupKind=-1,pickupCombo=0,lastParticle=0,beaconPhase=0,touchDigPointer=null;
+let lastPickupKind=-1,pickupCombo=0,lastParticle=0,beaconPhase=0,touchDigPointer=null,scanCooldownUntil=0,scanGhostUntil=0;
 const config={sound:true,sensitivity:1,quality:1.25};
 const state={seed:SEED,cash:0,cargo:[0,0,0],cutter:0,bag:0,scanner:0,sold:0,sales:0,mined:0,deepest:0,core:false,won:false,seconds:0};
 const player={feet:new V(0,.01,8),velocity:new V(),radius:.32,height:1.78,eye:1.60,grounded:true,spaceTime:0,jump:false};
-const audit={frames:0,fireFrames:0,hitFrames:0,editedFrames:0,samplesChanged:0,shadowUpdates:0,editsMs:[],frameMs:[],recoveries:0};
+const audit={frames:0,fireFrames:0,hitFrames:0,editedFrames:0,samplesChanged:0,shadowUpdates:0,editsMs:[],frameMs:[],recoveries:0,pacedFrames:0,freeFrames:0};
 const levels={cutter:{name:'Cutter',prices:[45,120,280],values:[.82,1.08,1.42,1.82]},bag:{name:'Cargo',prices:[40,95,200],values:[10,18,28,42]},scanner:{name:'Scanner',prices:[65,160],values:[10,20,38]}};
 const minerals=[{name:'Copper',value:5,color:0xc88246},{name:'Iron',value:12,color:0xafc9cd},{name:'Crystal',value:28,color:0x60edcb}];
 const sellPos=new V(-4,0,13.5),shopPos=new V(4,0,13.5),corePos=new V(2,-37,-3);
@@ -145,7 +206,7 @@ renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmic
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#bcd8d4');
 const camera=new THREE.PerspectiveCamera(73,innerWidth/innerHeight,.045,260);scene.add(camera);
-scene.add(new THREE.HemisphereLight('#ecf2db','#525750',.76));
+const hemi=new THREE.HemisphereLight('#ecf2db','#525750',.76);scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff1c7',1.7);sun.position.set(-24,38,22);sun.castShadow=true;
 sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-27,right:27,top:29,bottom:-27,near:.2,far:120});sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;scene.add(sun,sun.target);
 const headlamp=new THREE.PointLight('#ffdeac',1,15,1.5);scene.add(headlamp);
@@ -221,7 +282,7 @@ function lattice(gx,gy,gz){if(gx<0||gx>=GX||gy<0||gy>=GY||gz<0||gz>=GZ)return ba
 function density(x,y,z){const gx=(x-MIN)/STEP,gy=(y-BASE)/STEP,gz=(z-MIN)/STEP,ix=Math.floor(gx),iy=Math.floor(gy),iz=Math.floor(gz),u=gx-ix,v=gy-iy,w=gz-iz;let d=0;for(let c=0;c<8;c++)d+=lattice(ix+(c&1),iy+((c>>1)&1),iz+((c>>2)&1))*((c&1)?u:1-u)*((c&2)?v:1-v)*((c&4)?w:1-w);return d;}
 function sampleChunk(cx,cy,cz){const m=N+4,a=new Float32Array(m*m*m);for(let z=0;z<m;z++)for(let y=0;y<m;y++)for(let x=0;x<m;x++)a[x+m*y+m*m*z]=lattice(cx*N+x-2+24,cy*N+y-2+96,cz*N+z-2+24);return a;}
 function makeChunk(cx,cy,cz){
- const s=K.create(cx,cy,cz,sampleChunk(cx,cy,cz)),g=new THREE.BufferGeometry();
+ const s=K.create(cx,cy,cz,sampleChunk(cx,cy,cz),state.seed),g=new THREE.BufferGeometry();
  g.setAttribute('position',new THREE.BufferAttribute(s.positions,3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('normal',new THREE.BufferAttribute(s.normals,3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('color',new THREE.BufferAttribute(s.colors,3,true).setUsage(THREE.DynamicDrawUsage));g.setIndex(new THREE.BufferAttribute(s.triangles,1).setUsage(THREE.DynamicDrawUsage));
  g.setDrawRange(0,s.faceCount*6);g.boundingBox=new THREE.Box3(new V(cx*SIZE-STEP,cy*SIZE-STEP,cz*SIZE-STEP),new V((cx+1)*SIZE,(cy+1)*SIZE,(cz+1)*SIZE));g.boundingSphere=new THREE.Sphere(g.boundingBox.getCenter(new V()),SIZE*.94);
  const mesh=new THREE.Mesh(g,terrainMat);mesh.castShadow=mesh.receiveShadow=true;mesh.userData.chunk=[cx,cy,cz].join(',');scene.add(mesh);const rec={cx,cy,cz,s,g,mesh};chunks.set(mesh.userData.chunk,rec);clearRanges(s);return rec;
@@ -337,22 +398,23 @@ function movePlayer(dt){
  camera.position.copy(player.feet).add(new V(0,player.eye,0));camera.rotation.set(pitch,yaw,0,'YXZ');camera.updateMatrixWorld();state.deepest=Math.max(state.deepest,-player.feet.y);
 }
 function recover(show=true){player.feet.set(0,.01,10.8);player.velocity.set(0,0,0);yaw=0;pitch=-.22;lastTarget=null;markSaveDirty();if(show)toast('Back at the workshop. Cargo kept.');}
-const oreGeo=new THREE.IcosahedronGeometry(.43,0),oreMats=minerals.map(m=>new THREE.MeshStandardMaterial({color:m.color,roughness:.42,metalness:.30,emissive:m.color,emissiveIntensity:.06})),oreGroup=new THREE.Group();scene.add(oreGroup);
+const oreGeo=new THREE.IcosahedronGeometry(.43,0),oreMats=minerals.map(m=>new THREE.MeshStandardMaterial({color:m.color,roughness:.42,metalness:.30,emissive:m.color,emissiveIntensity:.2})),oreGroup=new THREE.Group();scene.add(oreGroup);
 const sparkGeo=new THREE.IcosahedronGeometry(.06,0),sparkMat=material('#dca56c');
 function spawnOre(){
  for(const child of [...oreGroup.children])oreGroup.remove(child);ore=[];const rng=random(state.seed);
- function add(x,y,z,kind,scale=.8+rng()*.5){const mesh=new THREE.Mesh(oreGeo,oreMats[kind]);mesh.position.set(x,y,z);mesh.rotation.set(rng()*3,rng()*3,rng()*3);mesh.scale.setScalar(scale);mesh.visible=density(x,y,z)>-.62;mesh.castShadow=true;mesh.receiveShadow=true;oreGroup.add(mesh);ore.push({id:ore.length,kind,p:new V(x,y,z),mesh,exposed:false,collected:false});}
+ function add(x,y,z,kind,scale=1.15+rng()*.55){const mesh=new THREE.Mesh(oreGeo,oreMats[kind]);mesh.position.set(x,y,z);mesh.rotation.set(rng()*3,rng()*3,rng()*3);mesh.scale.setScalar(scale);mesh.visible=density(x,y,z)>-.9;mesh.castShadow=true;mesh.receiveShadow=true;oreGroup.add(mesh);ore.push({id:ore.length,kind,p:new V(x,y,z),mesh,exposed:false,collected:false});}
  for(let i=0;i<16;i++)add((i%4-1.5)*.57,-.28-Math.floor(i/4)*.73,5.2-(i%3)*.6,0);
- for(let vein=0;vein<56;vein++){
-  const depth=2+rng()*37,x=(rng()-.5)*16,z=(rng()-.5)*16,kind=depth>26?2:depth>11?1:0,count=5+Math.floor(rng()*5);
-  for(let j=0;j<count;j++){const px=clamp(x+(rng()-.5)*2.8,-8.5,8.5),py=-depth+(rng()-.5)*1.8,pz=clamp(z+(rng()-.5)*2.8,-8.5,8.5);if(baseDensity(px,py,pz)>-.2)continue;add(px,py,pz,kind);}
+ // Vein centers come from the kernel so wall glitter (soilColor) and nugget placement agree exactly.
+ for(const vein of K.generateVeins(state.seed)){
+  const count=5+Math.floor(rng()*5);
+  for(let j=0;j<count;j++){const px=clamp(vein.x+(rng()-.5)*2.8,-8.5,8.5),py=vein.y+(rng()-.5)*1.8,pz=clamp(vein.z+(rng()-.5)*2.8,-8.5,8.5);if(baseDensity(px,py,pz)>-.2||K.hardness(px,py,pz,state.seed)>.35)continue;add(px,py,pz,vein.kind);}
  }
 }
 function cargoCount(){return state.cargo.reduce((a,b)=>a+b,0);}function cargoValue(){return state.cargo.reduce((a,b,i)=>a+b*minerals[i].value,0);}function capacity(){return levels.bag.values[state.bag];}
 function clearLine(a,b){const d=b.clone().sub(a),len=d.length();d.normalize();for(let k=.25;k<len-.2;k+=.24){const p=a.clone().addScaledVector(d,k);if(density(p.x,p.y,p.z)<-.04)return false;}return true;}
 function collectOre(dt){
  const cap=capacity();for(const o of ore){if(o.collected)continue;
-  if(!o.exposed){const sample=density(o.p.x,o.p.y,o.p.z),visible=sample>-.62;if(o.mesh.visible!==visible){o.mesh.visible=visible;shadowDirty=true;}if(sample>.07){o.exposed=true;o.mesh.material=oreMats[o.kind];}}
+  if(!o.exposed){const sample=density(o.p.x,o.p.y,o.p.z),visible=sample>-.9;if(o.mesh.visible!==visible){o.mesh.visible=visible;shadowDirty=true;}if(sample>.07){o.exposed=true;o.mesh.material=oreMats[o.kind];}}
   if(!o.exposed)continue;
   // Mineral remains in the world when full, even after its soil is gone.
   if(o.p.distanceTo(camera.position)>5.9||cargoCount()>=cap||!clearLine(camera.position,o.p))continue;
@@ -395,12 +457,23 @@ function updateShop(){
 }
 function buy(key){const def=levels[key],level=state[key];if(!def||level>=def.prices.length||state.cash<def.prices[level])return false;state.cash-=def.prices[level];state[key]++;markSaveDirty();beep(800,.15,.05,'triangle');toast(def.name+' upgraded');updateShop();updateUI();saveLocal();return true;}
 function scan(){
- if(!ready)return;const max=levels.scanner.values[state.scanner];let best=null,dist=max;
- for(const o of ore){if(o.collected)continue;const d=o.p.distanceTo(camera.position);if(d<dist){best=o;dist=d;}}
+ if(!ready)return;
+ if(time<scanCooldownUntil){beep(300,.05,.015,'sine');return;}
+ scanCooldownUntil=time+4;
+ const max=levels.scanner.values[state.scanner];let best=null,dist=max;const inRange=[];
+ for(const o of ore){if(o.collected)continue;const d=o.p.distanceTo(camera.position);if(d<=max)inRange.push(o);if(d<dist){best=o;dist=d;}}
  const target=best?best.p:corePos,delta=target.clone().sub(camera.position),dir=aimRay(),right=new V().crossVectors(dir,camera.up).normalize();
  let label=best?minerals[best.kind].name+' deposit':state.core||state.won?'No nearby deposits':'Deep signal';
  const bearing=delta.clone().normalize().dot(dir)>.88?'Ahead':delta.dot(right)>0?'Right':'Left',below=Math.max(0,Math.round(camera.position.y-target.y));
  $('scan-name').textContent=label;$('scan-info').textContent=best?`${Math.round(dist)} m · ${bearing} · ${below} m below`:`${Math.round(delta.length())} m · ${bearing}`;$('scan-hud').hidden=false;scanUntil=time+3;beep(1200,.16,.035,'sine');
+ // Reveal every deposit in range through the walls for a few seconds; nearest reads brightest.
+ inRange.sort((p,q)=>p.p.distanceTo(camera.position)-q.p.distanceTo(camera.position));
+ const n=Math.min(inRange.length,300);
+ for(let i=0;i<n;i++){const o=inRange[i],d=o.p.distanceTo(camera.position),bright=clamp(1.9-1.1*(d/max),.7,1.9);
+  dummy.position.copy(o.p);dummy.rotation.set(0,0,0);dummy.scale.setScalar(.85);dummy.updateMatrix();ghostMesh.setMatrixAt(i,dummy.matrix);
+  ghostColor.set(minerals[o.kind].color).multiplyScalar(bright);ghostMesh.setColorAt(i,ghostColor);
+ }
+ ghostMesh.count=n;ghostMesh.instanceMatrix.needsUpdate=true;if(ghostMesh.instanceColor)ghostMesh.instanceColor.needsUpdate=true;scanGhostUntil=time+3;
 }
 // The digging tool is geometry, not an image overlay. No external assets.
 const toolRoot=new THREE.Group();camera.add(toolRoot);toolRoot.position.set(.42,-.31,-.79);toolRoot.scale.setScalar(.64);toolRoot.rotation.set(-.06,-.06,-.04);toolRoot.renderOrder=100;
@@ -421,6 +494,9 @@ const bit=new THREE.Mesh(new THREE.ConeGeometry(.15,.27,6),mat.metal);bit.rotati
 const drillLamp=new THREE.Mesh(new THREE.BoxGeometry(.07,.02,.025),new THREE.MeshBasicMaterial({color:'#bbedb6'}));drillLamp.position.set(.06,.147,-.03);toolRoot.add(drillLamp);
 const beamGeom=new THREE.BufferGeometry().setFromPoints([new V(),new V()]),beamMat=new THREE.LineBasicMaterial({color:'#f7d18d',transparent:true,opacity:.38,depthWrite:false}),beam=new THREE.Line(beamGeom,beamMat);beam.frustumCulled=false;scene.add(beam);beam.visible=false;
 const particleMesh=new THREE.InstancedMesh(sparkGeo,sparkMat,256),dummy=new THREE.Object3D();particleMesh.count=0;particleMesh.frustumCulled=false;scene.add(particleMesh);
+// Scanner ghosts: one pooled InstancedMesh, x-ray (no depth test), additive, per-instance color for mineral tint and nearest-brightest.
+const ghostGeo=new THREE.IcosahedronGeometry(.46,1),ghostMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+const ghostMesh=new THREE.InstancedMesh(ghostGeo,ghostMat,300),ghostColor=new THREE.Color();ghostMesh.count=0;ghostMesh.frustumCulled=false;ghostMesh.castShadow=false;ghostMesh.receiveShadow=false;ghostMesh.renderOrder=50;scene.add(ghostMesh);
 function emitDirt(p,n){if(particles.length>248)return;for(let i=0;i<5;i++)particles.push({p:p.clone(),v:n.clone().multiplyScalar(1.3+Math.random()*2).add(new V((Math.random()-.5)*3,Math.random()*2,(Math.random()-.5)*3)),life:0,max:.22+Math.random()*.28,s:.7+Math.random()*1.6});}
 function updateFX(dt){
  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life+=dt;p.v.y-=10*dt;p.p.addScaledVector(p.v,dt);if(p.life>=p.max){particles.splice(i,1);continue;}}
@@ -428,6 +504,7 @@ function updateFX(dt){
  gaugeNeedle.rotation.z=firing?-.65+Math.sin(time*36)*.12:.7;rotor.rotation.z+=(firing?35:3)*dt;const shake=firing?.0018:0;toolRoot.position.set(.42+Math.sin(time*60)*shake,-.31+Math.sin(time*53)*shake,-.79);toolRoot.rotation.z=-.04+Math.sin(time*43)*shake;
  if(coreRing){coreRing.rotation.y=time*.4;coreRing.rotation.z=Math.PI/6;}if(coreMesh)coreMesh.visible=!state.core&&!state.won;
  if(time>toastUntil)$('toast').classList.remove('show');if(time>scanUntil)$('scan-hud').hidden=true;
+ if(ghostMesh.count){if(time<scanGhostUntil)ghostMat.opacity=.35+.3*Math.sin(time*7);else ghostMesh.count=0;}
 }
 const cutDirection=new V();
 function cuttingContact(d,r){
@@ -462,12 +539,17 @@ function drill(dt){
  const end=hit?hit.point:camera.position.clone().addScaledVector(d,5.4),muzzle=new V(.42,-.30,-1.12).applyMatrix4(camera.matrixWorld),a=beamGeom.attributes.position;a.setXYZ(0,muzzle.x,muzzle.y,muzzle.z);a.setXYZ(1,end.x,end.y,end.z);a.needsUpdate=true;
  if(!hit){$('contact').textContent='';lastTarget=null;return false;}audit.hitFrames++;
  if(Math.abs(hit.point.x)>9.55||Math.abs(hit.point.z)>9.55||hit.point.y<-43){$('contact').textContent='Claim boundary';lastTarget=null;return false;}
- const depth=-hit.point.y,layer=depth<3?'Topsoil':depth<14?'Clay':depth<27?'Shale':'Deep rock';$('contact').textContent=layer;
- const resistance=depth>26?1.9:depth>13?1.5:1;let target=contact.target;
+ const depth=-hit.point.y,hardFactor=K.hardness(hit.point.x,hit.point.y,hit.point.z,state.seed),layer=hardFactor>.5?'Hard rock':depth<3?'Topsoil':depth<14?'Clay':depth<27?'Shale':'Deep rock';$('contact').textContent=layer;
+ const base=depth>26?1.9:depth>13?1.5:1,boulderMul=3.5-1.9*(state.cutter/3),resistance=base*(1+(boulderMul-1)*hardFactor);let target=contact.target;
  // Tool progression changes continuous penetration and volume, not the input
  // cadence. Lateral aim stays direct; only local forward depth is speed-limited.
  if(contact.continuous){const oldDepth=lastTarget.clone().sub(camera.position).dot(d),nextDepth=target.clone().sub(camera.position).dot(d),advance=(2.7+state.cutter*1.8)*dt/resistance;
-  if(nextDepth>oldDepth&&nextDepth-oldDepth<r*2.5)target=camera.position.clone().addScaledVector(d,Math.min(nextDepth,oldDepth+advance));}
+  // Boulders are small enough that breaking through one can register as a single
+  // big jump past the normal jump-cap escape hatch, skipping the throttle right
+  // when it matters most. Once hardness is involved (either where we last cut or
+  // where the ray lands now) there is no jump-cap exemption: every frame is paced.
+  const gateHard=Math.max(hardFactor,K.hardness(lastTarget.x,lastTarget.y,lastTarget.z,state.seed)),jumpCap=gateHard>.35?Infinity:r*2.5;
+  if(nextDepth>oldDepth&&nextDepth-oldDepth<jumpCap){target=camera.position.clone().addScaledVector(d,Math.min(nextDepth,oldDepth+advance));audit.pacedFrames++;}else audit.freeFrames++;}else audit.freeFrames++;
  const changed=excavate(target,r);lastTarget=target;cutDirection.copy(d);
  if(changed){audit.editedFrames++;if(time-lastParticle>.03){emitDirt(hit.point,hit.normal);lastParticle=time;}setDrillSound(true,true);}
  return !!changed;
@@ -549,16 +631,25 @@ function initField(){field=new Float32Array(TOTAL);for(let z=0;z<GZ;z++)for(let 
 function adoptChunk(cx,cy,cz,s){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(s.positions,3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('normal',new THREE.BufferAttribute(s.normals,3).setUsage(THREE.DynamicDrawUsage));g.setAttribute('color',new THREE.BufferAttribute(s.colors,3,true).setUsage(THREE.DynamicDrawUsage));g.setIndex(new THREE.BufferAttribute(s.triangles,1).setUsage(THREE.DynamicDrawUsage));g.setDrawRange(0,s.faceCount*6);g.boundingBox=new THREE.Box3(new V(cx*SIZE-STEP,cy*SIZE-STEP,cz*SIZE-STEP),new V((cx+1)*SIZE,(cy+1)*SIZE,(cz+1)*SIZE));g.boundingSphere=new THREE.Sphere(g.boundingBox.getCenter(new V()),SIZE*.94);const mesh=new THREE.Mesh(g,terrainMat);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);const key=[cx,cy,cz].join(',');mesh.userData.chunk=key;chunks.set(key,{cx,cy,cz,s,g,mesh});clearRanges(s);}
 async function buildChunks(){
  const jobs=[];for(let y=-1;y>=-4;y--)for(let z=-1;z<=0;z++)for(let x=-1;x<=0;x++)jobs.push([x,y,z]);$('load-progress').max=jobs.length;$('load-progress').value=0;
- const source=`'use strict';const K=(${createDigKernel.toString()})();onmessage=e=>{const {c,a}=e.data;try{const s=K.create(...c,a),list=Object.values(s).filter(v=>ArrayBuffer.isView(v)).map(v=>v.buffer);postMessage({c,s},list);}catch(x){postMessage({error:String(x)});}};`;
+ const source=`'use strict';const K=(${createDigKernel.toString()})();onmessage=e=>{const {c,a,seed}=e.data;try{const s=K.create(...c,a,seed),list=Object.values(s).filter(v=>ArrayBuffer.isView(v)).map(v=>v.buffer);postMessage({c,s},list);}catch(x){postMessage({error:String(x)});}};`;
  const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));let at=0,done=0;
  const work=async()=>{let worker;try{worker=new Worker(url);}catch(e){while(at<jobs.length){const c=jobs[at++];makeChunk(...c);$('load-progress').value=++done;await new Promise(r=>setTimeout(r,0));}return;}
-  while(at<jobs.length){const c=jobs[at++],a=sampleChunk(...c);const result=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('Terrain worker timeout')),15000);worker.onmessage=e=>{clearTimeout(t);e.data.error?reject(new Error(e.data.error)):resolve(e.data);};worker.onerror=e=>{clearTimeout(t);reject(new Error(e.message));};worker.postMessage({c,a},[a.buffer]);}).catch(e=>{console.warn(e);return null;});if(result)adoptChunk(...c,result.s);else makeChunk(...c);$('load-progress').value=++done;}
+  while(at<jobs.length){const c=jobs[at++],a=sampleChunk(...c);const result=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('Terrain worker timeout')),15000);worker.onmessage=e=>{clearTimeout(t);e.data.error?reject(new Error(e.data.error)):resolve(e.data);};worker.onerror=e=>{clearTimeout(t);reject(new Error(e.message));};worker.postMessage({c,a,seed:state.seed},[a.buffer]);}).catch(e=>{console.warn(e);return null;});if(result)adoptChunk(...c,result.s);else makeChunk(...c);$('load-progress').value=++done;}
   worker.terminate();};
  await Promise.all(Array.from({length:Math.min(4,Math.max(1,(navigator.hardwareConcurrency||4)-1))},work));URL.revokeObjectURL(url);shadowDirty=true;
 }
+function smoothstep(a,b,x){const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);}
+function ambientFactor(depth){
+ if(depth<=8)return depth<=0?1:1+(.35-1)*smoothstep(0,8,depth);
+ if(depth<=20)return .35+(.12-.35)*smoothstep(8,20,depth);
+ if(depth<=30)return .12+(.06-.12)*smoothstep(20,30,depth);
+ return .06+(.03-.06)*smoothstep(30,50,depth);
+}
 function frame(now){requestAnimationFrame(frame);const raw=lastTime?(now-lastTime)/1000:1/60,dt=Math.min(.05,raw);lastTime=now;time+=dt;audit.frames++;if(audit.frameMs.length>=1200)audit.frameMs.shift();audit.frameMs.push(raw*1000);
  if(ready){if(running){state.seconds+=dt;movePlayer(dt);drill(dt);collectOre(dt);updateUI();}else{beam.visible=false;camera.position.copy(player.feet).add(new V(0,player.eye,0));camera.rotation.set(pitch,yaw,0,'YXZ');camera.updateMatrixWorld();}
- updateFX(dt);headlamp.position.copy(camera.position).addScaledVector(aimRay(),.4);headlamp.intensity=player.feet.y<-1?2.2:.35;
+ updateFX(dt);headlamp.position.copy(camera.position).addScaledVector(aimRay(),.4);
+ const camDepth=Math.max(0,-camera.position.y),lampT=smoothstep(0,18,camDepth);headlamp.intensity=.35+(3.2-.35)*lampT;headlamp.distance=15+(22-15)*lampT;
+ const amb=ambientFactor(camDepth);hemi.intensity=.76*amb;sun.intensity=1.7*amb;
  if(shadowDirty){renderer.shadowMap.needsUpdate=true;shadowDirty=false;audit.shadowUpdates++;}renderer.render(scene,camera);
  if(saveDirty&&!firing&&time-lastEditTime>1.2&&time-lastSave>5)saveLocal();
  }
@@ -575,7 +666,11 @@ async function init(){
  $('start-button').disabled=false;$('loading').hidden=true;updateUI();requestAnimationFrame(frame);
  }catch(e){console.error(e);$('loading-text').textContent='Could not start: '+e.message;}}
 // Test hook for headless QA and the OG screenshot tool. Not used by gameplay.
-window.__dirt={play,excavate,player,state,camera,movePlayer,V,exportSave,loadSnapshot,setLook:(y,p)=>{yaw=y;pitch=p;},get ready(){return ready;},get running(){return running;}};
+window.__dirt={play,excavate,player,state,camera,movePlayer,V,exportSave,loadSnapshot,setLook:(y,p)=>{yaw=y;pitch=p;},get ready(){return ready;},get running(){return running;},
+ K,get ore(){return ore;},levels,minerals,audit,snapshot,newClaim,sell,buy,use,scan,
+ fire(v){firing=!!v;lastTarget=null;},setKey(code,v){if(v)keys.add(code);else keys.delete(code);},
+ teleport(x,y,z){player.feet.set(x,y,z);player.velocity.set(0,0,0);movePlayer(0);},
+ get depth(){return -player.feet.y;}};
 init();
 })();
 

@@ -44,7 +44,7 @@
       if (type === 'bomb') { n.mode = mode; if (mode === 'bore') n.direction = { ...d }; if (mode === 'sticky') n.triggered = false; }
       if (this.state.supplies[key] < cost) return { reason: type === 'bomb' ? cost > 1 ? 'Bore charges use 2 charges. Restock at the workshop.' : 'Out of charges. Restock at the workshop.' : 'Out of lights. Retrieve a placed lamp or restock.' };
       if (this.nodes.filter(n => n.type === type).length >= (type === 'lamp' ? 48 : 6)) return { reason: type === 'lamp' ? '48 lights deployed. Retrieve a lamp with E to move it.' : 'Six charges already deployed. H fires remote satchels.' };
-      if (Math.abs(n.x) > 13.6 || Math.abs(n.z) > 13.6 || n.y > 19) return { reason: 'Deploy equipment inside the marked claim.' };
+      if (!this.world.owns(n.x,n.z,.4) || n.y > 19) return { reason: 'Deploy equipment inside the marked claim.' };
       if (this.physics.contact(n).density < -.004 || !this.world.clearLine(p, n, .01)) return { reason: 'No room to throw. Step back from the rock.' };
       return { body: n, reason: '' };
     }

@@ -10,7 +10,7 @@
       this.state = economy.state.expedition.freight ||= { version: 1, owned: false, upgraded: false, dock: null, travel: 0, phase: 'idle', load: empty(), stock: empty() };
       this.accumulator = 0; this.obstruction = null; this.blockedBy = ''; this.events = []; this.revision = 0;
     }
-    static length(dock) { return FREIGHT.top - dock.y - .85 + FREIGHT.depot - dock.x; }
+    static length(dock, parcelVersion=0) { return FREIGHT.top - dock.y - .85 + (parcelVersion?46.7:FREIGHT.depot) - dock.x; }
     static position(s, travel = s.travel) {
       if (!s.dock) return null;
       const d = s.dock, rise = FREIGHT.top - d.y - .85;
@@ -21,13 +21,13 @@
       for (const o of offsets) { const q = { x: p.x + o[0], y: p.y + o[1], z: p.z + o[2] }, density = world.density(q.x, q.y, q.z); if (density < worst.density) worst = { ...q, density }; }
       return worst;
     }
-    static validate(s, progress, world) {
+    static validate(s, progress, world, parcelVersion=world?.parcelVersion || 0) {
       const inventory = a => Array.isArray(a) && a.length === B.ORES.length && a.every(n => Number.isSafeInteger(n) && n >= 0 && n <= 1e9);
       if (!s || s.version !== 1 || typeof s.owned !== 'boolean' || typeof s.upgraded !== 'boolean' || (s.owned && !progress.expedition?.recovered?.includes(0)) || (s.upgraded && (!s.owned || !progress.expedition?.recovered?.includes(1))) || !inventory(s.load) || !inventory(s.stock) || count(s.load) > FREIGHT.capacities[+s.upgraded] || !Number.isFinite(s.travel) || s.travel < 0 || !['idle', 'outbound', 'returning'].includes(s.phase)) throw new Error('Invalid freight equipment.');
       if (!s.owned && (s.dock || s.upgraded || count(s.load) || count(s.stock))) throw new Error('Unowned freight equipment contains cargo.');
       if (s.dock !== null) {
         const d = s.dock;
-        if (!d || !['x', 'y', 'z'].every(k => Number.isFinite(d[k])) || Math.abs(d.x) > 12 || Math.abs(d.z) > 12 || d.y < (world?.floor ?? B.DEPTHS[1].floor) + .3 || d.y > -3 || s.travel > Freight.length(d) + 1e-6) throw new Error('Invalid freight route.');
+        if (!d || !['x', 'y', 'z'].every(k => Number.isFinite(d[k])) || !B.claimContains(parcelVersion,d.x,d.z,1.99) || d.y < (world?.floor ?? B.DEPTHS[1].floor) + .3 || d.y > -3 || s.travel > Freight.length(d,parcelVersion) + 1e-6) throw new Error('Invalid freight route.');
         if (world && Freight.contact(world, Freight.position(s)).density < -.01) throw new Error('Freight cage is inside terrain.');
       } else if (s.phase !== 'idle' || s.travel !== 0 || count(s.load)) throw new Error('Freight has no loading dock.');
       if ((s.phase === 'idle' && s.travel !== 0) || (s.phase === 'outbound' && !count(s.load))) throw new Error('Inconsistent freight journey.');
@@ -49,7 +49,7 @@
       const hit = this.world.ray(player.head, player.direction, 5.5);
       if (!hit || this.world.normal(hit.x, hit.y, hit.z)[1] < .55) return { reason: 'Aim at the floor of an open chamber.' };
       const dock = { x: hit.x, y: hit.y + .4, z: hit.z };
-      if (Math.abs(dock.x) > 12 || Math.abs(dock.z) > 12 || dock.y > -3 || dock.y < this.world.floor + .3) return { reason: 'Place the dock below 3 m, away from the claim boundary.' };
+      if (!this.world.owns(dock.x,dock.z,2) || dock.y > -3 || dock.y < this.world.floorAt(dock.x,dock.z) + .3) return { reason: 'Place the dock below 3 m, away from the claim boundary.' };
       if (Math.hypot(dock.x - player.x, dock.z - player.z) < 1.3) return { reason: 'Leave room in front of you for the loading cage.', dock };
       for (const o of B.boxOffsets([1.4, 1.6, 1.4])) if (this.world.density(dock.x + o[0], dock.y + .8 + o[1], dock.z + o[2]) < -.004) return { reason: 'Clear a 1.4 m wide loading bay around the preview.', dock };
       const probe = { dock, travel: 0 }, obstruction = this.routeObstruction(probe);
@@ -89,7 +89,7 @@
     obstacles() {
       const d = this.state.dock; if (!d) return [];
       const c = this.cage, h = FREIGHT.size / 2;
-      return [[d.x - .7, d.y, d.z - .7, d.x + .7, d.y + .16, d.z + .7], [c.x - h, c.y - h, c.z - h, c.x + h, c.y + h, c.z + h], [-15, 0, d.z - .35, -14.4, 4.5, d.z + .35], [14.4, 0, d.z - .35, 15, 4.5, d.z + .35], [-15, 4.1, d.z - .2, 15, 4.55, d.z + .2]];
+      return [[d.x - .7, d.y, d.z - .7, d.x + .7, d.y + .16, d.z + .7], [c.x - h, c.y - h, c.z - h, c.x + h, c.y + h, c.z + h], [-15, 0, d.z - .35, -14.4, 4.5, d.z + .35], [this.world.parcelVersion?46.4:14.4, 0, d.z - .35, this.world.parcelVersion?47:15, 4.5, d.z + .35], [-15, 4.1, d.z - .2, this.world.parcelVersion?47:15, 4.55, d.z + .2]];
     }
     movingContact(p, player, bodies) {
       const h = FREIGHT.size / 2;
@@ -109,7 +109,7 @@
       while (this.accumulator >= 1 / 120) {
         this.accumulator -= 1 / 120;
         if (s.phase === 'idle') break;
-        const total = Freight.length(s.dock), next = B.clamp(s.travel + (s.phase === 'outbound' ? 1 : -1) * FREIGHT.speed / 120, 0, total), p = Freight.position(s, next), hit = Freight.contact(this.world, p);
+        const total = Freight.length(s.dock,this.world.parcelVersion), next = B.clamp(s.travel + (s.phase === 'outbound' ? 1 : -1) * FREIGHT.speed / 120, 0, total), p = Freight.position(s, next), hit = Freight.contact(this.world, p);
         if (hit.density < -.004) { this.obstruction = hit; this.blockedBy = 'Rock blocks the cage'; continue; }
         this.blockedBy = this.movingContact(p, player, bodies); if (this.blockedBy) continue;
         s.travel = next; changed = true;

@@ -79,7 +79,7 @@
       // Project rim contacts onto the center line, keeping the tunnel wide enough for the capsule.
       const distance = hit.distance + radius * .27;
       const target = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance };
-      this.contact = { ...hit, layer: layer.name, protected: Math.abs(hit.x) >= 13.8 || Math.abs(hit.z) >= 13.8 || hit.y <= this.world.digFloor + .3 };
+      this.contact = { ...hit, layer: layer.name, protected: !this.world.canDig(hit.x,hit.y,hit.z,.2) };
       if (this.contact.protected) return;
       this.edited = this.world.carve(target, radius, amount) > 0; this.target = target;
       // Interpolation can leave a sliver at a rim probe after the centered brush saturates.

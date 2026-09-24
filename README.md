@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**Stonewright Sling, local 2.16.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Eastcut, local 2.17.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Recover the resonance engine, then buy Mara's Eastcut deed for $1,500. Claim 03 adds 384 square metres beside the eastern road, three connected caves and 348 minerals. Its markers and board show ownership. Walk there before buying; excavation requires the deed and leaves the common road intact.
+- Use your lamps, bombs, anchor, survey and freight in the new ground. The crane extends to an eastern depot, including shipments already moving when you buy. Both excavations and every old mineral ID survive saves. Loose surface throws remain reachable and save correctly above the old coordinate limits. See [docs/EASTCUT.md](docs/EASTCUT.md).
 
 - Find the Stonewright workshop around 134 m. Expose its two field coils, wake each with the resonator, then clear the frame and recover its sling with E. Otis offers a lead; F and M track the physical workshop. Its frame, coils and lamp fall together when undermined.
 - Tool 7 lifts existing loose minerals while you hold the trigger, then throws them on release. Fast impacts break armor and hurt creatures. Rock and machinery block movement; an amber field warns when the mineral catches. The same mineral remains collectible and valuable afterward. Grip cancellation, blast interruption and midflight saves preserve it. See [docs/STONEWRIGHT.md](docs/STONEWRIGHT.md).
@@ -103,6 +106,7 @@ node tools/simulate-combat.mjs
 node tools/simulate-journey.mjs --rescue
 node tools/simulate-journey.mjs --crawlers --foreman
 node tools/simulate-journey.mjs --kinetics --foreman
+node tools/simulate-journey.mjs --parcel
 node tools/build.mjs
 ```
 

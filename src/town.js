@@ -1,7 +1,7 @@
 /* Surface community, solid building boundaries and persistent conversations. */
 'use strict';
 (function (B) {
-  const SURFACE = Object.freeze({ minX: -58, maxX: 58, minZ: -50, maxZ: 68 });
+  const SURFACE = Object.freeze({ minX: -58, maxX: 58, minZ: -50, maxZ: 68, maxY: 48 });
   const PEOPLE = Object.freeze([
     { id: 'mara', name: 'Mara Vale', role: 'General supplies', shop: 'VALE SUPPLY', x: -9, z: 37.4, color: '#d39269', coat: '#426e65', skin: '#b87750' },
     { id: 'otis', name: 'Otis Bell', role: 'Machinery & modifications', shop: 'BELL WORKS', x: 19, z: 38.4, color: '#e5b45d', coat: '#b46c40', skin: '#d7ac7e' },
@@ -20,7 +20,7 @@
     else out.push([x0, 0, z0, b.x - 1.3, b.h, z0 + t], [b.x + 1.3, 0, z0, x1, b.h, z0 + t], [b.x - 1.3, 2.65, z0, b.x + 1.3, b.h, z0 + t]);
     return out;
   }
-  const FENCES = [[-21.1, 0, -21.1, -20.9, 1.9, -7], [-21.1, 0, -1, -20.9, 1.9, 21], [20.9, 0, -21, 21.1, 1.9, 1], [20.9, 0, 7, 21.1, 1.9, 21], [-21, 0, -21.1, -3, 1.9, -20.9], [3, 0, -21.1, 21, 1.9, -20.9]];
+  const FENCES = [[-21.1, 0, -21.1, -20.9, 1.9, -7], [-21.1, 0, -1, -20.9, 1.9, 21], [48.9, 0, -21, 49.1, 1.9, -1], [20.9, 0, 7, 21.1, 1.9, 21], [-21, 0, -21.1, -3, 1.9, -20.9], [3, 0, -21.1, 21, 1.9, -20.9]];
   // Segment/AABB test with open endpoints, so a target on a counter is visible.
   function blockedLine(a, b, boxes) {
     return boxes.some(box => {
@@ -34,18 +34,18 @@
     });
   }
   class Town {
-    constructor(progress) { this.progress = progress; this.state = progress.expedition.town ||= { version: 1, met: [], heard: [] }; }
+    constructor(progress, world) { this.world=world; this.progress = progress; this.state = progress.expedition.town ||= { version: 1, met: [], heard: [] }; }
     static validate(s, rescue) {
       if (!s || s.version !== 1 || !Array.isArray(s.met) || !Array.isArray(s.heard) || s.met.length > 3 || s.heard.length > 36 || s.met.some(id => !PEOPLE.some(p => p.id === id)) || new Set(s.met).size !== s.met.length || new Set(s.heard).size !== s.heard.length || s.heard.some(id => !/^(mara|otis|inez):(hello|first|refuge|cinder|flywheel|engine|heart|after|deep|stations|foreman|rescue)$/.test(id) || !s.met.includes(id.split(':')[0]))) throw new Error('Invalid town conversations.');
       if ((s.met.includes('inez') || s.heard.some(id => id.endsWith(':rescue'))) && rescue?.phase !== 'rescued') throw new Error('Surveyor has not returned to town.');
       return { version: 1, met: [...s.met], heard: [...s.heard] };
     }
     static obstacles() {
-      return [...BUILDINGS.flatMap(b => [...walls(b), [b.x - b.w / 2 - .4, b.h, b.z - b.d / 2 - .6, b.x + b.w / 2 + .4, b.h + .28, b.z + b.d / 2 + .5]]), ...PEOPLE.flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], ...(p.unlock ? [] : [[p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]])]), ...FENCES, [3.7, 0, 44.7, 6.3, .95, 47.3]];
+      return [...BUILDINGS.flatMap(b => [...walls(b), [b.x - b.w / 2 - .4, b.h, b.z - b.d / 2 - .6, b.x + b.w / 2 + .4, b.h + .28, b.z + b.d / 2 + .5]]), ...PEOPLE.flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], ...(p.unlock ? [] : [[p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]])]), ...FENCES, [30.25,0,-.8,30.55,2.5,-.4], [35.45,0,-.8,35.75,2.5,-.4], [30.2,1.05,-.7,35.8,2.3,-.5], [3.7, 0, 44.7, 6.3, .95, 47.3]];
     }
     people() { return PEOPLE.filter(p => !p.unlock || this.progress.expedition.rescue?.phase === 'rescued'); }
     residentObstacles() { return this.people().filter(p => p.unlock).map(p => [p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]); }
-    static region(p) { return p.y < -1 ? null : Math.abs(p.x) < 14 && Math.abs(p.z) < 14 ? 'Claim 02' : p.z > 27 && p.z < 60 && p.x > -31 && p.x < 30 ? 'Ridge Common' : 'Common land'; }
+    static region(p,world) { return p.y < -1 ? null : p.x>14 && p.x<46 && p.z>-14 && p.z< -2 ? world?.parcelVersion ? 'Eastcut / Claim 03' : 'Eastcut / deed at Vale Supply' : Math.abs(p.x) < 14 && Math.abs(p.z) < 14 ? 'Claim 02' : p.z > 27 && p.z < 60 && p.x > -31 && p.x < 30 ? 'Ridge Common' : 'Common land'; }
     target(player, world, obstacles = []) {
       if (player.y < -.5 || player.y > 2) return null;
       const a = player.head, d = player.direction;

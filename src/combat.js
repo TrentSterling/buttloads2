@@ -18,16 +18,17 @@
     static validate(s, world) {
       const finite = (n, min, max) => Number.isFinite(n) && n >= min && n <= max, integer = (n, min, max) => Number.isSafeInteger(n) && n >= min && n <= max;
       const vec = (p, speed = false) => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k])) && (speed ? Math.abs(Math.hypot(p.x, p.y, p.z) - 1) < 1e-5 : Math.abs(p.x) <= 14 && Math.abs(p.z) <= 14 && p.y >= world.floor + .4 && p.y <= -5);
+      const sighting=p=>p && ['x','y','z'].every(k=>Number.isFinite(p[k])) && world.owns(p.x,p.z,-.01) && p.y>=world.floor+.4 && p.y<=-5;
       if (!s || s.version !== 1 || !finite(s.health, .001, 100) || !finite(s.grace, 0, 3) || !integer(s.rescues, 0, 1e9) || !finite(s.weaponCooldown, 0, .68) || !finite(s.swing, 0, .19) || !Array.isArray(s.enemies) || s.enemies.length !== 3 || !Array.isArray(s.drops) || s.drops.length > 4) throw new Error('Invalid combat state.');
       const homes = Combat.sites(world), enemies = [];
       for (const [id, n] of s.enemies.entries()) {
-        if (!n || n.id !== id || !vec(n) || !finite(n.hp, 0, 60) || !PHASES.includes(n.phase) || (n.hp === 0) !== (n.phase === 'dead') || !finite(n.timer, 0, 5) || !finite(n.yaw, -Math.PI * 2, Math.PI * 2) || typeof n.known !== 'boolean' || !integer(n.reward, 0, 2) || n.hp > 0 && n.reward || !finite(n.alert, 0, 4) || n.lastSeen !== null && !vec(n.lastSeen) || !vec(n.direction, true)) throw new Error('Invalid cinder moth.');
+        if (!n || n.id !== id || !vec(n) || !finite(n.hp, 0, 60) || !PHASES.includes(n.phase) || (n.hp === 0) !== (n.phase === 'dead') || !finite(n.timer, 0, 5) || !finite(n.yaw, -Math.PI * 2, Math.PI * 2) || typeof n.known !== 'boolean' || !integer(n.reward, 0, 2) || n.hp > 0 && n.reward || !finite(n.alert, 0, 4) || n.lastSeen !== null && !sighting(n.lastSeen) || !vec(n.direction, true)) throw new Error('Invalid cinder moth.');
         if (n.phase === 'buried' ? n.hp !== 60 || n.known || distance(n, homes[id]) > 1e-6 : n.hp > 0 && BODY.some(p => world.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Cinder moth is inside terrain.');
         enemies.push({ id, ...point(n), hp: n.hp, phase: n.phase, timer: n.timer, yaw: n.yaw, known: n.known, reward: n.reward, alert: n.alert, lastSeen: n.lastSeen ? point(n.lastSeen) : null, direction: point(n.direction) });
       }
       const ids = new Set(), drops = [];
       for (const n of s.drops) {
-        if (!n || !integer(n.id, 0, 3) || ids.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 14 || Math.abs(n.z) > 14 || n.y < world.floor || n.y > 3 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25) || !Array.isArray(n.cargo) || n.cargo.length !== B.ORES.length || n.cargo.some(n => !integer(n, 0, 1e9))) throw new Error('Invalid recovery cache.');
+        if (!n || !integer(n.id, 0, 3) || ids.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || n.x < B.SURFACE.minX || n.x > B.SURFACE.maxX || n.z < B.SURFACE.minZ || n.z > B.SURFACE.maxZ || n.y < world.floor || n.y > 3 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25) || !Array.isArray(n.cargo) || n.cargo.length !== B.ORES.length || n.cargo.some(n => !integer(n, 0, 1e9))) throw new Error('Invalid recovery cache.');
         if (n.id === 3 ? n.charges !== 0 || !n.cargo.some(n => n > 0) : !integer(n.charges, 1, 2) || n.cargo.some(n => n) || enemies[n.id].hp !== 0 || enemies[n.id].reward !== n.charges) throw new Error('Invalid recovered supplies.');
         if (DROP.some(p => world.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Recovery cache is inside terrain.');
         ids.add(n.id); drops.push({ id: n.id, ...point(n), vx: n.vx, vy: n.vy, vz: n.vz, charges: n.charges, cargo: [...n.cargo] });

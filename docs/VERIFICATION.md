@@ -1,5 +1,39 @@
 # Remake verification
 
+## Eastcut, local 2.17.0
+
+Adds a purchasable neighboring claim with separate persistent terrain, three connected caves, 348 appended minerals, ownership boundaries, an extended freight route and wider equipment/chart/save support. Surface throws now stay inside reachable bounds and save correctly above the old coordinate limits. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 248 system checks passed
+COMPLETE 14 parcel checks passed
+
+node tools/simulate-journey.mjs --parcel
+Upper campaign completed: 253.3 simulated seconds
+Deed earned and purchased: 265.3
+Town equipment purchased: 281.1
+Eastcut mineral collected: 300.0
+Cave, lamp and anchor reloaded: 302.1
+Freight shipment reloaded: 302.3
+Freight delivered: 313.3
+Haul sold and return anchor used: 325.2
+COMPLETE Eastcut journey
+COMPLETE fresh-claim journey
+
+node tools/build.mjs
+Standalone build: dist/index.html (1101 KiB)
+PASS standalone: 45 scripts compile; no external scripts or stylesheets.
+```
+
+The suite and fresh journey passed against the final gameplay code. The portable package was then built and its version checked. Logs: `tools/out/verification-2.17-final.log`, `tools/out/journey-parcel-final.log` and `tools/out/journey-parcel.json`. The new focused suite covers preservation, concurrency, rollback, full-body connected cave routes across three seeds, incremental/cold mesh parity across the join, protected roads/rim/floor, ore gravity and sale identity, equipment and survey reloads, corrupt fields, freight, recovery caches, legacy imports, purchase during a shipment and outward/upward throws.
+
+The complete journey earns all cash and equipment through production gameplay. It walks into both shops, buys the deed and machinery, excavates the new mine and crane shaft, saves physical equipment and a shipment, sells once and returns to its anchor. No fixture cuts, free resources or direct teleports are used. Coordinate knowledge makes the duration unsuitable as a human completion-time estimate.
+
+The first freight fixture did not clear enough floor around its dock; a properly excavated bay passed without weakening clearance rules. Review also found that resuming during asynchronous purchase could permit stale transactions. Purchase now suspends readiness until construction finishes, and the suite checks Escape and a stale supply callback. A throw beyond the original save-coordinate envelope is covered by the reachable-surface bounds and reload/collect regression.
+
+An offline projection inspected 23,597 actual scene triangles for the surface layout. It omits shader grain, shadows, texture text and WebGL behavior. No browser or OS input automation was used. Human appearance, audio, aiming and pacing remain unverified. EASTCUT.md records the implementation and limits.
+
 ## Stonewright Sling, local 2.16.0
 
 Adds a physical buried workshop, two resonator-operated field coils and a recoverable mineral sling. The tool lifts and throws existing loose ore through the terrain, equipment and creature collision systems. Fast impacts fracture armor; thrown minerals retain their identity and value. The published site remains 2.8.0.

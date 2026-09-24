@@ -2,8 +2,10 @@
 (function (B) {
   const { WORLD: W, clamp, RELICS } = B;
   class World {
-    constructor(seed, generation = 0, depthVersion = 0) {
+    constructor(seed, generation = 0, depthVersion = 0, parcelVersion = 0) {
       if (!B.DEPTHS[depthVersion] || !Number.isInteger(depthVersion)) throw new Error('Unsupported mine depth.');
+      if (![0,1].includes(parcelVersion) || parcelVersion && !depthVersion) throw new Error('Unsupported neighboring claim.');
+      this.parcelVersion=parcelVersion;this.parcelTerrain=parcelVersion?new B.ParcelTerrain(seed):null;this.parcelField=this.parcelTerrain?.field() || null;
       this.seed = seed; this.generation = generation; this.depthVersion = depthVersion; this.deepOpen = false; this.caverns = new B.Caverns(seed, generation); this.deepTerrain = depthVersion ? new B.DeepTerrain(seed) : null; this.nx = 65; this.ny = B.DEPTHS[depthVersion].ny; this.nz = 65;
       this.field = new Float32Array(this.nx * this.ny * this.nz);
       this.kernel = B.createMesher(); this.chunks = new Map(); this.revision = 0;
@@ -16,6 +18,14 @@
     get floor() { return B.DEPTHS[this.depthVersion || 0].floor; }
     get digFloor() { return this.depthVersion && !this.deepOpen ? W.floor : this.floor; }
     get minChunkY() { return this.bottom / W.size; }
+    get maxChunkX() { return this.parcelVersion?5:1; }
+    owns(x,z,margin=0) { return B.claimContains(this.parcelVersion,x,z,margin); }
+    floorAt(x,z) { return this.parcelVersion && x>=14 ? B.EASTCUT.floor : this.digFloor; }
+    canDig(x,y,z,margin=0) { return this.owns(x,z,margin) && y>this.floorAt(x,z)+margin; }
+    installParcelField(field) {
+      if(!this.parcelVersion || !(field instanceof Float32Array) || field.length!==this.parcelField.length)throw Error('Invalid neighboring terrain extent.');
+      this.parcelField.set(field);
+    }
     installField(field, depthVersion = 0) {
       const source = B.DEPTHS[depthVersion]; if (!source || field.length !== this.nx * source.ny * this.nz || source.bottom < this.bottom) throw new Error('Invalid terrain extent.');
       const offset = (source.bottom - this.bottom) * 2;
@@ -28,6 +38,7 @@
       return field;
     }
     base(x, y, z) {
+      if(x>16 && this.parcelTerrain)return this.parcelTerrain.density(x,y,z);
       if (y < -80) return clamp(this.deepTerrain?.density(x, y, z) ?? -2, -2, 2);
       let density = y;
       for (const r of RELICS) { const cave = 3.3 - Math.hypot((x - r.x) * .9, (y - r.y - 1.1) * 1.1, (z - r.z) * .9); density = Math.max(density, cave); }
@@ -41,6 +52,7 @@
       for (let z = 0; z < this.nz; z++) for (let y = 0; y < this.ny; y++) for (let x = 0; x < this.nx; x++) this.field[this.index(x, y, z)] = this.base(W.min + x * .5, this.bottom + y * .5, W.min + z * .5);
     }
     sample(x, y, z) {
+      if(this.parcelVersion && x>=65 && x<129 && z>=0 && z<65){const py=y+(this.bottom+80)*2;if(py>=0 && py<165)return this.parcelField[x-65+64*(py+165*z)];}
       if (x < 0 || x >= this.nx || y < 0 || y >= this.ny || z < 0 || z >= this.nz) return clamp(this.bottom + y * .5, -2, 2);
       return this.field[this.index(x, y, z)];
     }
@@ -87,7 +99,8 @@
     }
     async build(progress = () => {}) {
       const jobs = [];
-      for (let cy = -1; cy >= this.minChunkY; cy--) for (let cz = -2; cz < 2; cz++) for (let cx = -2; cx < 2; cx++) {
+      for (let cy = -1; cy >= this.minChunkY; cy--) for (let cz = -2; cz < 2; cz++) for (let cx = -2; cx <= this.maxChunkX; cx++) {
+        if(cx>=2 && cy<-10)continue;
         const samples = this.samplesFor(cx, cy, cz); let positive = false, negative = false;
         for (const v of samples) { if (v < 0) negative = true; else positive = true; if (positive && negative) break; }
         if (positive && negative) jobs.push({ cx, cy, cz, samples });
@@ -123,23 +136,23 @@
     }
     carve(p, radius, strength = Infinity) {
       const begin = performance.now();
-      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, this.bottom, W.min], dims = [this.nx, this.ny, this.nz];
+      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, this.bottom, W.min], dims = [this.parcelVersion?129:this.nx, this.ny, this.nz];
       for (let k = 0; k < 3; k++) { lo[k] = clamp(Math.floor((lo[k] - base[k]) * 2), 0, dims[k] - 1); hi[k] = clamp(Math.ceil((hi[k] - base[k]) * 2), 0, dims[k] - 1); }
       let changed = 0; const dirty = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
       for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
         const wx = W.min + x * .5, wy = this.bottom + y * .5, wz = W.min + z * .5;
-        if (Math.abs(wx) >= W.limit || Math.abs(wz) >= W.limit || wy <= this.digFloor) continue;
+        if (!this.canDig(wx,wy,wz)) continue;
         const distance = Math.hypot(wx - p.x, wy - p.y, wz - p.z); if (distance >= radius) continue;
-        const id = this.index(x, y, z), target = radius - distance, value = Math.fround(Math.max(this.field[id], Math.min(target, this.field[id] + strength)));
-        if (value <= this.field[id] + 1e-7) continue;
-        this.field[id] = value; changed++;
+        const field=x>=65?this.parcelField:this.field,id=x>=65?x-65+64*(y+(this.bottom+80)*2+165*z):this.index(x,y,z),target=radius-distance,value=Math.fround(Math.max(field[id],Math.min(target,field[id]+strength)));
+        if (value <= field[id] + 1e-7) continue;
+        field[id] = value; changed++;
         dirty[0] = Math.min(dirty[0], x); dirty[1] = Math.min(dirty[1], y); dirty[2] = Math.min(dirty[2], z); dirty[3] = Math.max(dirty[3], x); dirty[4] = Math.max(dirty[4], y); dirty[5] = Math.max(dirty[5], z);
       }
       if (!changed) return 0;
       this.revision++;
       // Include the sample halo of every affected chunk, including corners.
       const min = [Math.max(-2, Math.floor((dirty[0] - 33) / 16)), Math.max(this.minChunkY, Math.floor((dirty[1] + this.bottom * 2 - 1) / 16)), Math.max(-2, Math.floor((dirty[2] - 33) / 16))];
-      const max = [Math.min(1, Math.floor((dirty[3] - 31) / 16)), Math.min(-1, Math.floor((dirty[4] + this.bottom * 2 + 1) / 16)), Math.min(1, Math.floor((dirty[5] - 31) / 16))];
+      const max = [Math.min(this.maxChunkX, Math.floor((dirty[3] - 31) / 16)), Math.min(-1, Math.floor((dirty[4] + this.bottom * 2 + 1) / 16)), Math.min(1, Math.floor((dirty[5] - 31) / 16))];
       for (let cz = min[2]; cz <= max[2]; cz++) for (let cy = min[1]; cy <= max[1]; cy++) for (let cx = min[0]; cx <= max[0]; cx++) {
         const key = `${cx},${cy},${cz}`; let rec = this.chunks.get(key);
         if (!rec) { this.adopt(cx, cy, cz, this.kernel.build([cx * 8, cy * 8, cz * 8], this.samplesFor(cx, cy, cz))); continue; }

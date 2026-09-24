@@ -26,10 +26,11 @@
         const button = document.createElement('button'); button.className = 'town-service'; button.disabled = disabled;
         const label = document.createElement('strong'), copy = document.createElement('span'), cost = document.createElement('b');
         label.textContent = title; copy.textContent = detail; cost.textContent = price; button.append(label); button.append(copy); button.append(cost);
-        button.onclick = () => { if (g.screen !== 'town' || g.town.target(g.player, g.world, g.view.obstacles)?.id !== person.id) return; action(); this.refresh(); };
+        button.onclick = () => { if (!g.ready || g.parcelPurchase || g.screen !== 'town' || g.town.target(g.player, g.world, g.view.obstacles)?.id !== person.id) return; const result=action();if(result?.then)return result.then(()=>this.refresh());this.refresh(); };
         $('town-services').append(button);
       };
       if (person.id === 'mara') {
+        add('Eastcut deed', g.world.parcelVersion ? 'Claim 03 is yours: 32 x 12 m, north of the eastern road.' : !s.expedition.recovered.includes(1) ? 'Recover the resonance engine to qualify. A neighboring mine with richer seams.' : 'Own 384 square metres beside your yard. Caves, richer seams and room for freight.', g.world.parcelVersion ? 'Owned' : g.parcelPurchase ? 'Preparing' : '$1,500', !!g.world.parcelVersion || g.parcelPurchase || !s.expedition.recovered.includes(1) || s.cash<B.EASTCUT.price, () => g.buyParcel());
         add('Three charges', 'Shared by blast, remote and bore tools', '$32', s.cash < 32 || s.expedition.supplies.bombs > 96, () => g.restock('bomb'));
         add('Six work lights', 'Place with V. Aim and E to retrieve.', '$24', s.cash < 24 || s.expedition.supplies.lights > 93, () => g.restock('lamp'));
         add('Sell your haul', `${g.economy.saleCount} minerals, including delivered freight`, money(g.economy.saleValue), !g.economy.saleCount, () => g.sell());

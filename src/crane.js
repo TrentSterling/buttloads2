@@ -2,19 +2,20 @@
 'use strict';
 (function (B) {
   const T = THREE, V = T.Vector3;
-  B.View.prototype.makeFreight = function () {
+  B.View.prototype.makeFreight = function (game) {
+    const right=game?.world.parcelVersion?46.7:14.7,center=(right-14.7)/2;
     const p = this.palette, root = this.freightModel = new T.Group(); this.discovery.add(root);
     this.craneRail = new T.Group(); root.add(this.craneRail);
-    for (const x of [-14.7, 14.7]) {
+    for (const x of [-14.7, right]) {
       this.box(this.craneRail, x, .14, 0, 1, .28, 1.3, p.concrete);
       for (const z of [-.22, .22]) this.box(this.craneRail, x, 2.2, z, .22, 4.4, .18, p.yellow);
       for (let y = .4; y < 4; y += .7) this.box(this.craneRail, x, y, 0, .26, .07, .6, p.black);
     }
-    for (const y of [4.15, 4.5]) this.box(this.craneRail, 0, y, 0, 29.8, .15, .35, p.yellow);
-    for (let x = -14.6; x < 14.7; x += .65) this.box(this.craneRail, x, 4.32, 0, .07, .3, .27, p.metal);
+    for (const y of [4.15, 4.5]) this.box(this.craneRail, center, y, 0, right+15.1, .15, .35, p.yellow);
+    for (let x = -14.6; x < right; x += .65) this.box(this.craneRail, x, 4.32, 0, .07, .3, .27, p.metal);
     this.sign(this.craneRail, 'FREIGHT / 02', 'AUTOMATIC YARD TRANSFER', 0, 4.8, .2, 3.8, .48, 0);
-    this.box(this.craneRail, 15.6, 1, 0, 1.3, 2, 1.4, p.dark);
-    this.sign(this.craneRail, 'YARD DEPOT', 'SELL AT THE HOPPER', 15.6, 1.8, .71, 1.2, .4, 0);
+    this.box(this.craneRail, right+.9, 1, 0, 1.3, 2, 1.4, p.dark);
+    this.sign(this.craneRail, 'YARD DEPOT', 'SELL AT THE HOPPER', right+.9, 1.8, .71, 1.2, .4, 0);
     this.craneTrolley = new T.Group(); this.craneRail.add(this.craneTrolley);
     this.box(this.craneTrolley, 0, 4, 0, .9, .3, .75, p.red);
     this.cylinder(this.craneTrolley, 0, 3.88, 0, .22, .22, .5, p.metal).rotation.x = Math.PI / 2;

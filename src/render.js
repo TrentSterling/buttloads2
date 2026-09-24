@@ -43,13 +43,13 @@
       const g = new T.Group(), p = this.palette; this.scene.add(g);
       const box = (...args) => this.box(g, ...args), cylinder = (...args) => this.cylinder(g, ...args);
       // Four strips; there is deliberately no uneditable floor under the claim.
-      box(0, -.2, 75, 200, .4, 118, p.grass); box(0, -.2, -75, 200, .4, 118, p.grass); box(-75, -.2, 0, 118, .4, 32, p.grass); box(75, -.2, 0, 118, .4, 32, p.grass);
+      box(0, -.2, 75, 200, .4, 118, p.grass); box(0, -.2, -75, 200, .4, 118, p.grass); box(-75, -.2, 0, 118, .4, 32, p.grass); box(91, -.2, 0, 86, .4, 32, p.grass);
       // Raised apron: its top no longer shares the grass plane at y=0.
       box(0, -.045, 18.8, 40, .16, 5.6, p.concrete);
       for (let i = -14; i <= 14; i += 2) for (const z of [-14.1, 14.1]) { const b = box(i, .045, z, .9, .08, .16, i % 4 === 0 ? p.yellow : p.black); }
-      for (let i = -14; i <= 14; i += 2) for (const x of [-14.1, 14.1]) box(x, .045, i, .16, .08, .9, i % 4 === 0 ? p.yellow : p.black);
+      for (let i = -14; i <= 14; i += 2) for (const x of [-14.1]) box(x, .045, i, .16, .08, .9, i % 4 === 0 ? p.yellow : p.black);
       for (let i = -20; i <= 20; i += 2) {
-        for (const x of [-21, 21]) { if (x < 0 ? i > -8 && i < 0 : i > 0 && i < 8) continue; box(x, .95, i, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(x, h, i, .09, .15, 2.1, p.wood); }
+        for (const x of [-21, i<0?49:21]) { if (x < 0 ? i > -8 && i < 0 : i > 0 && i < 8) continue; box(x, .95, i, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(x, h, i, .09, .15, 2.1, p.wood); }
         if (i > -4 && i < 4) continue;
         box(i, .95, -21, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(i, h, -21, 2.1, .15, .09, p.wood);
       }
@@ -79,6 +79,7 @@
       for (let i = 0; i < 48; i++) {
         const a = rng() * Math.PI * 2, r = 28 + rng() * 48, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 3 + rng() * 5;
         if (z > 23 && x > -32 && x < 31 || Math.abs(z - 4) < 3 || Math.abs(z + 4) < 3 || Math.abs(x) < 3) continue;
+        if(x>16 && x<48 && z>-16 && z< -2){for(let j=0;j<15;j++)rng();continue;}
         if (x > B.SURFACE.minX && x < B.SURFACE.maxX && z > B.SURFACE.minZ && z < B.SURFACE.maxZ) this.obstacles.push([x - .24, 0, z - .24, x + .24, h * .9, z + .24]);
         cylinder(x, h * .45, z, .13, .27, h * .9, p.wood, 7);
         for (let j = 0; j < 3; j++) { const m = new T.Mesh(new T.IcosahedronGeometry(1, 0), p.leaf); m.scale.set(2.2 + rng(), 2 + rng(), 2 + rng()); m.position.set(x + (rng() - .5) * 2, h - j * .5, z + (rng() - .5) * 2); m.castShadow = true; g.add(m); }
@@ -189,7 +190,7 @@
       if (moving) this.rotor.rotation.z += dt * (fire ? 35 : .5); this.tool.position.y = -.30 + Math.sin(time * 8) * (this.settings.motion && Math.hypot(p.vx, p.vz) > .5 ? .006 : 0); this.tool.position.x = .34 + Math.sin(time * 77) * shake;
       this.needle.rotation.z = fire ? -.6 + (moving ? Math.sin(time * 35) * .15 : 0) : .7;
       if (game.expedition) this.renderExpedition(game, dt, time);
-      this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time); this.renderDeep(game, time); this.renderForeman(game, time); this.renderRescue(game, time); this.renderCrawlers(game, time); this.renderKinetics(game, time);
+      this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time); this.renderDeep(game, time); this.renderForeman(game, time); this.renderRescue(game, time); this.renderCrawlers(game, time); this.renderKinetics(game, time); this.renderParcel(game);
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);

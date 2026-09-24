@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Eastcut (local 2.17.0)
+
+Mara sells a neighboring 384 square metre mining parcel after engine recovery. It has three connected natural chambers, 348 appended minerals, persistent terrain, ownership markers and a freight extension. Buying retains the original field and mineral IDs, including live cargo shipments. Both chart panes, lamps, explosives, return anchors and lost-cargo recovery use the wider claim. Surface throws now remain within reachable boundaries and have matching save limits. EASTCUT.md records the architecture and production journey. More resident roles, discoveries and visual/feel review remain in the expansion plan.
+
 ### Stonewright Sling (local 2.16.0)
 
 A physical workshop around 134 m offers another discovery with a permanent equipment reward. Uncover and resonate its two coils, then recover the mineral sling. Holding the trigger lifts a real loose mineral; release throws it through the existing terrain and combat systems. Impacts can break armor, and the same mineral remains collectible afterward. The frame falls if undermined, old terrain remains exact, and saved projectiles retain their identity. STONEWRIGHT.md records controls, collision, persistence and verification. The broader surface, resident, discovery and visual-review work remains in BEAUTY-DEPTH-COMBAT-PLAN.md.

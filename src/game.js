@@ -32,17 +32,18 @@
     }
     async install(data) {
       $('loading').hidden = false; $('loading-progress').value = 0;
-      const state = data ? data.state : B.freshState(), world = new B.World(state.seed, data ? data.generation : B.CAVE_VERSION, B.DEPTH_VERSION);
+      const state = data ? data.state : B.freshState(), world = new B.World(state.seed, data ? data.generation : B.CAVE_VERSION, B.DEPTH_VERSION, data?.parcelVersion || 0);
       world.deepOpen = !!state.expedition.deep?.open;
       if (data) world.installField(data.field, data.depthVersion);
+      if(data?.parcelVersion)world.installParcelField(data.parcelField);
       await world.build(progress => { $('loading-progress').value = progress; });
       if (!data) world.carve({ x: 0, y: -.12, z: 7 }, 1.35);
-      const deposits = B.generateDeposits(state.seed, world.depthVersion), collected = new Set(data?.collected || []);
+      const deposits = B.generateDeposits(state.seed, world.depthVersion, world.parcelVersion), collected = new Set(data?.collected || []);
       for (const node of deposits.nodes) node.collected = collected.has(node.id);
       // Everything above is staged. The live state is replaced only after construction succeeds.
       this.clearInput(); this.world = world; this.deposits = deposits; this.orePhysics = new B.OreSystem(world, deposits.nodes, data?.loose || []); this.index = this.orePhysics.index; this.economy = new B.Economy(state); this.player = new B.Player(world); this.cutter = new B.Cutter(world);
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
-      this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
+      this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state,world); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
       this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat); this.kinetics = new B.Kinetics(world,state,this.orePhysics,this.combat);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
@@ -50,11 +51,23 @@
       this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(this); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.makeParcel(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
       this.ready = true; this.changed(); this.syncSettings(); this.updateHUD(); $('loading').hidden = true;
+    }
+    async buyParcel() {
+      if(this.parcelPurchase || this.world.parcelVersion || this.screen!=='town' || this.townUI.person?.id!=='mara' || this.town.target(this.player,this.world,this.view.obstacles)?.id!=='mara' || !this.expedition.state.recovered.includes(1) || this.economy.state.cash<B.EASTCUT.price)return false;
+      this.clearInput();const previous=B.Saves.snapshot(this),next=structuredClone(previous);this.parcelPurchase=true;this.ready=false;
+      try {
+        next.state.cash-=B.EASTCUT.price;next.parcelVersion=1;next.parcelField=new B.ParcelTerrain(next.state.seed).field();
+        await this.install(B.Saves.validate(next));this.townUI.open('mara');this.changed();this.save();
+        $('town-dialogue').textContent='Eastcut is yours. North of the eastern road, beyond your old yellow markers. Iron near the top, silver through the old passages, gold below. The road stays common land. Your crane can now span both claims.';
+        this.toast('Claim 03 acquired. Eastcut is open for excavation.');return true;
+      } catch(error) {
+        await this.install(B.Saves.validate(previous));this.townUI.open('mara');this.toast('The purchase was not completed: '+error.message);return false;
+      } finally {this.parcelPurchase=false;this.ready=true;$('loading').hidden=true;}
     }
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
@@ -321,7 +334,7 @@
       this.updateCombatHUD();
       const cavern = this.world.caverns.networks.find(n => Math.hypot(this.player.x - n.x, this.player.head.y - n.y, this.player.z - n.z) < 4);
       $('cash').textContent = money(s.cash); $('cargo').innerHTML = `${e.count} <small>/ ${e.capacity}</small>`; $('cargo-value').textContent = money(e.value); $('cargo-bar').style.width = `${e.count / e.capacity * 100}%`;
-      document.body.classList.toggle('cargo-full', full); $('depth').innerHTML = `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`; $('depth-marker').style.top = `${B.clamp(-this.player.y / -this.world.floor, 0, 1) * 100}%`; $('layer').textContent = (B.Town.region(this.player) || cavern?.name || B.geology(this.player.y).name).toUpperCase();
+      document.body.classList.toggle('cargo-full', full); $('depth').innerHTML = `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`; $('depth-marker').style.top = `${B.clamp(-this.player.y / -this.world.floor, 0, 1) * 100}%`; $('layer').textContent = (B.Town.region(this.player,this.world) || cavern?.name || B.geology(this.player.y).name).toUpperCase();
       const exp = this.expedition, target = this.mysteries.target() || this.deep.target() || exp.target(), t = B.TOOLS[exp.state.tool];
       let title = this.mysteries.target() ? 'UNUSUAL SIGNAL' : exp.state.awakened ? 'AFTER THE AWAKENING' : 'RECOVERY LEAD', objective = `${target.name} · ${Math.max(0, Math.round(-target.y))} m down · F to prospect`;
       if (exp.tether !== null) { title = exp.snagged ? 'LOAD CAUGHT' : 'HEAVY LIFT'; objective = exp.snagged ? exp.obstruction ? 'Cut the rock at the orange marker. E releases the tether.' : 'Widen the shaft around the load. E releases the tether.' : 'Lift the machine above ground. Keep the cable route clear.'; }
@@ -355,7 +368,7 @@
       if (this.input.aim === 'freight') { $('throw-hint').hidden = false; $('throw-hint').textContent = this.freightPreview?.reason || (this.freightPreview?.obstruction ? 'Release to place / shaft needs excavation' : 'Release to place / freight route clear'); }
       document.body.classList.toggle('awakened', exp.state.awakened);
       const action = this.interaction(); $('interaction').hidden = !action || !!this.recallTime; if (action) $('interaction').innerHTML = `${action.locked ? '' : '<kbd>E</kbd>'}${action.label}`;
-      $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.digFloor + .3 ? this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
+      $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.floorAt(this.cutter.contact.x,this.cutter.contact.z) + .3 ? this.world.parcelVersion && this.cutter.contact.x>=14 ? 'Eastcut bedrock / Claim 02 continues deeper' : this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
       $('crosshair').classList.toggle('cutting', this.cutter.edited); $('scanner').hidden = this.scanUntil <= this.clock;
       if(exp.state.tool==='sling' && this.kinetics.state.held!==null && this.kinetics.obstruction)$('contact').textContent=this.kinetics.hint();
       this.fieldKit?.sync();

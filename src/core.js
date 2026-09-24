@@ -78,7 +78,7 @@ globalThis.B2 = globalThis.B2 || {};
     if (depth < 266) return { name: 'The old foundry', resistance: 10, color: [72, 76, 85] };
     return { name: 'The furnace roots', resistance: 11, color: [98, 59, 48] };
   }
-  function generateDeposits(seed, depthVersion = 0) {
+  function generateDeposits(seed, depthVersion = 0, parcelVersion = 0) {
     const rng = random(seed ^ 0x9e3779b9), nodes = [], veins = [];
     const add = (x, y, z, kind, vein) => nodes.push({ id: nodes.length, x, y, z, kind, vein, radius: .18 + rng() * .15, collected: false });
     // A readable first seam directly in front of the spawn; enough for an upgrade.
@@ -121,6 +121,7 @@ globalThis.B2 = globalThis.B2 || {};
       for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; add(stone.x + Math.cos(a) * .85, stone.y - .7, stone.z + Math.sin(a) * .85, stone.kind, id); }
     }
     if (depthVersion) B.appendDeepDeposits(seed, nodes, veins);
+    if (parcelVersion) B.appendParcelDeposits(seed, nodes, veins);
     return { nodes, veins };
   }
   class SpatialIndex {

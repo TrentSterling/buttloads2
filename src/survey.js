@@ -2,12 +2,13 @@
 'use strict';
 (function (B) {
   const N = 32, LEVELS = 74, COUNT = N * N * LEVELS;
+  const PARCEL_OFFSET=N*N*298;
   const SITE_KEYS = ['s0', 's1', 'r0', 'r1', 'r2', 'heart', 'v0', 'v1', 'v2'];
-  const point = id => ({ x: id % N - 15.5, y: -Math.floor(id / (N * N)) - .5, z: Math.floor(id / N) % N - 15.5 });
-  const cell = (x, depth, z) => x + N * z + N * N * depth;
+  const point = id => {const east=id>=PARCEL_OFFSET;if(east)id-=PARCEL_OFFSET;return {x:id%N-15.5+(east?32:0),y:-Math.floor(id/(N*N))-.5,z:Math.floor(id/N)%N-15.5};};
+  const cell = (x, depth, z) => x>=32?PARCEL_OFFSET+x-32+N*z+N*N*depth:x+N*z+N*N*depth;
   class Survey {
     constructor(world, state, deposits, expedition) {
-      this.maxDepth = -world.floor; this.count = N * N * (this.maxDepth + 1); this.world = world; this.state = state; this.deposits = deposits; this.expedition = expedition;
+      this.maxDepth = -world.floor; this.columns=world.parcelVersion?64:32;this.count = N * N * (this.maxDepth + 1)+(world.parcelVersion?COUNT:0); this.world = world; this.state = state; this.deposits = deposits; this.expedition = expedition;
       const fresh = !state.expedition.survey;
       this.data = state.expedition.survey ||= { version: 1, cells: [], ore: [], sites: [] };
       this.cells = new Set(this.data.cells); this.ore = new Set(this.data.ore); this.knownSites = new Set(this.data.sites);
@@ -17,21 +18,22 @@
         // Existing claims can recover their own excavations without exposing untouched caves.
         for (let id = N * N; id < this.count; id++) { const p = point(id); if (world.density(p.x, p.y, p.z) >= 0 && world.base(p.x, p.y, p.z) < 0) this.mark(id); }
       }
+      if(world.parcelVersion)for(let z=0;z<N;z++)for(let x=32;x<64;x++)this.mark(cell(x,0,z));
       const before = world.onEdit;
       world.onEdit = (p, radius) => { before(p, radius); this.revealCut(p, radius); };
     }
     static validate(data, oreCount, world) {
-      const count = N * N * (-(world?.floor ?? B.WORLD.floor) + 1);
+      const count = N * N * (-(world?.floor ?? B.WORLD.floor) + 1)+(world?.parcelVersion?COUNT:0);
       if (!data || data.version !== 1) throw new Error('Invalid mine survey.');
       const list = (key, valid, max) => { const a = data[key]; if (!Array.isArray(a) || a.length > max || new Set(a).size !== a.length || a.some(v => !valid(v))) throw new Error('Invalid survey ' + key + '.'); return [...a]; };
       return { version: 1, cells: list('cells', v => Number.isInteger(v) && v >= 0 && v < count, count), ore: list('ore', v => Number.isInteger(v) && v >= 0 && v < oreCount, oreCount), sites: list('sites', v => SITE_KEYS.includes(v), SITE_KEYS.length) };
     }
     mark(id) { if (this.cells.has(id)) return; this.cells.add(id); this.data.cells.push(id); this.revision++; }
     box(p, radius, visit) {
-      const xmin = Math.max(0, Math.floor(p.x - radius + 16)), xmax = Math.min(31, Math.floor(p.x + radius + 16));
+      const xmin = Math.max(0, Math.floor(p.x - radius + 16)), xmax = Math.min(this.columns-1, Math.floor(p.x + radius + 16));
       const zmin = Math.max(0, Math.floor(p.z - radius + 16)), zmax = Math.min(31, Math.floor(p.z + radius + 16));
       const ymin = Math.max(0, Math.floor(-p.y - radius)), ymax = Math.min(this.maxDepth, Math.floor(-p.y + radius));
-      for (let d = ymin; d <= ymax; d++) for (let z = zmin; z <= zmax; z++) for (let x = xmin; x <= xmax; x++) { const id = cell(x, d, z); if (!this.cells.has(id)) visit(id, point(id)); }
+      for (let d = ymin; d <= ymax; d++) for (let z = zmin; z <= zmax; z++) for (let x = xmin; x <= xmax; x++) { if(x>=32 && d>=LEVELS)continue;const id = cell(x, d, z); if (!this.cells.has(id)) visit(id, point(id)); }
     }
     revealCut(p, radius) { this.box(p, radius + .7, (id, q) => { if (Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) <= radius + .7) this.mark(id); }); }
     sites() {
@@ -55,8 +57,8 @@
       found.forEach(p => this.remember(p)); return found;
     }
     slice(depth) {
-      const d = B.clamp(Math.round(depth), 0, this.maxDepth), out = new Uint8Array(N * N);
-      for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const id = cell(x, d, z); if (!this.cells.has(id)) continue; const p = point(id); out[x + z * N] = this.world.density(p.x, p.y, p.z) >= 0 ? 2 : 1; }
+      const d = B.clamp(Math.round(depth), 0, this.maxDepth), out = new Uint8Array(this.columns * N);
+      for (let z = 0; z < N; z++) for (let x = 0; x < this.columns; x++) {if(x>=32 && d>=LEVELS)continue; const id = cell(x, d, z); if (!this.cells.has(id)) continue; const p = point(id); out[x + z * this.columns] = this.world.density(p.x, p.y, p.z) >= 0 ? 2 : 1; }
       return out;
     }
     markers(game) {
@@ -79,11 +81,15 @@
     }
     render(depth, game) {
       const d = B.clamp(Math.round(depth), 0, this.maxDepth), tiles = this.slice(d), markers = this.markers(game), paths = ['', '', ''];
-      const xy = p => ({ x: B.clamp((p.x + 16) * 20 + 32, 32, 672), y: B.clamp((p.z + 16) * 20 + 32, 32, 672) });
-      for (let i = 0; i < tiles.length; i++) if (tiles[i]) paths[tiles[i]] += `M${32 + i % 32 * 20},${32 + Math.floor(i / 32) * 20}h20v20h-20z`;
+      const cols=this.columns,unit=640/cols,top=32+(640-32*unit)/2;
+      const xy = p => ({ x: B.clamp((p.x + 16) * unit + 32, 32, 672), y: B.clamp((p.z + 16) * unit + top, top, top+32*unit) });
+      for (let i = 0; i < tiles.length; i++) if (tiles[i]) paths[tiles[i]] += `M${32 + i % cols * unit},${top + Math.floor(i / cols) * unit}h${unit}v${unit}h${-unit}z`;
       let map = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 704 704" role="img" aria-label="Surveyed tunnels at ${d} meters"><rect width="704" height="704" fill="#101b1b"/><path d="${paths[1]}" fill="#35413a"/><path d="${paths[2]}" fill="#768d7c"/>`;
-      for (let i = 0; i <= 8; i++) { const n = 32 + i * 80; map += `<path d="M32 ${n}H672M${n} 32V672" stroke="#b6d0b7" stroke-opacity=".08" fill="none"/>`; }
-      map += '<rect x="72" y="72" width="560" height="560" fill="none" stroke="#edbe60" stroke-opacity=".45" stroke-dasharray="9 7"/><g fill="#b8cbbd" font-family="Consolas,monospace" font-size="13"><text x="348" y="21">N</text><text x="348" y="697">S</text><text x="9" y="359">W</text><text x="684" y="359">E</text><text x="42" y="694">4 m</text></g>';
+      for(let x=0;x<=cols;x+=4)map+=`<path d="M${32+x*unit} ${top}v${32*unit}" stroke="#b6d0b7" stroke-opacity=".08"/>`;
+      for(let z=0;z<=32;z+=4)map+=`<path d="M32 ${top+z*unit}H672" stroke="#b6d0b7" stroke-opacity=".08"/>`;
+      map+=`<rect x="${32+2*unit}" y="${top+2*unit}" width="${28*unit}" height="${28*unit}" fill="none" stroke="#edbe60" stroke-opacity=".45" stroke-dasharray="9 7"/>`;
+      if(this.world.parcelVersion)map+=`<rect x="${32+30*unit}" y="${top+2*unit}" width="${32*unit}" height="${12*unit}" fill="none" stroke="#a4dfc5" stroke-dasharray="9 7"/><text x="${32+38*unit}" y="${top-14}" fill="#a4dfc5" font-size="14">EASTCUT / CLAIM 03</text>`;
+      map += '<g fill="#b8cbbd" font-family="Consolas,monospace" font-size="13"><text x="348" y="21">N</text><text x="348" y="697">S</text><text x="9" y="359">W</text><text x="684" y="359">E</text><text x="42" y="694">Grid / 4 m</text></g>';
       for (const m of markers) if (Math.abs(-m.y - (d + .5)) <= 1.5) {
         const p = xy(m), r = m.type === 'ore' ? 3 : m.type === 'lamp' ? 5 : 9;
         map += `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${r}" fill="${m.color}" stroke="#10201a" stroke-width="2"><title>${m.name}</title></circle>`;
@@ -93,14 +99,14 @@
       map += `<g transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(-game.player.yaw * 180 / Math.PI).toFixed(2)})" opacity="${visible ? 1 : .4}"><path d="M0 -13L9 10L0 6L-9 10Z" fill="#ffffff" stroke="#142620" stroke-width="2"/></g></svg>`;
       // Vertical profile projects only surveyed air, so it cannot reveal untouched caves.
       const columns = new Set();
-      for (const id of this.cells) { const q = point(id); if (this.world.density(q.x, q.y, q.z) >= 0) columns.add(id % 32 + Math.floor(id / 1024) * 32); }
+      for (const id of this.cells) { const q = point(id); if (this.world.density(q.x, q.y, q.z) >= 0) columns.add(Math.floor(q.x+16)+Math.floor(-q.y)*cols); }
       const scale = 370 / (this.maxDepth + 1);
       let profile = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 328 424" role="img" aria-label="East to west profile of explored passages"><rect width="328" height="424" fill="#101b1b"/>';
       for (const c of B.STRATA.filter(c => c.depth <= this.maxDepth)) { const y = 22 + c.depth * scale; profile += `<path d="M34 ${y}H310" stroke="${c.color}" opacity=".22"/><text x="3" y="${y + 4}" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">${c.depth}m</text>`; }
-      let tunnel = ''; for (const id of columns) tunnel += `M${40 + id % 32 * 8},${22 + Math.floor(id / 32) * scale}h8v${scale}h-8z`;
+      const px=256/cols;let tunnel = ''; for (const id of columns) tunnel += `M${40 + id % cols * px},${22 + Math.floor(id / cols) * scale}h${px}v${scale}h${-px}z`;
       profile += `<path d="${tunnel}" fill="#718c7a"/><path d="M34 ${22 + d * scale}H310" stroke="#efc16c" stroke-dasharray="4 3"/>`;
-      for (const m of markers) if (!['ore', 'lamp'].includes(m.type)) profile += `<circle cx="${40 + (m.x + 16) * 8}" cy="${22 - m.y * scale}" r="4" fill="${m.color}"/>`;
-      profile += `<circle cx="${40 + B.clamp(game.player.x + 16, 0, 32) * 8}" cy="${22 + B.clamp(-game.player.head.y, 0, this.maxDepth) * scale}" r="4" fill="white"/><text x="40" y="416" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">W / ALL SURVEYED PASSAGES / E</text></svg>`;
+      for (const m of markers) if (!['ore', 'lamp'].includes(m.type)) profile += `<circle cx="${40 + (m.x + 16) * px}" cy="${22 - m.y * scale}" r="4" fill="${m.color}"/>`;
+      profile += `<circle cx="${40 + B.clamp(game.player.x + 16, 0, cols) * px}" cy="${22 + B.clamp(-game.player.head.y, 0, this.maxDepth) * scale}" r="4" fill="white"/><text x="40" y="416" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">W / ALL SURVEYED PASSAGES / E</text></svg>`;
       return { map, profile, markers: markers.filter(m => m.type !== 'ore' && m.type !== 'lamp'), ore: markers.filter(m => m.type === 'ore').length };
     }
   }

@@ -36,7 +36,9 @@
     contact(node, x = node.x, y = node.y, z = node.z) {
       let minimum = Infinity, offset = node.offsets[0];
       for (const p of node.offsets) {
-        const d = this.world.density(x + p[0], y + p[1], z + p[2]);
+        const qx=x+p[0],qy=y+p[1],qz=z+p[2],a=B.SURFACE;
+        // Loose equipment and minerals stay inside the same explorable surface.
+        const d = Math.min(this.world.density(qx,qy,qz),qx-a.minX,a.maxX-qx,qz-a.minZ,a.maxZ-qz,a.maxY-qy);
         if (d < minimum) { minimum = d; offset = p; }
       }
       return { density: minimum, x: x + offset[0], y: y + offset[1], z: z + offset[2] };
@@ -68,7 +70,7 @@
           if (hit.density >= -.004) continue;
           this.onSolid?.(n);
           if (this.onContact?.(n, hit)) break;
-          const normal = this.world.normal(hit.x, hit.y, hit.z), into = n.vx * normal[0] + n.vy * normal[1] + n.vz * normal[2];
+          const a=B.SURFACE,normal = hit.x<a.minX+.005?[1,0,0]:hit.x>a.maxX-.005?[-1,0,0]:hit.z<a.minZ+.005?[0,0,1]:hit.z>a.maxZ-.005?[0,0,-1]:hit.y>a.maxY-.005?[0,-1,0]:this.world.normal(hit.x, hit.y, hit.z), into = n.vx * normal[0] + n.vy * normal[1] + n.vz * normal[2];
           if (into < 0) { n.vx -= normal[0] * into; n.vy -= normal[1] * into; n.vz -= normal[2] * into; }
           n.vx *= .75; n.vy *= .75; n.vz *= .75;
           if (normal[1] > .35 && Math.hypot(n.vx, n.vy, n.vz) < .12) { n.vx = n.vy = n.vz = 0; n.motion = 'resting'; break; }

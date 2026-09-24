@@ -66,6 +66,7 @@
       for (const n of game.gadgets.nodes) if (n.type === 'lamp') markers.push({ ...n, name: 'Work light', type: 'lamp', color: '#ffdb8b' });
       for (const n of game.gadgets.nodes) if (n.type === 'bomb' && n.mode === 'sticky') markers.push({ ...n, name: 'Remote satchel', type: 'charge', color: '#ef9479' });
       if (game.thunder) markers.push(...game.thunder.markers());
+      if (game.foreman) markers.push(...game.foreman.markers());
       if (game.deep) markers.push(...game.deep.markers());
       if (game.refuges) markers.push(...game.refuges.markers());
       const freight = game.freight; if (freight?.state.dock) { markers.push({ ...freight.state.dock, name: 'Freight dock', type: 'freight', color: '#f0bf64' }); markers.push({ ...freight.cage, name: freight.status(), type: 'freight', color: '#91d8bd' }); }

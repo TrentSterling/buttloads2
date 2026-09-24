@@ -100,10 +100,10 @@ try {
   await test('deep minerals, deployed light, return anchor and freight dock survive validation at their real depth', () => {
     const node = g.deposits.nodes.find(n => n.y < -210 && !n.collected); g.world.carve(node, 3);
     g.player.teleport(node.x, node.y - .4, node.z - 1); assert.ok(g.orePhysics.collect(node, g.economy, g.player.head));
-    g.player.teleport(0, -280, 0); g.player.pitch = -1.2; g.setScreen(null); g.expedition.state.supplies.lights = 1; g.deploy('lamp');
+    g.player.teleport(4, -280, 3); g.player.pitch = -1.2; g.setScreen(null); g.expedition.state.supplies.lights = 1; g.deploy('lamp');
     frames(.5, dt => g.gadgets.update(dt, g.orePhysics, g.expedition.physics, g.player)); assert.ok(g.gadgets.nodes.some(n => n.type === 'lamp' && n.y < -270));
     assert.ok(g.expedition.placeAnchor(g.player)); g.economy.state.cash = 1000; assert.ok(g.freight.buy());
-    g.player.teleport(0, -282, 0); const placement = g.freight.placement(g.player); assert.ok(!placement.reason, placement.reason); assert.ok(g.freight.place(g.player));
+    g.world.carve({ x: 5, y: -281, z: 5 }, 4); g.player.teleport(5, -282, 2); g.player.yaw = Math.PI; g.player.pitch = -1; const placement = g.freight.placement(g.player); assert.ok(!placement.reason, placement.reason); assert.ok(g.freight.place(g.player));
     const save = B.Saves.snapshot(g), data = B.Saves.validate(save); assert.ok(data.collected.includes(node.id)); assert.ok(data.state.expedition.anchor.y < -270); assert.ok(data.state.expedition.freight.dock.y < -270);
     for (const mutate of [s => s.state.expedition.anchor.y = -400, s => s.state.expedition.devices[0].y = -400, s => s.state.expedition.freight.dock.y = -400, s => s.player.y = -400]) { const copy = structuredClone(save); mutate(copy); assert.throws(() => B.Saves.validate(copy)); }
   });

@@ -1,5 +1,33 @@
 # Remake verification
 
+## The Foreman Below, local 2.13.0
+
+Adds a physical furnace boss at the lower chamber, three partly buried damageable pressure locks, segmented core armor, cutting-jet and ground-shock attacks, persistent damage/rescue, an earned 12 m foundry bore and a powered-town transformation. Mining tools and real blast records use the shared target system. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 12 furnace checks passed (inert scene and DOM; no browser or OS input)
+COMPLETE 195 system checks passed
+
+node tools/simulate-journey.mjs --foreman
+Furnace approach restored: 441.8 simulated seconds
+Otis return route used; furnace encounter started: 460.3 simulated seconds
+Foreman defeated, foundry bore used and reward reloaded: 477.5 simulated seconds
+Returned to powered Ridge Common: 496.2 simulated seconds
+COMPLETE furnace journey: excavated pressure locks, fought the physical furnace, earned and used foundry bore, reloaded the reward and returned to the powered common.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (1023 KiB)
+PASS standalone: 37 scripts compile; no external scripts or stylesheets.
+```
+
+All 195 checks passed together on the final gameplay source. The final build additionally includes the About/controls paragraph. Generated evidence is in tools/out/verification-2.13-final.log and tools/out/journey-foreman.json. The journey passed before the final recorded-impact visual/save field; the final focused and aggregate checks validate that field and prove a loaded fired jet cannot deal its damage again.
+
+Furnace tests exercise dormant/locked behavior, real drill/axe/blast damage and armor limits, dodging, wall protection before impact carving, lifting above shock, attack timing at 30/60/120 Hz, windup and fired-shot saves, real player rescue and mineral conservation, undermined wide machinery, one-time reward and town state, usable bore clearance, ownership protection, cooldown persistence, rejected corrupt snapshots and old-save terrain retention. Model bounds and finite geometry are checked. The older lower-mine equipment fixture now excavates a loading bay beside the furnace because its previous central position is occupied by the new physical boss.
+
+This is a coordinate-aware reachability simulation, not a human difficulty or pacing verdict. It uses the actual game loop and production actions without fixture tunnels, direct player teleports or unearned supplies. Isolated system tests use fixtures for controlled conditions. No browser, real sound device or OS input was used. WebGL appearance, audio, layout and human feel remain unreviewed. The broader expansion goal remains active for further enemies, structures, residents, parcels and review; see FOREMAN.md and BEAUTY-DEPTH-COMBAT-PLAN.md.
+
 ## Lower workings, local 2.12.0
 
 Extends the mine to 297 m through an earned heart breakthrough, with four lower strata, five additional cave networks, 588 appended deposits, three physical repairable stations, equipment rewards and town return routes. The original upper terrain and ore prefix remain intact. The published site remains 2.8.0.

@@ -95,7 +95,9 @@
       const n = { id, ...point(p), vx: 0, vy: 0, vz: 0, cargo: [...cargo], charges, radius: .2, kind: 0, offsets: DROP, collected: false, motion: 'falling' };
       this.drops.push(n); this.physics.index.move(n); this.physics.loose.add(n); this.physics.awake.add(n); return n;
     }
+    targets() { return [...this.enemies, ...(this.foreman?.targets() || [])]; }
     hit(n, amount, mode, dir) {
+      if (this.foreman?.owns(n)) return this.foreman.hit(n, amount, mode);
       if (!n || n.hp <= 0 || n.phase === 'buried' || !(amount > 0)) return false;
       this.revision++;
       n.known = true; n.hp = Math.max(0, n.hp - amount); n.alert = 4; this.hitFlash = .14;
@@ -105,9 +107,9 @@
       return true;
     }
     area(p, radius, damage, mode) {
-      for (const n of this.enemies) if (n.hp > 0 && distance(n, p) <= radius + .4 && this.world.clearLine(p, n, .05)) {
+      for (const n of this.targets()) if (n.hp > 0 && distance(n, p) <= radius + .4 && this.world.clearLine(p, n, .05)) {
         // A blast may be the excavation that first exposes a buried creature.
-        if (n.phase === 'buried' && !this.blocked(n)) n.phase = 'idle';
+        if (n.phase === 'buried' && !this.foreman?.owns(n) && !this.blocked(n)) n.phase = 'idle';
         this.hit(n, damage * Math.max(.35, 1 - distance(n, p) / (radius + 1.2)), mode);
       }
     }
@@ -195,7 +197,7 @@
         const struck = new Set();
         for (let d = 0; d <= (b.length || 0); d += .5) {
           const p = { x: b.x + (b.direction?.x || 0) * d, y: b.y + (b.direction?.y || 0) * d, z: b.z + (b.direction?.z || 0) * d };
-          for (const n of this.enemies) if (!struck.has(n.id) && n.hp > 0 && distance(n, p) <= b.radius + .4 && this.world.clearLine(p, n, .05)) { struck.add(n.id); if (n.phase === 'buried' && !this.blocked(n)) n.phase = 'idle'; this.hit(n, 70 * Math.max(.35, 1 - distance(n, p) / (b.radius + 1.2)), 'blast'); }
+          for (const n of this.targets()) if (!struck.has(n.id) && n.hp > 0 && distance(n, p) <= b.radius + .4 && this.world.clearLine(p, n, .05)) { struck.add(n.id); if (n.phase === 'buried' && !this.foreman?.owns(n) && !this.blocked(n)) n.phase = 'idle'; this.hit(n, 70 * Math.max(.35, 1 - distance(n, p) / (b.radius + 1.2)), 'blast'); }
         }
       }
       if (game.expedition.pulseSerial !== this.lastPulse) { this.lastPulse = game.expedition.pulseSerial; const p = game.expedition.lastPulse; if (p) this.area(p, p.radius, p.magic ? 75 : 44, p.magic ? 'rift' : 'pulse'); }

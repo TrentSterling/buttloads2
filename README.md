@@ -1,8 +1,8 @@
 # BUTTLOADS 2: The Deepening
 
-**Ridge Common and the lower workings, local 2.12.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**The Foreman Below, local 2.13.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
-The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
@@ -10,7 +10,8 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 
 - The awakened heart opens a rootway through the former floor. Four lower strata, five seeded cave networks and 588 appended minerals extend the mine to 297 m while preserving every upper terrain sample and ore ID from existing claims.
 - Restore three physical stations with two lights and three charges each. Earn double deep drilling torque, a faster deep lift and a longer-range deep scanner. Otis offers free return travel to repaired stations. Their bodies and lights fall when undermined, and return landings recheck collision.
-- The three-geode celebration is an upper-mine milestone. The lower furnace boss and further enemy varieties are still planned.
+- The three-geode celebration is an upper-mine milestone. The Foreman Below waits in the lower chamber: excavate and break its three pressure locks to expose the core, dodge its cutting jet, and lift above ground shocks. The machinery falls if undermined. Defeat preserves damage and leaves your lost cargo in a recovery cache.
+- Defeating the furnace pays $5,000 once and unlocks Z, a reusable 12 m foundry bore with a six-second recharge. The common's well and road gain power, the shopkeepers react, and the mine remains yours to develop. All existing terrain and ore persist.
 
 - Cinder moths inhabit underground pockets, fly around real rock and telegraph a dodgeable lunge. Drills deal contact damage; a mining axe unlocks at 9 m on key 6 for short, heavy swings. Resonance staggers creatures, the heart drains and pulls them, and explosives damage them through actual opened terrain. Cleared moths stay cleared and leave recoverable husks worth two charges.
 - Placed lights and repaired refuge lamps keep moths back along clear sight lines. Surface rest restores health. Defeat returns you to the yard with equipment and money intact; lost minerals wait in a persistent physical cache marked on M. E recovers its contents, leaving overflow safely below. Townsfolk and field notes explain encounters.
@@ -71,13 +72,14 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 | Open loading dock controls | E near the dock |
 | Plant survey anchor / return to it from surface | B / G |
 | Rift burst, after awakening | Q |
+| Foundry bore, after defeating the furnace | Z |
 | Recall to surface / pause | Hold R / Esc or Tab |
 
 Touch controls include the new actions. Lift, recall and the survey anchor consume no fuel. There are no oxygen or durability timers.
 
 ## Source and verification
 
-`src/core.js` holds economy and deposits; `mesher.js` and `world.js` implement incremental terrain; `player.js` handles movement and mechanical tools; `ore.js` provides support and swept collision. `expedition.js` owns recoveries and progression, `gadgets.js` owns charges and lights, `thunderstone.js` owns physical reactive seams, `mysteries.js` owns optional discoveries and rewards, `freight.js` owns the crane and its cargo, `survey.js` records and charts exploration, and `persistence.js` validates snapshots. `feedback.js` owns cosmetic particle motion, `audio.js` owns procedural samples and audio routing, and `feedback-view.js` renders those effects. `thunderstone-view.js` renders the reactive crystals. `render.js`, `scenery.js`, `ruins.js` and `crane.js` build the Three.js scene; `fieldkit.js` manages the paused kit and optional guidance; `fieldkit.css` styles the equipment HUD and kit. `town.js` owns surface bounds, residents, physical building definitions and saved conversations; `town-view.js` builds the settlement and characters; `town-ui.js` and `town.css` provide conversation and trading. `game.js` connects input, audio, UI and simulation.
+`src/core.js` holds economy and deposits; `mesher.js` and `world.js` implement incremental terrain; `player.js` handles movement and mechanical tools; `ore.js` provides support and swept collision. `expedition.js` owns recoveries and progression, `gadgets.js` owns charges and lights, `thunderstone.js` owns physical reactive seams, `mysteries.js` owns optional discoveries and rewards, `freight.js` owns the crane and its cargo, `survey.js` records and charts exploration, and `persistence.js` validates snapshots. `feedback.js` owns cosmetic particle motion, `audio.js` owns procedural samples and audio routing, and `feedback-view.js` renders those effects. `thunderstone-view.js` renders the reactive crystals. `render.js`, `scenery.js`, `ruins.js` and `crane.js` build the Three.js scene; `fieldkit.js` manages the paused kit and optional guidance; `fieldkit.css` styles the equipment HUD and kit. `town.js` owns surface bounds, residents, physical building definitions and saved conversations; `town-view.js` builds the settlement and characters; `town-ui.js` and `town.css` provide conversation and trading. `foreman.js` and `foreman-view.js` own the furnace encounter, earned bore and powered common. `game.js` connects input, audio, UI and simulation.
 
 ```text
 node tools/test.mjs

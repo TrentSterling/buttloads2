@@ -31,7 +31,7 @@
       // Also repairs floating deposits in an earlier v2 save without loose-body data.
       this.refresh(nodes);
       const previousEdit = world.onEdit;
-      world.onEdit = (point, radius) => { previousEdit(point, radius); this.refresh(this.index.query(point.x, point.y, point.z, radius + 1.6)); };
+      world.onEdit = (point, radius) => { previousEdit(point, radius); this.refresh(this.index.query(point.x, point.y, point.z, radius + (this.supportRadius || 1.6))); };
     }
     contact(node, x = node.x, y = node.y, z = node.z) {
       let minimum = Infinity, offset = node.offsets[0];

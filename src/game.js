@@ -44,12 +44,12 @@
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
-      this.deep = new B.DeepExpedition(world, state);
-      this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.enemies, head, dir, reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles()];
+      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat);
+      this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -58,7 +58,7 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
       const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
       const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
@@ -81,6 +81,7 @@
       if (this.thunder) { if (this.thunder.update(dt, this)) this.changed(); this.expedition.events.push(...this.thunder.events.splice(0)); }
       if (this.combat) {
         this.combat.update(dt, this);
+        if (this.foreman?.update(dt, this.player)) this.changed();
         if (this.combat.revision !== this.combatRevision) { this.combatRevision = this.combat.revision; this.changed(); }
         for (const event of this.combat.events.splice(0)) {
           if (event.kind === 'warn') this.audio.note(190, .3, .025);
@@ -97,6 +98,7 @@
           this.setScreen('discovery'); this.save(); return;
         }
       }
+      this.foremanEvents();
       if (this.gadgets) { this.gadgets.events.length = 0; for (const b of this.gadgets.blasts) if (b.serial > this.lastSoundBlast) { this.lastSoundBlast = b.serial; this.audio.blast(false, b, this.player, this.world); } }
       if (this.mysteries) {
         if (this.mysteries.update(dt, this.player, this.gadgets)) this.changed();
@@ -133,6 +135,20 @@
       if (event.title) { $('discovery-name').textContent = event.title; $('discovery-text').textContent = event.text; $('discovery-reward').textContent = event.reward ? `${money(event.reward)} recovery payment received.` : ''; this.setScreen('discovery'); this.save(); }
       else if (event.text) this.toast(event.text, 6000);
     }
+    foremanEvents() {
+      if (!this.foreman) return;
+      for (const event of this.foreman.events.splice(0)) {
+        this.changed();
+        if (event.kind === 'victory') {
+          this.feedback.burst(event.point, 4, true); this.audio.blast('rift', event.point, this.player, this.world);
+          $('foreman-stats').innerHTML = this.statsHTML(this.economy.state); this.setScreen('foreman'); this.save();
+        } else if (event.kind === 'wake') { this.toast('The Foreman Below. Excavate its three pressure locks; break them to expose the furnace core.', 7000); this.audio.note(70, .8, .04); }
+        else if (event.kind === 'lock') { this.feedback.burst(event.point, 1.2, true); this.toast('Pressure lock broken. The core can take more damage.'); this.audio.note(240, .5, .04); }
+        else if (event.kind === 'warn') this.audio.note(160, .6, .04);
+        else if (event.kind === 'jet' || event.kind === 'quake' || event.kind === 'bore') { this.feedback.burst(event.point, event.kind === 'bore' ? 2 : 1); this.audio.blast(event.kind === 'bore' ? 'rift' : false, event.point, this.player, this.world); }
+      }
+    }
+    foundryBore() { if (!this.running) return; if (this.foreman.forge(this.player)) { this.clearInput(); this.changed(); this.foremanEvents(); } else this.toast(!this.foreman.state.defeated ? 'The furnace still holds this power.' : this.foreman.state.forgeCooldown > 0 ? 'Foundry bore recharging.' : 'Aim into underground rock to melt a passage.'); }
     selectTool(key) { if (!this.expedition.select(key)) { const t = B.TOOLS[key]; this.toast(t.magic ? 'Wake the heart beneath the seal.' : t.recovery !== undefined ? 'Recover the resonance engine to build this tool.' : `Reach ${t.depth} m to unlock ${t.name.toLowerCase()}.`); return; } this.input.fire = false; this.changed(); this.audio.note(440, .1, .025); this.updateHUD(); }
     cycleTool() { const keys = this.expedition.tools(); this.selectTool(keys[(keys.indexOf(this.expedition.state.tool) + 1) % keys.length]); }
     deploy(type) { if (!this.running) return; if (this.gadgets.deploy(type, this.player)) { this.changed(); this.audio.note(type === 'bomb' ? 170 : 880, .12, .035); } else this.toast(this.gadgets.placement(type, this.player).reason); }
@@ -223,9 +239,9 @@
       const nodes = this.index.query(p.x, p.y, p.z, range).filter(n => !n.collected && (focus < 0 || n.kind === focus)), relic = this.mysteries.target() || this.deep.target() || this.expedition.target();
       nodes.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) - Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z));
       const echoes = this.economy.state.deepest >= 59 ? B.VAULTS.filter((v, i) => !this.expedition.state.vaults.includes(i) && Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z) < range) : [];
-      const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range);
+      const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range), furnace = this.foreman.scan(p, range);
       this.mysteries.scan(p, range); this.survey.scan(p, range, nodes); this.changed();
-      this.view.scan([...nodes, ...echoes, ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
+      this.view.scan([...nodes, ...echoes, ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
       const target = nodes[0];
       const vein = target && this.deposits.veins[target.vein];
       $('scan-target').textContent = target ? `${vein?.name || B.ORES[target.kind].name} · ${Math.hypot(target.x - p.x, target.y - p.y, target.z - p.z).toFixed(1)} m` : focus < 0 ? 'No deposits in range' : `No ${B.ORES[focus].name.toLowerCase()} within ${range} m`;
@@ -241,10 +257,13 @@
     updateCombatHUD() {
       if (!this.combat) return;
       const c = this.combat, hp = Math.ceil(c.state.health), p = this.player.head;
-      $('vitals').hidden = hp === 100 && !c.enemies.some(n => n.known); $('health').textContent = hp; $('health-bar').style.width = hp + '%';
+      $('vitals').hidden = hp === 100 && !c.enemies.some(n => n.known) && !this.foreman.state.known; $('health').textContent = hp; $('health-bar').style.width = hp + '%';
       $('hurt-shade').style.opacity = String(c.hurtFlash * .65); $('crosshair').classList.toggle('hit-confirm', c.hitFlash > 0);
       const near = c.enemies.filter(n => n.hp > 0 && n.phase !== 'buried' && Math.hypot(n.x - p.x, n.y - p.y, n.z - p.z) < 7 && this.world.clearLine(p, n, .05)).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) - Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z))[0];
-      $('threat').hidden = !near;
+      const furnace = this.foreman.state.active && Math.hypot(this.player.x - this.foreman.core.x, this.player.y - this.foreman.core.y, this.player.z - this.foreman.core.z) < 26;
+      $('foreman-hud').hidden = !furnace; $('foreman-health').style.width = (this.foreman.core?.hp || 0) / 420 * 100 + '%'; $('foreman-hint').textContent = this.foreman.hint(); $('foreman-locks').textContent = `${this.foreman.broken}/3 pressure locks broken`;
+      $('threat').hidden = !near || furnace;
+      $('touch-foundry').hidden = !this.foreman.state.defeated; $('kit-foundry').hidden = !this.foreman.state.defeated; $('foundry-charge').textContent = this.foreman.state.forgeCooldown > 0 ? `${this.foreman.state.forgeCooldown.toFixed(1)} s` : 'Ready';
       if (near) { $('enemy-health').style.width = near.hp / 60 * 100 + '%'; $('threat-action').textContent = near.phase === 'windup' ? 'Lunge incoming. Move sideways or lift.' : near.phase === 'stunned' ? 'Staggered. Keep pressure on it.' : c.lightAt({ x: this.player.x, y: this.player.y + 1.1, z: this.player.z }) ? 'Your work light keeps it back.' : 'Drill to fight. 6 equips the axe. V places a light.'; }
     }
     updateHUD() {
@@ -263,6 +282,7 @@
       if (this.player.y > -.5 && this.player.z > 24 && !full && this.town.state.met.length < 2) { title = 'RIDGE COMMON'; objective = 'Mara sells supplies. Otis builds upgrades. Walk inside and press E to talk.'; }
       const nearby = B.MYSTERIES.find(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - this.player.x, m.y - this.player.head.y, m.z - this.player.z) < 7);
       if (nearby && exp.tether === null && !full) { title = nearby.name.toUpperCase(); objective = nearby.id === 0 ? `${this.mysteries.sealUntil.filter(t => t > this.mysteries.time).length}/3 seals ringing. Ring all three within one second. J for clues.` : `${this.mysteries.connected}/3 light paths connected. Cut the beam's path; E turns prisms.`; }
+      if (this.foreman.state.defeated && exp.tether === null && !full) { title = 'THE FURNACE IS YOURS'; objective = 'Z melts a 12 m passage. Ridge Common has power again.'; }
       if (this.thunder?.nodes.some(n => !n.collected && n.fuse >= 0 && Math.hypot(n.x - this.player.x, n.y - this.player.head.y, n.z - this.player.z) < 6)) { title = 'CHAIN REACTION'; objective = 'Thunderstone ignited. Stand clear of the flashing crystals.'; }
       $('mission-label').textContent = title; $('mission').textContent = objective;
       $('chapter-banner').hidden = !this.chapterUntil || this.clock > this.chapterUntil;
@@ -326,7 +346,8 @@
       const refugeNotes = this.refuges.state.known.length ? `<div class="discovery-entry"><strong>Old survey refuges (${this.refuges.state.lit.length}/3 restored)</strong><p>A cabinet marks a sheltered working. Expose it, then fit one work light with E. Its lamp lights the chamber and its chart records nearby passages on M. Cabinets fall if their supporting rock is removed.</p></div>` : '';
       const creatureNotes = this.combat.enemies.some(n => n.known) ? '<div class="discovery-entry"><strong>Cinder moths</strong><p>Drills cut their shells; the mining axe (6) staggers them. A bright flare warns of a lunge. Dodge sideways or lift. Placed lights and restored refuge lamps keep them back. Cleared moths stay cleared, leaving a husk worth two charges. Surface rest restores health. Lost cargo waits in a marked recovery cache after rescue; E retrieves it, with overflow left safely below.</p></div>' : '';
       const deepNotes = e.awakened ? `<div class="discovery-entry"><strong>The lower workings (${this.deep.state.repaired.length}/3 stations restored)</strong><p>${this.deep.state.open ? 'The old floor opened into a much older mine. Follow F to the next station. Repairs cost two lights and three charges, grant new equipment, and give Otis a return link at Bell Works. E at a restored station resets its arrival point.' : 'The heart answers a ring beneath its pedestal. Aim at the ring and press E to open the rootway.'}</p></div>` : '';
-      $('discovery-list').innerHTML = deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const furnaceNotes = this.foreman.state.known ? `<div class="discovery-entry"><strong>The Foreman Below</strong><p>${this.foreman.state.defeated ? 'The pressure locks are broken and the common has power again. Z melts a 12 m passage below ground, with a six-second recharge. No supplies consumed. Existing minerals survive.' : 'The furnace draws armor from three buried pressure locks. Expose each on every side, then damage it with a tool or blast. Every broken lock exposes another part of the core. Its cutting jet fixes a line before firing; rock stops it but takes a small crater. Lift above its ground shock.'}</p></div>` : '';
+      $('discovery-list').innerHTML = furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {
@@ -374,6 +395,7 @@
     async newClaim() { this.setScreen('pause'); this.ready = false; try { await this.store.pending.catch(() => {}); await this.install(null); await this.save(); this.play(); } catch (e) { this.ready = true; $('loading').hidden = true; this.toast('Could not create claim: ' + e.message); } }
     syncSettings() { $('tips-setting').checked = this.settings.tips; $('sound-setting').checked = this.settings.sound; $('motion-setting').checked = this.settings.motion; $('sensitivity-setting').value = this.settings.sensitivity; $('quality-setting').value = this.settings.quality; }
     bindUI() {
+      $('touch-foundry').onclick = () => this.foundryBore();
       $('start-button').onclick = () => this.play();
       for (const key of Object.keys(B.TOOLS)) $('tool-' + key).onclick = () => { if (this.running) this.selectTool(key); };
       $('touch-tool').onclick = () => this.cycleTool(); $('touch-rift').onclick = () => { if (this.running && this.expedition.pulse(this.player, true)) this.changed(); };
@@ -417,7 +439,7 @@
           if (e.code === 'Tab') { const focusables = [...document.querySelectorAll('.screen:not([hidden]) button:not([disabled]),.screen:not([hidden]) a,.screen:not([hidden]) input,.screen:not([hidden]) select')]; const index = focusables.indexOf(document.activeElement); if (focusables.length && ((e.shiftKey && index <= 0) || (!e.shiftKey && index === focusables.length - 1))) { e.preventDefault(); focusables[e.shiftKey ? focusables.length - 1 : 0].focus(); } }
           return;
         }
-        if (['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'KeyE', 'KeyJ', 'KeyM', 'KeyB', 'KeyG', 'KeyQ', 'KeyX', 'KeyC', 'KeyV', 'KeyN', 'KeyH', 'KeyT', 'KeyI', 'KeyY'].includes(e.code) || /^Digit[1-6]$/.test(e.code)) e.preventDefault(); keys.add(e.code);
+        if (['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'KeyE', 'KeyJ', 'KeyM', 'KeyB', 'KeyG', 'KeyQ', 'KeyX', 'KeyC', 'KeyV', 'KeyN', 'KeyH', 'KeyT', 'KeyI', 'KeyY', 'KeyZ'].includes(e.code) || /^Digit[1-6]$/.test(e.code)) e.preventDefault(); keys.add(e.code);
         if (e.repeat) return;
         if (e.code === 'KeyI') { this.fieldKit.open(); return; }
         if (e.code === 'KeyY') this.fieldKit.dismiss();
@@ -425,6 +447,7 @@
         if (/^Digit[1-6]$/.test(e.code)) this.selectTool(Object.keys(B.TOOLS)[Number(e.code.slice(-1)) - 1]);
         if (e.code === 'KeyX') this.cycleTool(); if (e.code === 'KeyB') this.anchor(); if (e.code === 'KeyG') this.descend();
         if (e.code === 'KeyC') this.aimBomb(); if (e.code === 'KeyV') this.deploy('lamp'); if (e.code === 'KeyM') this.openSurvey();
+        if (e.code === 'KeyZ') this.foundryBore();
         if (e.code === 'KeyQ') { if (this.expedition.state.awakened) { if (this.expedition.pulse(this.player, true)) this.changed(); } else this.toast('The power under the garden has not awakened.'); }
         if (e.code === 'KeyN') this.cycleCharge();
         if (e.code === 'KeyH') this.detonate(); if (e.code === 'KeyT') this.aimFreight();

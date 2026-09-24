@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### The Foreman Below (local 2.13.0)
+
+The lower chamber now has a persistent boss with buried, damageable pressure locks, a segmented armor gate, telegraphed cutting jets and ground shocks. The machinery uses real support and falls when undermined. Tools, explosives, pulses, health and rescue share the existing systems. Its reward is a reusable foundry bore on Z and a powered well/road in town, with merchant reactions. FOREMAN.md records mechanics, persistence and the successful fresh-claim journey through the encounter. The larger plan remains active for more encounter variety, structures, residents, parcels and human visual review.
+
 ### Lower workings update (local 2.12.0)
 
 The heart opens the old floor into a 297 m continuation with four lower regions, five seeded cave networks and three restorable stations. Station rewards improve deep excavation, lift and scanning; repaired return routes appear in Otis's services. Depth-versioned field migration copies upper samples exactly, appends ore IDs, and extends charts and equipment/save bounds. DEEP-WORKINGS.md records the implementation and complete coordinate-aware descent. The furnace boss and final payoff remain unfinished; the broader expansion goal stays active.

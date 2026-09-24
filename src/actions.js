@@ -11,9 +11,9 @@
     for (const n of enemies) {
       if (!(n.hp > 0) || n.phase === 'buried') continue;
       const dx = n.x - head.x, dy = n.y - head.y, dz = n.z - head.z;
-      const along = dx * direction.x + dy * direction.y + dz * direction.z, radius = .52 + cone * Math.max(0, along);
+      const along = dx * direction.x + dy * direction.y + dz * direction.z, bodyRadius = n.targetRadius ?? .52, radius = bodyRadius + cone * Math.max(0, along);
       const off2 = dx * dx + dy * dy + dz * dz - along * along;
-      if (along <= 0 || Math.hypot(dx, dy, dz) > reach + .52 || off2 > radius * radius) continue;
+      if (along <= 0 || Math.hypot(dx, dy, dz) > reach + bodyRadius || off2 > radius * radius) continue;
       const distance = Math.max(0, along - Math.sqrt(Math.max(0, radius * radius - off2)));
       if (distance > reach || found && distance >= found.distance || !world.clearLine(head, n, .05)) continue;
       found = { kind: 'enemy', node: n, x: n.x, y: n.y, z: n.z, distance };
@@ -23,7 +23,7 @@
   class ToolActions {
     constructor(world, cutter, combat) { this.world = world; this.cutter = cutter; this.combat = combat; this.target = null; this.swingAge = 1; }
     resolve(player, mode, level, terrain = true) {
-      const spec = WEAPONS[mode], enemy = enemyTarget(this.world, this.combat.enemies, player.head, player.direction, spec.reach, spec.cone);
+      const spec = WEAPONS[mode], enemy = enemyTarget(this.world, this.combat.targets(), player.head, player.direction, spec.reach, spec.cone);
       if (enemy) return enemy;
       const hit = terrain ? this.cutter.trace(player, level, mode, spec.reach) : null;
       return hit ? { ...hit, kind: 'terrain' } : null;

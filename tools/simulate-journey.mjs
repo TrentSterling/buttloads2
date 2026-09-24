@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { nodeGame } from './node-game.mjs';
 const harness = await nodeGame(), g = harness.game, B = B2, dt = 1 / 60;
-const deep = process.argv.includes('--deep');
+const foreman = process.argv.includes('--foreman'), deep = foreman || process.argv.includes('--deep');
 const legacy = process.argv.includes('--legacy'), refuges = process.argv.includes('--refuges');
 if (legacy) {
   // Bootstrap the same starting claim written by the old generator. No new cave voids.
@@ -17,7 +17,7 @@ g.setScreen(null);
 const thunderstone = process.argv.includes('--thunderstone'), mysteries = process.argv.includes('--mysteries'), freight = process.argv.includes('--freight'), demolition = thunderstone || mysteries || freight || process.argv.includes('--demolition');
 let freightSent = 0, freightDelivered = 0;
 let echoSeal = 0, arrayNode = 0;
-const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
+const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, foreman, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
 function throwCharge(mode) { if(mode) g.selectCharge(mode); const supply=g.expedition.state.supplies.bombs; g.deploy('bomb'); lastBomb=g.clock; if(supply!==g.expedition.state.supplies.bombs) report.charges.push({mode:g.expedition.state.chargeMode,seconds:+g.clock.toFixed(1),depth:+(-g.player.y).toFixed(1)}); }
 function mark(name) { phase = name; phaseStart = g.clock; const m = { name, seconds: +g.clock.toFixed(1), cash: g.economy.state.cash, cargo: g.economy.count, depth: +g.economy.state.deepest.toFixed(1) }; report.milestones.push(m); console.log(JSON.stringify(m)); }
 function steer(target, { cut = true, lift = false, walk = true } = {}) {
@@ -179,7 +179,7 @@ try {
         else harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
       }
     } else if (phase === 'furnace descent') {
-      steer({x:0,y:-279,z:0},{cut:false}); harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
+      steer({x:4,y:-279,z:4},{cut:false}); harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
       if(g.player.y < -279) {
         g.clearInput(); const field=g.world.field.slice(), state=structuredClone(g.deep.state); const save=B.Saves.snapshot(g,true); await g.install(B.Saves.validate(save));
         assert.deepEqual(g.world.field,field); assert.deepEqual(g.deep.state.repaired,[0,1,2]); assert.ok(g.deep.state.open); g.recall(); mark('Otis return route');
@@ -189,8 +189,27 @@ try {
       if(Math.hypot(g.player.x-19,g.player.z-34.8)<1) steer({x:19,y:1.55,z:38.4},{cut:false});
       if(g.interaction()?.kind==='resident' && g.interaction().id==='otis') {
         g.use(); const button=harness.elements.get('town-services').children.find(b=>b.children[0]?.textContent==='Return to Furnace approach'); assert.ok(button); button.onclick();
-        assert.ok(g.player.y < -250); assert.equal(g.screen,null); report.outcome='complete'; mark('lower stations restored and return route used'); break;
+        assert.ok(g.player.y < -250); assert.equal(g.screen,null); mark('lower stations restored and return route used'); if (foreman) { g.selectTool('lance'); mark('furnace encounter'); } else { report.outcome='complete'; break; }
       }
+    }
+    if (phase === 'furnace encounter') {
+      const f = g.foreman;
+      if (f.state.defeated) {
+        assert.ok(g.economy.state.cash >= 5000); g.setScreen(null); g.player.pitch = -1.54; const edits=g.world.audit.edits;
+        harness.handlers.get('keydown')({code:'KeyZ',repeat:false,preventDefault(){}}); assert.equal(f.state.forgeCooldown,6); assert.ok(g.world.audit.edits > edits);
+        const saved=B.Saves.snapshot(g,true), cash=g.economy.state.cash; await g.install(B.Saves.validate(saved)); assert.ok(g.foreman.state.defeated); assert.equal(g.economy.state.cash,cash); assert.equal(g.foreman.state.forgeCooldown,6);
+        mark('foreman defeated and foundry bore reloaded'); g.recall(); mark('powered common');
+      } else if (g.player.y > -1) { mark('Otis return route'); }
+      else {
+        const lock=f.nodes.slice(1).find(n=>n.hp>0), target=lock || f.core;
+        const horizontal=Math.hypot(target.x-g.player.x,target.z-g.player.z), quake=['quake-windup','quake'].includes(f.state.phase);
+        steer(target,{walk:horizontal>3.6,lift:quake ? g.player.y<f.core.y+.2 : g.player.head.y<target.y-.3});
+        if(f.state.phase==='aim') g.input.keys.add('KeyD');
+        if(target.phase==='buried' && g.expedition.cooldown<=0) harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
+      }
+    } else if (phase === 'powered common') {
+      steer({x:5,y:1,z:43},{cut:false});
+      if(Math.hypot(g.player.x-5,g.player.z-43)<1) { g.view.render(g,0,g.clock);assert.ok(g.view.commonBeacon.visible);assert.ok(g.view.commonLight.intensity>0);g.town.talk('mara');assert.equal(g.town.talk('mara').chapter,'foreman');report.outcome='complete';mark('powered Ridge Common');break; }
     }
     if(demolition && !phase.startsWith('echo') && g.gadgets.remoteCount && g.clock-lastBomb>.9) harness.handlers.get('keydown')({code:'KeyH',repeat:false,preventDefault(){}});
     g.update(dt);
@@ -206,7 +225,8 @@ try {
   if(freight) { assert.ok(freightDelivered>0); assert.equal(g.freight.stockCount,0); assert.equal(g.freight.loadCount,0); console.log('COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.'); }
   if(mysteries) { assert.deepEqual(g.mysteries.state.solved,[0,1]); assert.equal(g.gadgets.spec('bore').length,9); assert.ok(g.mysteries.focus(3)); console.log('COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.'); }
   B.Saves.validate(B.Saves.snapshot(g));
+  if (foreman) { assert.ok(g.foreman.state.defeated); console.log('COMPLETE furnace journey: excavated pressure locks, fought the physical furnace, earned and used foundry bore, reloaded the reward and returned to the powered common.'); }
   if (refuges) { assert.deepEqual(g.refuges.state.lit, [0]); console.log('COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.'); }
   console.log(`COMPLETE ${legacy ? 'legacy-claim' : 'fresh-claim'} journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.`);
 } catch(error) { report.outcome='failed'; report.error=error.message; report.player=g.player.position; report.cutter={contact:g.cutter.contact,target:g.cutter.target}; report.load=g.expedition.bodies.map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,motion:b.motion})); fs.writeFileSync(new URL('./out/journey-stall.json',import.meta.url),JSON.stringify(B.Saves.snapshot(g,true))); console.error(report.error); process.exitCode=1; }
-finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }
+finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(foreman?'./out/journey-foreman.json':deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }

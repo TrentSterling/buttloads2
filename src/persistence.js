@@ -97,6 +97,7 @@
       if (freight) state.expedition.freight = B.Freight.validate(freight, st, savedWorld);
       if (e.refuges !== undefined) state.expedition.refuges = B.Refuges.validate(e.refuges, savedWorld);
       if (combat) state.expedition.combat = combat;
+      if (e.foreman !== undefined) state.expedition.foreman = B.Foreman.validate(e.foreman, savedWorld, st);
       if (e.deep !== undefined) state.expedition.deep = B.DeepExpedition.validate(e.deep, savedWorld, st);
       if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town);
       if (e.guide !== undefined) state.expedition.guide = B.FieldGuide.validate(e.guide);
@@ -111,7 +112,7 @@
   function snapshot(game, portable = false) {
     const p = game.player;
     if (game.expedition) game.economy.state.expedition.bodies = game.expedition.physics.snapshot();
-    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save(); game.deep?.save();
+    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save(); game.deep?.save(); game.foreman?.save();
     return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, depthVersion: game.world.depthVersion || 0, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
   }
   class SaveStore {

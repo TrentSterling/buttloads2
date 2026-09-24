@@ -11,3 +11,7 @@
 #hurt-shade { position: absolute; inset: 0; box-shadow: inset 0 0 100px 20px #a44528; pointer-events: none; opacity: 0; }
 #crosshair.hit-confirm i { background: #ffc77c; }
 @media (max-width: 720px), (max-height: 620px) { .vitals { top: 67px; left: 14px; width: 108px; padding: 6px 9px; } .vitals small { display: none; } .threat { top: 142px; padding: 6px 10px; } }
+
+.furnace-threat { width: min(440px, 85vw); border-color: #ea995f; }
+.furnace-threat small { display: block; margin-top: 5px; color: #c9b59b; font: 11px Consolas, monospace; }
+.furnace-threat .meter { height: 5px; }

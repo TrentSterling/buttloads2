@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const root = path.resolve(import.meta.dirname, '..'), require = createRequire(import.meta.url);
 export async function nodeGame() {
-  if (!globalThis.B2?.Gadgets) for (const name of ['core', 'town', 'caverns', 'deep-terrain', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'deep', 'combat', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
+  if (!globalThis.B2?.Gadgets) for (const name of ['core', 'town', 'caverns', 'deep-terrain', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'deep', 'combat', 'foreman', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
   const Three = require(path.join(root, 'vendor/three.min.js'));
   class InertRenderer { constructor() { this.shadowMap = {}; } setPixelRatio() {} setSize() {} render() {} clearDepth() {} }
   globalThis.THREE = { ...Three, WebGLRenderer: InertRenderer };
@@ -16,7 +16,7 @@ export async function nodeGame() {
   globalThis.document = { body: element(), getElementById(id) { assert.ok(elements.has(id), 'missing DOM id ' + id); return elements.get(id); }, createElement: element, querySelectorAll() { return []; }, addEventListener() {} };
   globalThis.window = { addEventListener(name, fn) { handlers.set(name, fn); } };
   globalThis.innerWidth = 1440; globalThis.innerHeight = 900; globalThis.devicePixelRatio = 1; globalThis.matchMedia = () => ({ matches: false }); globalThis.requestAnimationFrame = () => 0;
-  for (const file of ['render', 'scenery', 'ruins', 'crane', 'feedback-view', 'thunderstone-view', 'town-view', 'cavern-view', 'combat-view', 'deep-view']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', file + '.js'), 'utf8'));
+  for (const file of ['render', 'scenery', 'ruins', 'crane', 'feedback-view', 'thunderstone-view', 'town-view', 'cavern-view', 'combat-view', 'deep-view', 'foreman-view']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', file + '.js'), 'utf8'));
   const source = fs.readFileSync(path.join(root, 'src/game.js'), 'utf8'); vm.runInThisContext(source.slice(0, source.indexOf('  const game = new Game();')) + '\n})(B2);');
   const game = new B2.Game(); game.store.read = async () => null; game.store.write = async () => {}; await game.boot();
   assert.ok(game.ready, 'Game boot failed');

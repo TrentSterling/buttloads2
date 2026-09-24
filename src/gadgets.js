@@ -116,6 +116,7 @@
         if (o.motion === 'embedded' || !this.world.clearLine(source, o, .12)) continue;
         const dx = o.x - source.x, dy = o.y - source.y, dz = o.z - source.z, distance = Math.hypot(dx, dy, dz) || 1, force = Math.max(0, 1 - distance / (spec.radius + 2.2)) * 12;
         if (!force) continue;
+        physics.onImpulse?.(o);
         o.vx += dx / distance * force; o.vy += dy / distance * force + 3; o.vz += dz / distance * force;
         for (const k of ['vx', 'vy', 'vz']) o[k] = B.clamp(o[k], -18, 18);
         o.motion = 'falling'; physics.awake.add(o);

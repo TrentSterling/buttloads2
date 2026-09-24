@@ -82,7 +82,7 @@
       n.known = true; n.alert = 4; this.combat.hitFlash = .14; this.revision++;
       const rear = dir && dir.x * Math.sin(n.yaw) + dir.z * Math.cos(n.yaw) > .5;
       if (n.shell > 0 && !rear) {
-        const factor = mode === 'lance' ? 2.4 : mode === 'blast' ? 2 : mode === 'rift' ? 1.7 : mode === 'pulse' ? .9 : mode === 'axe' ? .6 : mode === 'gravity' ? .25 : .4;
+        const factor = mode === 'lance' ? 2.4 : mode === 'blast' ? 2 : mode === 'kinetic' ? 1.6 : mode === 'rift' ? 1.7 : mode === 'pulse' ? .9 : mode === 'axe' ? .6 : mode === 'gravity' ? .25 : .4;
         n.shell = Math.max(0, n.shell - amount * factor);
         if (!n.shell) { n.phase = 'stunned'; n.timer = 1.1; this.events.push({ kind: 'shell-break', point: pos(n) }); }
       } else { n.hp = Math.max(0, n.hp - amount * (rear ? 1.25 : 1)); if (!n.hp) this.kill(n); }

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { nodeGame } from './node-game.mjs';
 const harness = await nodeGame(), g = harness.game, B = B2, dt = 1 / 60;
-const crawlers = process.argv.includes('--crawlers');
+const kinetics = process.argv.includes('--kinetics'), crawlers = kinetics || process.argv.includes('--crawlers');
 const foreman = process.argv.includes('--foreman'), deep = crawlers || foreman || process.argv.includes('--deep');
 const rescue = process.argv.includes('--rescue');
 const legacy = process.argv.includes('--legacy'), refuges = process.argv.includes('--refuges');
@@ -18,8 +18,8 @@ if (legacy) {
 g.setScreen(null);
 const thunderstone = process.argv.includes('--thunderstone'), mysteries = process.argv.includes('--mysteries'), freight = process.argv.includes('--freight'), demolition = thunderstone || mysteries || freight || process.argv.includes('--demolition');
 let freightSent = 0, freightDelivered = 0;
-let echoSeal = 0, arrayNode = 0, crawlerID = 200;
-const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, foreman, rescue, crawlers, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
+let echoSeal = 0, arrayNode = 0, crawlerID = 200, kineticOreID=null, kineticUsed=false, kineticReloaded=false, kineticHealth=0, kineticShots=0, kineticLiftY=0;
+const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, foreman, rescue, crawlers, kinetics, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
 function throwCharge(mode) { if(mode) g.selectCharge(mode); const supply=g.expedition.state.supplies.bombs; g.deploy('bomb'); lastBomb=g.clock; if(supply!==g.expedition.state.supplies.bombs) report.charges.push({mode:g.expedition.state.chargeMode,seconds:+g.clock.toFixed(1),depth:+(-g.player.y).toFixed(1)}); }
 function mark(name) { phase = name; phaseStart = g.clock; const m = { name, seconds: +g.clock.toFixed(1), cash: g.economy.state.cash, cargo: g.economy.count, depth: +g.economy.state.deepest.toFixed(1) }; report.milestones.push(m); console.log(JSON.stringify(m)); }
 function steer(target, { cut = true, lift = false, walk = true } = {}) {
@@ -213,6 +213,7 @@ try {
       if (g.interaction()?.kind === 'deep-gate' && !g.interaction().locked) { g.use(); assert.ok(g.deep.state.open); mark('lower station descent'); }
       else harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
     } else if (phase === 'lower station descent') {
+      if(kinetics && !g.kinetics.state.unlocked && g.deep.state.repaired.includes(0)) {g.selectTool('gravity');mark('Stonewright approach');continue;}
       const enemy = crawlers && g.crawlers.nodes.find(n => n.hp > 0 && Math.hypot(n.x-g.player.x,n.y-g.player.head.y,n.z-g.player.z)<8 && g.world.clearLine(g.player.head,n,.05));
       if (enemy) { crawlerID=enemy.id; mark('crawler encounter'); continue; }
       const n = g.deep.nodes.find(n => !g.deep.state.repaired.includes(n.id));
@@ -241,6 +242,7 @@ try {
     if (phase === 'crawler encounter') {
       const n=g.crawlers.nodes.find(n=>n.id===crawlerID), target={x:n.x,y:n.y,z:n.z};
       if (g.player.y > -1) { throw Error('Crawler pilot was rescued before earning its tooth.'); }
+      if(kinetics && g.kinetics.state.unlocked && !kineticUsed && n.hp>0) {kineticOreID=null;mark('kinetic ammunition');continue;}
       if (n.hp > 0) {
         const tool=n.shell>0?'lance':'axe'; if(g.expedition.state.tool!==tool)g.selectTool(tool);
         steer(target,{walk:Math.hypot(n.x-g.player.x,n.z-g.player.z)>2.5,lift:g.player.head.y<n.y-.4});
@@ -260,6 +262,43 @@ try {
         harness.elements.get('town-services').children.find(b=>b.children[0]?.textContent==='Return to Rootworks pump house').onclick();assert.ok(g.player.y < -100);
         mark('impact head installed and rootworks return used');mark('lower station descent');
       }
+    }
+    if(phase==='Stonewright approach') {
+      const n=g.kinetics.bench,p={x:n.x,y:n.y+.3,z:n.z+3};steer(p,{cut:false,lift:g.player.head.y<p.y-.2});
+      if(Math.hypot(g.player.x-p.x,g.player.head.y-p.y,g.player.z-p.z)<1){g.selectTool('resonance');mark('Stonewright coils');}
+      else harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
+    } else if(phase==='Stonewright coils') {
+      const k=g.kinetics,i=[0,1].find(i=>!k.state.coils.includes(i));
+      if(i===undefined){g.selectTool('lance');mark('Stonewright recovery');}
+      else {const p=k.coil(i);steer(p,{walk:false,lift:g.player.head.y<p.y-.7});}
+    } else if(phase==='Stonewright recovery') {
+      const k=g.kinetics,n=k.bench,contact=k.physics.contact(n),p={x:n.x,y:n.y-.18,z:n.z+.76};
+      if(contact.density<-.004)steer(contact,{walk:false,lift:g.player.head.y<n.y-.5});
+      else steer(p,{cut:false,walk:Math.hypot(g.player.x-p.x,g.player.z-p.z)>2.4,lift:g.player.head.y<n.y-.5});
+      if(g.interaction()?.kind==='stonewright' && !g.interaction().locked){g.use();assert.ok(k.state.unlocked);g.clearInput();const field=g.world.field.slice(),save=B.Saves.snapshot(g,true);await g.install(B.Saves.validate(save));assert.ok(g.kinetics.state.unlocked);assert.deepEqual(g.world.field,field);mark('Stonewright sling earned and reloaded');g.selectTool('gravity');mark('lower station descent');}
+    } else if(phase==='kinetic ammunition') {
+      const enemy=g.crawlers.nodes.find(n=>n.id===crawlerID);
+      if(enemy.hp<=0){mark('crawler encounter');continue;}
+      if(kineticOreID===null || g.deposits.nodes[kineticOreID].collected){const ore=g.deposits.nodes.filter(n=>!n.collected && Math.abs(n.y-enemy.y)<8).sort((a,b)=>Math.hypot(a.x-g.player.x,a.y-g.player.head.y,a.z-g.player.z)-Math.hypot(b.x-g.player.x,b.y-g.player.head.y,b.z-g.player.z))[0];assert.ok(ore);kineticOreID=ore.id;}
+      const ore=g.deposits.nodes[kineticOreID];if(g.expedition.state.tool!=='lance')g.selectTool('lance');steer(ore,{walk:Math.hypot(ore.x-g.player.x,ore.z-g.player.z)>3,lift:g.player.head.y<ore.y-.4});
+      if(ore.motion!=='embedded' && g.orePhysics.contact(ore).density>=-.004 && Math.hypot(ore.x-g.player.x,ore.y-g.player.head.y,ore.z-g.player.z)<7 && g.world.clearLine(g.player.head,ore,.05)){g.selectTool('sling');g.input.fire=false;kineticLiftY=ore.y+2.2;mark('kinetic lift');}
+    } else if(phase==='kinetic lift') {
+      // A low ceiling may stop the player before the desired lift height. Start
+      // pulling after a second there; the mineral still has to clear real rock.
+      const ore=g.deposits.nodes[kineticOreID];steer(ore,{walk:false,lift:g.player.head.y<kineticLiftY,cut:g.player.head.y>kineticLiftY-.15 || g.clock-phaseStart>1 || g.kinetics.state.held!==null});
+      if(g.kinetics.state.held!==null && g.kinetics.state.charge>.95){mark('kinetic aim');}
+    } else if(phase==='kinetic aim') {
+      const enemy=g.crawlers.nodes.find(n=>n.id===crawlerID);steer({x:enemy.x,y:enemy.y+.25,z:enemy.z},{walk:false,lift:g.player.head.y<kineticLiftY});
+      if(g.kinetics.state.held===null){mark('kinetic ammunition');}
+      else if(g.clock-phaseStart>.5){kineticHealth=enemy.hp+enemy.shell;g.input.fire=false;kineticShots++;mark('kinetic flight save');}
+    } else if(phase==='kinetic flight save') {
+      g.input.fire=false;g.input.keys.clear();
+      if(g.kinetics.state.flights.length){const id=g.kinetics.state.flights[0].id,save=B.Saves.snapshot(g,true);await g.install(B.Saves.validate(save));assert.equal(g.kinetics.state.flights[0].id,id);assert.equal(g.deposits.nodes[id].collected,false);kineticReloaded=true;mark('mineral reloaded in flight');mark('kinetic impact');}
+      else if(g.clock-phaseStart>.2)mark('kinetic impact');
+    } else if(phase==='kinetic impact') {
+      g.input.fire=false;g.input.keys.clear();const enemy=g.crawlers.nodes.find(n=>n.id===crawlerID);
+      if(enemy.hp+enemy.shell<kineticHealth){kineticUsed=true;mark('saved mineral projectile damaged crawler');mark('crawler encounter');}
+      else if(g.clock-phaseStart>3.2){assert.ok(kineticShots<5,'Five sling throws missed');kineticOreID=null;mark('kinetic ammunition');}
     }
     if (phase === 'furnace encounter') {
       const f = g.foreman;
@@ -294,10 +333,11 @@ try {
   if(freight) { assert.ok(freightDelivered>0); assert.equal(g.freight.stockCount,0); assert.equal(g.freight.loadCount,0); console.log('COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.'); }
   if(mysteries) { assert.deepEqual(g.mysteries.state.solved,[0,1]); assert.equal(g.gadgets.spec('bore').length,9); assert.ok(g.mysteries.focus(3)); console.log('COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.'); }
   B.Saves.validate(B.Saves.snapshot(g));
+  if(kinetics){assert.ok(g.kinetics.state.unlocked);assert.ok(kineticUsed);assert.ok(kineticReloaded,'No active mineral flight was reloaded');console.log('COMPLETE Stonewright journey: excavated and resonated both workshop coils, recovered the sling, reloaded a thrown mineral in flight and damaged a crawler.');}
   if (crawlers) { assert.ok(g.crawlers.state.impactHead); assert.ok(g.crawlers.state.recovered.includes(200)); console.log('COMPLETE crawler journey: earned the rootway, fought a lower-mine crawler, recovered its tooth, bought/reloaded the impact head and used Otis return travel.'); }
   if (rescue) { assert.ok(g.rescue.rescued); assert.ok(g.town.state.met.includes('inez')); console.log('COMPLETE rescue journey: excavated the survey bell, powered its winch, cleared its ascent, met Inez at the office, bought a real mineral chart and reloaded it.'); }
   if (foreman) { assert.ok(g.foreman.state.defeated); console.log('COMPLETE furnace journey: excavated pressure locks, fought the physical furnace, earned and used foundry bore, reloaded the reward and returned to the powered common.'); }
   if (refuges) { assert.deepEqual(g.refuges.state.lit, [0]); console.log('COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.'); }
   console.log(`COMPLETE ${legacy ? 'legacy-claim' : 'fresh-claim'} journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.`);
 } catch(error) { report.outcome='failed'; report.error=error.message; report.player=g.player.position; report.cutter={contact:g.cutter.contact,target:g.cutter.target}; report.load=g.expedition.bodies.map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,motion:b.motion})); fs.writeFileSync(new URL('./out/journey-stall.json',import.meta.url),JSON.stringify(B.Saves.snapshot(g,true))); console.error(report.error); process.exitCode=1; }
-finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(crawlers?'./out/journey-crawlers.json':rescue?'./out/journey-rescue.json':foreman?'./out/journey-foreman.json':deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }
+finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(kinetics?'./out/journey-kinetics.json':crawlers?'./out/journey-crawlers.json':rescue?'./out/journey-rescue.json':foreman?'./out/journey-foreman.json':deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }

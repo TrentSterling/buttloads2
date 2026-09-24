@@ -30,6 +30,7 @@
     }
     update(dt, player, progress, held) {
       const s = this.combat.state, mode = progress.expedition.tool, spec = WEAPONS[mode];
+      if (mode === 'sling') { s.swing = 0; s.weaponCooldown = Math.max(0, s.weaponCooldown-dt); this.target=null; this.cutter.update(dt,player,progress.gear.drill,false,mode,null); return; }
       const oldCooldown = s.weaponCooldown, oldSwing = s.swing;
       this.swingAge += dt;
       if (mode !== 'axe' || !held) s.weaponCooldown = Math.max(0, s.weaponCooldown - dt);

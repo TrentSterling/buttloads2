@@ -1,5 +1,41 @@
 # Remake verification
 
+## Stonewright Sling, local 2.16.0
+
+Adds a physical buried workshop, two resonator-operated field coils and a recoverable mineral sling. The tool lifts and throws existing loose ore through the terrain, equipment and creature collision systems. Fast impacts fracture armor; thrown minerals retain their identity and value. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 16 kinetic checks passed (inert scene and DOM; no browser or OS input)
+COMPLETE 234 system checks passed
+
+node tools/simulate-journey.mjs --kinetics --foreman
+Stonewright coils reached: 348.4 simulated seconds
+Sling earned and reloaded with exact terrain: 353.3 simulated seconds
+Mineral reloaded in flight: 387.3 simulated seconds
+Saved projectile damaged a crawler: 387.4 simulated seconds
+Furnace approach restored: 461.0 simulated seconds
+Foreman defeated, foundry bore used and reward reloaded: 501.0 simulated seconds
+Powered Ridge Common reached: 519.7 simulated seconds
+COMPLETE Stonewright journey: excavated and resonated both workshop coils, recovered the sling, reloaded a thrown mineral in flight and damaged a crawler.
+COMPLETE crawler journey: earned the rootway, fought a lower-mine crawler, recovered its tooth, bought/reloaded the impact head and used Otis return travel.
+COMPLETE furnace journey: excavated pressure locks, fought the physical furnace, earned and used foundry bore, reloaded the reward and returned to the powered common.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/test-kinetics.mjs
+COMPLETE 16 kinetic checks passed (inert scene and DOM; no browser or OS input)
+
+node tools/build.mjs
+Standalone build: dist/index.html (1090 KiB)
+PASS standalone: 43 scripts compile; no external scripts or stylesheets.
+```
+
+The focused suite passed again after adding an explicit corrupt-save case with two flights referencing the same loose mineral. No gameplay changed after the aggregate suite passed. Coverage includes physical workshop recovery, buried coils, swept cover, one-hit damage, armor, furnace locks, collectible mineral identity, frame-rate equivalence, interrupted holds, real pause/tool/touch paths, blast interruption, midflight saves, falling geometry and exact older terrain.
+
+Earlier pilots exposed an ore-clearance problem in the input guidance: a mineral seated on a ledge could not follow the hold target toward a low enemy. The solver correctly stopped it, but the UI still offered a normal release prompt. It now shows an amber field and a clearance hint. A focused replay lifted the mineral above the ledge and broke armor. A subsequent pilot waited beneath a ceiling for an impossible hover height; it now begins pulling after reaching that ceiling. The final fresh run earns and operates everything through production interactions, with no fixture shafts, free resources or direct teleports. The pilot has coordinate knowledge, so elapsed time is not human campaign length.
+
+Evidence: `tools/out/verification-2.16-final.log`, `tools/out/journey-kinetics.json` and the inspected actual-geometry projection `tools/out/kinetic-projection.png`. Browser pixels, rendered lighting, sound, layout and human combat feel remain unverified. No browser or OS input automation was used. The larger expansion goal remains active; STONEWRIGHT.md and BEAUTY-DEPTH-COMBAT-PLAN.md retain its remaining work.
+
 ## Shale Crawlers, local 2.15.0
 
 Adds three persistent armored ground creatures, terrain-supported navigation, shell/rear damage, a committed claw attack, excavation-induced falls and corpse supplies. A recovered tooth unlocks Otis's paid impact axe head. The previous town, rescue, deeper mine and furnace remain included. The published site remains 2.8.0.

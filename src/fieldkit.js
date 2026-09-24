@@ -38,6 +38,7 @@
     }
   }
   const ICONS = {
+    sling: '<path d="M12 35V18l7-8m15 25V18l-7-8M9 35h28M23 14l7 9-7 8-7-8z"/>',
     axe: '<path d="m21 8 5 33m-8-29 20-4v12l-17-1M17 30l11-2m-10 7 11-2"/>',
     cutter: '<path d="M9 15h10l4 4v10H9zM19 15V9m-4 6V7m-4 8V9M12 29v8h5v-8"/><path d="M23 23h9l5 6-5 6h-9"/>',
     scoop: '<path d="m21 6 4 16m-6 1 12-3 5 11-8 9-12-4-1-12z"/>',
@@ -70,11 +71,11 @@
         $('tool-' + key).hidden = !owned; $('tool-' + key).disabled = !owned;
       }
       $('tool-slots').hidden = available.length < 2;
-      $('tool-meter').hidden = !['resonance', 'gravity'].includes(e.tool);
+      $('tool-meter').hidden = !['resonance', 'gravity', 'sling'].includes(e.tool);
       $('hud-charge-name').textContent = spec.short[0] + spec.short.slice(1).toLowerCase();
       $('hud-charge-cycle').hidden = modes.length < 2;
       $('kit-equipped').textContent = e.tool === 'axe' && e.crawlers?.impactHead ? 'Impact axe / 52 damage / double rock cutting' : B.TOOLS[e.tool].name; $('kit-bombs').textContent = e.supplies.bombs; $('kit-lights').textContent = e.supplies.lights;
-      const useLabel = e.tool === 'gravity' ? 'Draw' : e.tool === 'resonance' ? 'Pulse' : e.tool === 'axe' ? 'Swing' : 'Cut'; $('touch-cut').textContent = useLabel; $('primary-use-label').textContent = useLabel;
+      const useLabel = e.tool === 'sling' ? 'Sling' : e.tool === 'gravity' ? 'Draw' : e.tool === 'resonance' ? 'Pulse' : e.tool === 'axe' ? 'Swing' : 'Cut'; $('touch-cut').textContent = useLabel; $('primary-use-label').textContent = useLabel;
       $('kit-remote-count').textContent = g.gadgets.remoteCount ? `${g.gadgets.remoteCount} remote ${g.gadgets.remoteCount === 1 ? 'satchel' : 'satchels'} waiting / H detonates` : 'Hold C to aim. Release to throw.';
       for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key), unlocked = modes.includes(key); button.disabled = !unlocked; button.textContent = unlocked ? B.CHARGES[key].short : `${B.CHARGES[key].depth} m`; }
       const next = B.STRATA.find(s => s.depth > g.economy.state.deepest); $('kit-next').textContent = next ? `Next stratum at ${next.depth} m: ${next.unlock}.` : 'Every stratum reached. Your equipment and discoveries stay with this mine.';

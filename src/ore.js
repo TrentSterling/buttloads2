@@ -51,17 +51,22 @@
         n.motion = 'falling'; this.awake.add(n);
       }
     }
-    // Advances a detached body without touching indexes or callbacks. Aiming uses this exact solver.
+    // Advances a detached body without touching indexes. Optional hooks handle
+    // held minerals and impacts; unhooked charge previews use this same solver.
     advance(n, dt) {
+        const override = this.motionOverride?.(n, dt); if (override !== undefined) return override;
         this.accelerate(n, dt);
         const steps = Math.max(1, Math.ceil(Math.hypot(n.vx, n.vy, n.vz) * dt / .075)), h = dt / steps;
         const oldX = n.x, oldY = n.y, oldZ = n.z;
         for (let i = 0; i < steps; i++) {
           const dx = n.vx * h, dy = n.vy * h, dz = n.vz * h, hit = this.contact(n, n.x + dx, n.y + dy, n.z + dz);
-          if (hit.density >= -.004) { n.x += dx; n.y += dy; n.z += dz; continue; }
-          let lo = 0, hi = 1;
-          for (let k = 0; k < 9; k++) { const t = (lo + hi) * .5; if (this.contact(n, n.x + dx * t, n.y + dy * t, n.z + dz * t).density < -.004) hi = t; else lo = t; }
+          let lo = 1, hi = 1;
+          if (hit.density < -.004) { lo = 0; for (let k = 0; k < 9; k++) { const t = (lo + hi) * .5; if (this.contact(n, n.x + dx * t, n.y + dy * t, n.z + dz * t).density < -.004) hi = t; else lo = t; } }
+          const impact = this.onSweep?.(n, { x: n.x, y: n.y, z: n.z }, { x: n.x + dx * lo, y: n.y + dy * lo, z: n.z + dz * lo });
+          if (impact !== null && impact !== undefined) { n.x += dx * lo * impact; n.y += dy * lo * impact; n.z += dz * lo * impact; break; }
           n.x += dx * lo; n.y += dy * lo; n.z += dz * lo;
+          if (hit.density >= -.004) continue;
+          this.onSolid?.(n);
           if (this.onContact?.(n, hit)) break;
           const normal = this.world.normal(hit.x, hit.y, hit.z), into = n.vx * normal[0] + n.vy * normal[1] + n.vz * normal[2];
           if (into < 0) { n.vx -= normal[0] * into; n.vy -= normal[1] * into; n.vz -= normal[2] * into; }
@@ -82,7 +87,7 @@
       return this.revision !== before;
     }
     collect(node, economy, playerHead) {
-      if (node.collected || Math.hypot(node.x - playerHead.x, node.y - playerHead.y, node.z - playerHead.z) > 3 || this.world.density(node.x, node.y, node.z) < .04 || !this.world.clearLine(playerHead, node, .12)) return false;
+      if (node.collected || node.slingHeld || node.slingFlight || Math.hypot(node.x - playerHead.x, node.y - playerHead.y, node.z - playerHead.z) > 3 || this.world.density(node.x, node.y, node.z) < .04 || !this.world.clearLine(playerHead, node, .12)) return false;
       if (!economy.collect(node.kind)) return false;
       node.collected = true; this.awake.delete(node); this.loose.delete(node); this.index.remove(node); this.onMove(node); this.revision++; return true;
     }

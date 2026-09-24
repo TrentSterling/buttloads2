@@ -44,12 +44,13 @@
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
-      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat);
+      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat); this.kinetics = new B.Kinetics(world,state,this.orePhysics,this.combat);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer()];
+      this.expedition.structureTarget = (head,dir,reach) => this.kinetics.pulseTarget(head,dir,reach);
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -58,7 +59,7 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.kinetics?.obstaclesForPlayer() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
       const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
       const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
@@ -76,6 +77,10 @@
       }
       if (this.refuges?.update(dt, this.player)) this.changed();
       if (this.deep?.update(dt, this.player)) this.changed();
+      if (this.kinetics) {
+        const boxes=[...this.view.obstacles,...this.town.residentObstacles(),...this.rescue.obstacles(),...this.foreman.obstacles(),...this.crawlers.nodes.filter(n=>n.hp<=0).map(n=>this.crawlers.box(n)),...this.deep.obstacles(),...this.refuges.obstacles(),...this.freight.obstacles(),...this.kinetics.obstaclesForPlayer(),...this.expedition.bodies.filter(n=>!n.collected).map(n=>[n.x-n.size[0]/2,n.y-n.size[1]/2,n.z-n.size[2]/2,n.x+n.size[0]/2,n.y+n.size[1]/2,n.z+n.size[2]/2])];
+        if(this.kinetics.update(dt,this.player,this.input.fire,mode==='sling' && !this.input.aim,this.expedition,boxes))this.changed();
+      }
       if (this.orePhysics.update(dt)) this.changed();
       if (this.gadgets?.update(dt, this.orePhysics, this.expedition.physics, this.player)) this.changed();
       if (this.thunder) { if (this.thunder.update(dt, this)) this.changed(); this.expedition.events.push(...this.thunder.events.splice(0)); }
@@ -83,7 +88,7 @@
         this.combat.update(dt, this);
         if (this.foreman?.update(dt, this.player)) this.changed();
         if (this.crawlers) {
-          const boxes = [...this.view.obstacles, ...this.rescue.obstacles(), ...this.foreman.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
+          const boxes = [...this.view.obstacles, ...this.rescue.obstacles(), ...this.kinetics.obstaclesForPlayer(), ...this.foreman.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
           if (this.crawlers.update(dt, this.player, boxes)) this.changed();
         }
         if (this.combat.revision !== this.combatRevision) { this.combatRevision = this.combat.revision; this.changed(); }
@@ -102,13 +107,14 @@
           this.setScreen('discovery'); this.save(); return;
         }
       }
-      this.foremanEvents(); this.crawlerEvents();
+      if(this.kinetics && this.kinetics.revision!==this.kineticRevision){this.kineticRevision=this.kinetics.revision;this.changed();}
+      this.foremanEvents(); this.crawlerEvents(); this.kineticEvents();
       if (this.gadgets) { this.gadgets.events.length = 0; for (const b of this.gadgets.blasts) if (b.serial > this.lastSoundBlast) { this.lastSoundBlast = b.serial; this.audio.blast(false, b, this.player, this.world); } }
       if (this.mysteries) {
         if (this.mysteries.update(dt, this.player, this.gadgets)) this.changed();
         this.expedition.events.push(...this.mysteries.events.splice(0));
       }
-      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
+      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...this.kinetics.nodes, ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
       if (this.rescue) {
         const boxes = [...this.view.obstacles, ...this.freight.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
         if (this.rescue.update(dt, this.player, boxes)) this.changed();
@@ -131,7 +137,7 @@
       const p = this.player.head;
       for (const o of this.index.query(p.x, p.y, p.z, 3)) {
         if (this.economy.count >= this.economy.capacity) break;
-        if (!this.orePhysics.collect(o, this.economy, p)) continue;
+        if (this.kinetics?.reserve(o) || !this.orePhysics.collect(o, this.economy, p)) continue;
         this.audit.pickups++; this.pickupUntil = this.clock + 1.6; this.changed();
         $('pickup').textContent = `+ ${B.ORES[o.kind].name}  ${money(B.ORES[o.kind].value)}`; if (this.audio.pickup) this.audio.pickup(o.kind); else this.audio.note(560 + o.kind * 140, .09, .025); this.feedback?.collect(o);
       }
@@ -157,6 +163,14 @@
         else if (event.kind === 'jet' || event.kind === 'quake' || event.kind === 'bore') { this.feedback.burst(event.point, event.kind === 'bore' ? 2 : 1); this.audio.blast(event.kind === 'bore' ? 'rift' : false, event.point, this.player, this.world); }
       }
     }
+    kineticEvents() {
+      for(const event of this.kinetics?.events.splice(0) || []) {
+        this.changed();
+        if(event.title)this.expedition.events.push(event);
+        else if(event.kind==='coil'){this.feedback.burst(event.point,.5,true);this.audio.note(680,.25,.03);this.toast(`Workshop field coil charged / ${this.kinetics.state.coils.length}/2`);}
+        else {this.audio.note(event.kind==='sling-fire'?240:110,.12,.03);if(event.kind==='sling-hit')this.feedback.burst(event.point,.5);}
+      }
+    }
     crawlerEvents() {
       if (!this.crawlers) return;
       for (const e of this.crawlers.events.splice(0)) {
@@ -176,7 +190,7 @@
       this.setScreen('rescue'); this.changed(); this.save();
     }
     foundryBore() { if (!this.running) return; if (this.foreman.forge(this.player)) { this.clearInput(); this.changed(); this.foremanEvents(); } else this.toast(!this.foreman.state.defeated ? 'The furnace still holds this power.' : this.foreman.state.forgeCooldown > 0 ? 'Foundry bore recharging.' : 'Aim into underground rock to melt a passage.'); }
-    selectTool(key) { if (!this.expedition.select(key)) { const t = B.TOOLS[key]; this.toast(t.magic ? 'Wake the heart beneath the seal.' : t.recovery !== undefined ? 'Recover the resonance engine to build this tool.' : `Reach ${t.depth} m to unlock ${t.name.toLowerCase()}.`); return; } this.input.fire = false; this.changed(); this.audio.note(440, .1, .025); this.updateHUD(); }
+    selectTool(key) { if (!this.expedition.select(key)) { const t = B.TOOLS[key]; this.toast(t.workshop ? 'Recover the sling from the buried Stonewright workshop.' : t.magic ? 'Wake the heart beneath the seal.' : t.recovery !== undefined ? 'Recover the resonance engine to build this tool.' : `Reach ${t.depth} m to unlock ${t.name.toLowerCase()}.`); return; } this.kinetics?.cancel(); this.input.fire = false; this.changed(); this.audio.note(440, .1, .025); this.updateHUD(); }
     cycleTool() { const keys = this.expedition.tools(); this.selectTool(keys[(keys.indexOf(this.expedition.state.tool) + 1) % keys.length]); }
     deploy(type) { if (!this.running) return; if (this.gadgets.deploy(type, this.player)) { this.changed(); this.audio.note(type === 'bomb' ? 170 : 880, .12, .035); } else this.toast(this.gadgets.placement(type, this.player).reason); }
     aimBomb() { if (!this.running) return; this.input.aim = 'bomb'; this.aimPreview = this.gadgets.preview(this.player); this.previewAt = this.clock; }
@@ -211,6 +225,7 @@
       const resident = this.town?.target(p, this.world, this.view.obstacles);
       if (resident) return { kind: 'resident', id: resident.id, label: 'Talk to ' + resident.name + ' / ' + resident.role };
       const bell = this.rescue?.interaction(p); if (bell) return bell;
+      const workshop = this.kinetics?.interaction(p); if(workshop)return workshop;
       const crawlerLoot = this.crawlers?.interaction(p); if (crawlerLoot) return crawlerLoot;
       const cache = this.combat?.interaction(p); if (cache) return cache;
       const lower = this.deep?.interaction(p); if (lower) return lower;
@@ -235,6 +250,7 @@
     use() {
       if (!this.running) return;
       const action = this.interaction(); if (!action) return;
+      if (action.kind === 'stonewright') { if(this.kinetics.recover(this.player)){this.kineticEvents();this.changed();this.save();}return; }
       if (action.kind === 'sell') this.sell();
       if (action.kind === 'shop') { $('receipt').hidden = true; this.updateShop(); this.setScreen('shop'); }
       if (action.kind === 'refuge') { const result = this.refuges.restore(action.id, this.player, this.survey); if (result) { this.changed(); this.audio.note(640, .4, .04); this.save(); if (result.fresh) this.toast('Survey light restored. Local passages copied to your M survey.', 6000); else this.openSurvey(); } }
@@ -272,7 +288,7 @@
       const echoes = this.economy.state.deepest >= 59 ? B.VAULTS.filter((v, i) => !this.expedition.state.vaults.includes(i) && Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z) < range) : [];
       const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range), furnace = this.foreman.scan(p, range);
       this.mysteries.scan(p, range); this.survey.scan(p, range, nodes); this.changed();
-      this.view.scan([...nodes, ...echoes, ...this.rescue.scan(p, range), ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
+      this.view.scan([...nodes, ...echoes, ...this.kinetics.scan(p,range), ...this.rescue.scan(p, range), ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
       const target = nodes[0];
       const vein = target && this.deposits.veins[target.vein];
       $('scan-target').textContent = target ? `${vein?.name || B.ORES[target.kind].name} · ${Math.hypot(target.x - p.x, target.y - p.y, target.z - p.z).toFixed(1)} m` : focus < 0 ? 'No deposits in range' : `No ${B.ORES[focus].name.toLowerCase()} within ${range} m`;
@@ -322,7 +338,8 @@
       $('chapter-banner').hidden = !this.chapterUntil || this.clock > this.chapterUntil;
       $('tool-name').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Impact axe' : t.name; $('tool-hint').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Basalt edge / 52 damage / double rock cutting' : t.hint; $('tool-readout').style.setProperty('--tool-color', t.color);
       const charge = exp.cooldown > 0 ? 1 - exp.cooldown / (exp.state.tool === 'gravity' ? 2.4 : 1.3) : exp.charge;
-      $('tool-charge').style.width = `${B.clamp(charge, 0, 1) * 100}%`;
+      $('tool-charge').style.width = `${B.clamp(exp.state.tool==='sling'?this.kinetics.state.charge:charge, 0, 1) * 100}%`;
+      if(exp.state.tool==='sling')$('tool-hint').textContent=this.kinetics.hint();
       const available = exp.tools();
       for (const [key, info] of Object.entries(B.TOOLS)) { const button = $('tool-' + key); button.classList.toggle('selected', key === exp.state.tool); button.classList.toggle('locked', !available.includes(key)); button.setAttribute('aria-pressed', String(key === exp.state.tool)); button.title = available.includes(key) ? info.hint : info.depth ? `Unlock at ${info.depth} m` : info.magic ? 'Wake the heart' : 'Recover the resonance engine'; }
       $('anchor-status').textContent = exp.state.anchor ? `B Replace anchor / G Return · ${Math.round(-exp.state.anchor.y)} m` : exp.state.recovered.includes(0) ? 'B Plant a return anchor in your tunnel' : '';
@@ -340,6 +357,7 @@
       const action = this.interaction(); $('interaction').hidden = !action || !!this.recallTime; if (action) $('interaction').innerHTML = `${action.locked ? '' : '<kbd>E</kbd>'}${action.label}`;
       $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.digFloor + .3 ? this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
       $('crosshair').classList.toggle('cutting', this.cutter.edited); $('scanner').hidden = this.scanUntil <= this.clock;
+      if(exp.state.tool==='sling' && this.kinetics.state.held!==null && this.kinetics.obstruction)$('contact').textContent=this.kinetics.hint();
       this.fieldKit?.sync();
       $('recall').hidden = this.recallTime <= 0; $('recall-bar').style.width = `${this.recallTime / 1.25 * 100}%`; $('pickup').hidden = this.pickupUntil <= this.clock;
     }
@@ -383,7 +401,8 @@
       const furnaceNotes = this.foreman.state.known ? `<div class="discovery-entry"><strong>The Foreman Below</strong><p>${this.foreman.state.defeated ? 'The pressure locks are broken and the common has power again. Z melts a 12 m passage below ground, with a six-second recharge. No supplies consumed. Existing minerals survive.' : 'The furnace draws armor from three buried pressure locks. Expose each on every side, then damage it with a tool or blast. Every broken lock exposes another part of the core. Its cutting jet fixes a line before firing; rock stops it but takes a small crater. Lift above its ground shock.'}</p></div>` : '';
       const rescueNotes = this.rescue.state.known ? `<div class="discovery-entry"><strong>Inez Rook / survey bell</strong><p>${this.rescue.status()} Aim at the front intercom and press E. Mara knows the bell location. Its reinforced shell protects Inez from tools and charges.</p></div>` : '';
       const crawlerNotes = this.crawlers.nodes.some(n => n.known) ? '<div class="discovery-entry"><strong>Shale crawlers</strong><p>A lance or explosion fractures the shell. Their exposed rear takes direct damage. Claws rise before a committed charge; sidestep or lift. Excavate the floor to drop them. Cleared shells stay cleared. E recovers teeth and blasting salts. Take a tooth to Otis for an impact axe head: 52 damage and double rock-cutting power.</p></div>' : '';
-      $('discovery-list').innerHTML = crawlerNotes + rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const workshopNotes=this.kinetics.state.known?`<div class="discovery-entry"><strong>Stonewright workshop</strong><p>${this.kinetics.state.unlocked?'7 equips the sling. Hold on an exposed loose mineral to lift and charge it, then release to throw. Impacts hurt creatures and break armor. Minerals remain valuable. Pausing, switching tools or recalling drops a held mineral safely.':'A buried frame holds a pair of field coils. Uncover them and strike each with the resonator. Clear the frame, then use E at the front console to recover its sling.'}</p></div>`:'';
+      $('discovery-list').innerHTML = workshopNotes + crawlerNotes + rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {
@@ -395,7 +414,7 @@
       this.setScreen('journal');
     }
     toast(text, duration = 3300) { clearTimeout(this.toastTimer); $('toast').textContent = text; $('toast').classList.add('visible'); this.toastTimer = setTimeout(() => $('toast').classList.remove('visible'), duration); }
-    clearInput() { this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
+    clearInput() { this.kinetics?.cancel(); this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
     setScreen(name) {
       this.clearInput(); this.screen = name; this.running = name === null; document.body.classList.toggle('in-menu', !this.running);
       for (const screen of document.querySelectorAll('.screen')) screen.hidden = screen.id !== name + '-screen';
@@ -465,7 +484,7 @@
         if (this.screen === 'town' && e.code === 'Escape') { e.preventDefault(); this.play(); return; }
         if (this.screen === 'town' && e.code === 'Tab') return;
         if (this.screen === 'kit' && ['Escape', 'KeyI'].includes(e.code)) { e.preventDefault(); this.play(); return; }
-        if (this.screen === 'kit' && (/^Digit[1-6]$/.test(e.code) || ['KeyX', 'KeyN'].includes(e.code))) {
+        if (this.screen === 'kit' && (/^Digit[1-7]$/.test(e.code) || ['KeyX', 'KeyN'].includes(e.code))) {
           e.preventDefault(); if (e.repeat) return;
           if (e.code === 'KeyX') this.cycleTool(); else if (e.code === 'KeyN') this.cycleCharge(); else this.selectTool(Object.keys(B.TOOLS)[Number(e.code.slice(-1)) - 1]);
           return;
@@ -476,12 +495,12 @@
           if (e.code === 'Tab') { const focusables = [...document.querySelectorAll('.screen:not([hidden]) button:not([disabled]),.screen:not([hidden]) a,.screen:not([hidden]) input,.screen:not([hidden]) select')]; const index = focusables.indexOf(document.activeElement); if (focusables.length && ((e.shiftKey && index <= 0) || (!e.shiftKey && index === focusables.length - 1))) { e.preventDefault(); focusables[e.shiftKey ? focusables.length - 1 : 0].focus(); } }
           return;
         }
-        if (['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'KeyE', 'KeyJ', 'KeyM', 'KeyB', 'KeyG', 'KeyQ', 'KeyX', 'KeyC', 'KeyV', 'KeyN', 'KeyH', 'KeyT', 'KeyI', 'KeyY', 'KeyZ'].includes(e.code) || /^Digit[1-6]$/.test(e.code)) e.preventDefault(); keys.add(e.code);
+        if (['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'KeyE', 'KeyJ', 'KeyM', 'KeyB', 'KeyG', 'KeyQ', 'KeyX', 'KeyC', 'KeyV', 'KeyN', 'KeyH', 'KeyT', 'KeyI', 'KeyY', 'KeyZ'].includes(e.code) || /^Digit[1-7]$/.test(e.code)) e.preventDefault(); keys.add(e.code);
         if (e.repeat) return;
         if (e.code === 'KeyI') { this.fieldKit.open(); return; }
         if (e.code === 'KeyY') this.fieldKit.dismiss();
         if (e.code === 'KeyE') this.use(); if (e.code === 'KeyF') this.scan(); if (e.code === 'KeyJ') this.journal();
-        if (/^Digit[1-6]$/.test(e.code)) this.selectTool(Object.keys(B.TOOLS)[Number(e.code.slice(-1)) - 1]);
+        if (/^Digit[1-7]$/.test(e.code)) this.selectTool(Object.keys(B.TOOLS)[Number(e.code.slice(-1)) - 1]);
         if (e.code === 'KeyX') this.cycleTool(); if (e.code === 'KeyB') this.anchor(); if (e.code === 'KeyG') this.descend();
         if (e.code === 'KeyC') this.aimBomb(); if (e.code === 'KeyV') this.deploy('lamp'); if (e.code === 'KeyM') this.openSurvey();
         if (e.code === 'KeyZ') this.foundryBore();
@@ -500,6 +519,7 @@
         if (e.pointerType === 'touch' || e.button === 2) { this.input.lookPointer = e.pointerId; this.input.lookX = e.clientX; this.input.lookY = e.clientY; if (!document.pointerLockElement) canvas.setPointerCapture(e.pointerId); }
         else if (e.button === 0) { this.input.fire = true; this.audio.start(); }
       });
+      window.addEventListener('pointercancel', () => { this.kinetics?.cancel(); this.input.fire=false; });
       window.addEventListener('pointerup', e => { if (e.button === 0 && e.pointerType !== 'touch') this.input.fire = false; if (this.input.lookPointer === e.pointerId) this.input.lookPointer = null; });
       canvas.addEventListener('pointercancel', () => this.clearInput());
       window.addEventListener('pointermove', e => {
@@ -512,6 +532,8 @@
       for (const event of ['pointercancel', 'lostpointercapture']) bombButton.addEventListener(event, () => { this.input.aim = null; this.aimPreview = null; });
       const freightButton = $('touch-freight'); freightButton.addEventListener('pointerdown', e => { e.preventDefault(); if (!this.running) return; freightButton.setPointerCapture(e.pointerId); this.aimFreight(); }); freightButton.addEventListener('pointerup', () => this.releaseFreight()); for (const event of ['pointercancel', 'lostpointercapture']) freightButton.addEventListener(event, () => { if (this.input.aim === 'freight') { this.input.aim = null; this.freightPreview = null; } });
       hold('touch-cut', () => { this.input.fire = true; this.audio.start(); }, () => { this.input.fire = false; }); hold('touch-lift', () => keys.add('Space'), () => keys.delete('Space')); hold('touch-recall', () => keys.add('KeyR'), () => keys.delete('KeyR'));
+      $('touch-cut').addEventListener('pointerup',()=>{if(this.running && this.expedition.state.tool==='sling' && !this.input.aim)this.kinetics.fire(this.player);this.input.fire=false;});
+      for(const event of ['pointercancel','lostpointercapture'])$('touch-cut').addEventListener(event,()=>{this.kinetics?.cancel();this.input.fire=false;});
       $('touch-use').onclick = () => this.use(); $('touch-scan').onclick = () => this.scan();
       const stick = $('joystick'); let stickPointer = null;
       const resetStick = () => { stickPointer = null; for (const k of ['KeyW', 'KeyA', 'KeyS', 'KeyD']) keys.delete(k); stick.firstElementChild.style.transform = ''; };

@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**Shale Crawlers, local 2.15.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Stonewright Sling, local 2.16.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Find the Stonewright workshop around 134 m. Expose its two field coils, wake each with the resonator, then clear the frame and recover its sling with E. Otis offers a lead; F and M track the physical workshop. Its frame, coils and lamp fall together when undermined.
+- Tool 7 lifts existing loose minerals while you hold the trigger, then throws them on release. Fast impacts break armor and hurt creatures. Rock and machinery block movement; an amber field warns when the mineral catches. The same mineral remains collectible and valuable afterward. Grip cancellation, blast interruption and midflight saves preserve it. See [docs/STONEWRIGHT.md](docs/STONEWRIGHT.md).
 
 - Armored shale crawlers inhabit three lower-mine chambers. Lance or blast their shells, circle behind to hit the exposed body, dodge their committed claw charge, or excavate their footing to cause a damaging fall. Their bodies follow supported routes around rock and cannot walk across an excavated gap. Cleared encounters stay cleared.
 - E recovers a basalt tooth and up to three charges from each shell. Take a tooth to Otis for a $240 impact axe head: 52 damage per swing and double rock-cutting power, with the same reach and cadence. Armor, injuries, attacks, physical corpses, remaining supplies and the upgrade survive saves. See [docs/CRAWLERS.md](docs/CRAWLERS.md).
@@ -29,7 +32,7 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 - Meet Mara Vale at Vale Supply and Otis Bell at Bell Works. Aim and E starts a conversation. Mara sells charges/lights and buys ore; Otis sells upgrades and freight equipment. Their dialogue reacts to your recoveries, and introductions and conversation history persist. The shops sit beyond the headframe, along the road south of the claim.
 - Buildings, counters, residents and nearby trees have physical boundaries. Shops include stocked shelves, warm lights, framed windows, weatherboards and original procedural characters. The existing mine and save ledger remain intact. The new service panel has character portraits, advice, live funds and explicit upgrade/stock states.
 
-- A compact equipment HUD shows owned tools and current supplies. I opens a paused field kit with tool illustrations, descriptions, charge selection and the next stratum unlock. Select with the buttons or 1?5, X and N; I or Escape returns to digging. Opening the kit cancels any held charge or crane placement.
+- A compact equipment HUD shows owned tools and current supplies. I opens a paused field kit with tool illustrations, descriptions, charge selection and the next stratum unlock. Select with the buttons or 1-7, X and N; I or Escape returns to digging. Opening the kit releases a held mineral and cancels any held charge or crane placement.
 - Optional field tips appear when an action becomes useful and stop after it is used or dismissed with Y. They yield to interactions, aiming, scans, full cargo and nearby chain reactions. The Menu's Field tips setting disables them; both the setting and dismissed tips survive saves. Touch controls hide unavailable actions, and the use button reads Cut, Pulse or Draw for the equipped tool.
 
 - Four natural thunderstone seams make explosives part of prospecting. Dig a pink crystal completely free and recover one charge with E, or hit it with a charge or resonance pulse to ignite a delayed chain reaction. Recovering a middle link can stop the chain. Forty-eight added minerals run alongside the seams; blasts preserve them.
@@ -64,7 +67,7 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 | --- | --- |
 | Move / run / look | WASD / Shift / mouse or right-drag |
 | Use equipped tool | Hold left mouse |
-| Equip / cycle tool | 1-6 / X |
+| Equip / cycle tool | 1-7 / X |
 | Field kit / dismiss field tip | I / Y |
 | Lift | Hold Space |
 | Interact / attach or release tether | E |
@@ -99,10 +102,13 @@ node tools/simulate-journey.mjs --legacy --refuges
 node tools/simulate-combat.mjs
 node tools/simulate-journey.mjs --rescue
 node tools/simulate-journey.mjs --crawlers --foreman
+node tools/simulate-journey.mjs --kinetics --foreman
 node tools/build.mjs
 ```
 
 The combat suite checks shared tool targeting, frame-rate-independent damage, full-body navigation, telegraphs and dodging, light/rock occlusion, explosive damage, physical loot, defeat recovery and persistent encounter saves. Its separate pilot digs from spawn, fights with the starter drill and axe, collects a husk, heals and reloads. The crawler suite extends this with supported ground navigation, shell/rear damage, undermining and the earned impact head. The fresh crawler/furnace journey earns equipment, clears all three crawlers, buys and reloads the head, restores all lower stations and returns from the furnace to the powered common. `crawlers.js` owns these encounters and `crawler-view.js` renders the shell, claws, attack cue and axe addition. Details and limits are in COMBAT.md and CRAWLERS.md.
+
+The kinetic suite checks workshop acquisition, physical cover, once-only projectile hits, collectible mineral identity, crawler armor, furnace locks, frame-rate equivalence, saved flights, interrupted grips and older terrain. `kinetics.js` owns the system and `kinetic-view.js` renders the workshop and tool. The fresh `--kinetics --foreman` journey adds workshop recovery and a saved projectile hit to the crawler/furnace route. See STONEWRIGHT.md and VERIFICATION.md for evidence and limits.
 
 The cavern suite additionally checks connected routes with a full player body across three seeds, concealed exploration, falling cabinets and ore, chart repair, model/collision containment, exact saved terrain and old-generation compatibility. The refuge journey excavates a cabinet, spends a light, charts passages and reloads before completing the campaign; `--legacy` starts from an old-format claim. `caverns.js` owns seeded generation, `refuges.js` owns cabinet state and physics, and `cavern-view.js` renders the structures, formations and lights.
 

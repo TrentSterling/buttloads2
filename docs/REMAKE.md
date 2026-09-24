@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Stonewright Sling (local 2.16.0)
+
+A physical workshop around 134 m offers another discovery with a permanent equipment reward. Uncover and resonate its two coils, then recover the mineral sling. Holding the trigger lifts a real loose mineral; release throws it through the existing terrain and combat systems. Impacts can break armor, and the same mineral remains collectible afterward. The frame falls if undermined, old terrain remains exact, and saved projectiles retain their identity. STONEWRIGHT.md records controls, collision, persistence and verification. The broader surface, resident, discovery and visual-review work remains in BEAUTY-DEPTH-COMBAT-PLAN.md.
+
 ### Shale Crawlers (local 2.15.0)
 
 The lower workings now contain three persistent armored ground creatures. They navigate supported routes, commit to a visible claw charge and fall when their terrain is removed. Lance and explosives break armor; the rear stays vulnerable. Teeth and blasting salts are recovered from physical shells. Otis fits an earned, paid impact axe head with stronger combat and excavation. CRAWLERS.md records the system and full fresh-start journey through the furnace and powered town. This expands the enemy roster without respawning threats in cleared routes or changing existing terrain.

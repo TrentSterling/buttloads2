@@ -15,7 +15,8 @@
     lance: { key: '3', name: 'Lance', short: 'LANCE', hint: 'Narrow, fast cuts through hard rock', color: '#a9dcdf', radius: .72, power: 2.8, depth: 25 },
     resonance: { key: '4', name: 'Resonator', short: 'PULSE', hint: 'Hold to charge a rock-breaking pulse', color: '#baacf1', radius: 1.5, power: 1, recovery: 1 },
     gravity: { key: '5', name: 'Heart of the mine', short: 'GRAVITY', hint: 'Hold to draw ore and drain creatures. Q tears open rock.', color: '#78f1cc', radius: 1, power: 1, magic: true },
-    axe: { key: '6', name: 'Mining axe', short: 'AXE', hint: 'A short, heavy swing. Chips rock and staggers creatures.', color: '#d59e6b', radius: .65, power: 7, depth: 9 }
+    axe: { key: '6', name: 'Mining axe', short: 'AXE', hint: 'A short, heavy swing. Chips rock and staggers creatures.', color: '#d59e6b', radius: .65, power: 7, depth: 9 },
+    sling: { key: '7', name: 'Stonewright sling', short: 'SLING', hint: 'Hold on a loose mineral to lift it. Release to throw.', color: '#9cdece', radius: 1, power: 0, workshop: true }
   };
   const SALVAGE = [
     { id: 0, name: 'Survey flywheel', x: -4, y: -12.4, z: 1, size: [1.5, 1.2, 1.5], reward: 240, unlock: 'Survey anchor', brief: 'Excavate around the flywheel. Tether it with E, then lift it through a clear shaft to the surface. Delivery unlocks a return anchor.' },
@@ -40,7 +41,7 @@
   };
   function availableTools(state) {
     const e = state.expedition;
-    return Object.keys(TOOLS).filter(k => { const t = TOOLS[k]; return t.magic ? e.awakened : t.recovery !== undefined ? e.recovered.includes(t.recovery) : state.deepest >= t.depth; });
+    return Object.keys(TOOLS).filter(k => { const t = TOOLS[k]; return t.workshop ? !!e.kinetics?.unlocked : t.magic ? e.awakened : t.recovery !== undefined ? e.recovered.includes(t.recovery) : state.deepest >= t.depth; });
   }
   function chapter(depth) { return STRATA.findLastIndex(s => depth >= s.depth); }
   class Expedition {
@@ -122,6 +123,8 @@
       let target = hit, best = hit?.distance ?? reach;
       const creature = this.damageTarget?.(head, dir, reach);
       if (creature && creature.distance <= best) { target = creature; best = creature.distance; }
+      const structure = !magic && this.structureTarget?.(head,dir,reach);
+      if(structure && structure.distance <= best){target=structure;best=structure.distance;}
       const targets = magic ? VAULTS : RUNES;
       for (const p of targets) {
         const dx = p.x - head.x, dy = p.y - head.y, dz = p.z - head.z, along = dx * dir.x + dy * dir.y + dz * dir.z;

@@ -99,6 +99,7 @@
       if (combat) state.expedition.combat = combat;
       if (e.foreman !== undefined) state.expedition.foreman = B.Foreman.validate(e.foreman, savedWorld, st);
       if (e.deep !== undefined) state.expedition.deep = B.DeepExpedition.validate(e.deep, savedWorld, st);
+      if (e.kinetics !== undefined) state.expedition.kinetics = B.Kinetics.validate(e.kinetics,savedWorld,st,loose,p);
       if (e.crawlers !== undefined) state.expedition.crawlers = B.Crawlers.validate(e.crawlers, savedWorld, st);
       if (e.rescue !== undefined) state.expedition.rescue = B.Rescue.validate(e.rescue, savedWorld, generated.nodes.length);
       if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town, state.expedition.rescue);
@@ -115,7 +116,7 @@
   function snapshot(game, portable = false) {
     const p = game.player;
     if (game.expedition) game.economy.state.expedition.bodies = game.expedition.physics.snapshot();
-    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save(); game.deep?.save(); game.foreman?.save(); game.crawlers?.save();
+    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save(); game.deep?.save(); game.foreman?.save(); game.crawlers?.save(); game.kinetics?.save();
     return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, depthVersion: game.world.depthVersion || 0, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
   }
   class SaveStore {

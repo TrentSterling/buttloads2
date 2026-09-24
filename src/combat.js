@@ -17,7 +17,7 @@
     }
     static validate(s, world) {
       const finite = (n, min, max) => Number.isFinite(n) && n >= min && n <= max, integer = (n, min, max) => Number.isSafeInteger(n) && n >= min && n <= max;
-      const vec = (p, speed = false) => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k])) && (speed ? Math.abs(Math.hypot(p.x, p.y, p.z) - 1) < 1e-5 : Math.abs(p.x) <= 14 && Math.abs(p.z) <= 14 && p.y >= -72.6 && p.y <= -5);
+      const vec = (p, speed = false) => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k])) && (speed ? Math.abs(Math.hypot(p.x, p.y, p.z) - 1) < 1e-5 : Math.abs(p.x) <= 14 && Math.abs(p.z) <= 14 && p.y >= world.floor + .4 && p.y <= -5);
       if (!s || s.version !== 1 || !finite(s.health, .001, 100) || !finite(s.grace, 0, 3) || !integer(s.rescues, 0, 1e9) || !finite(s.weaponCooldown, 0, .68) || !finite(s.swing, 0, .19) || !Array.isArray(s.enemies) || s.enemies.length !== 3 || !Array.isArray(s.drops) || s.drops.length > 4) throw new Error('Invalid combat state.');
       const homes = Combat.sites(world), enemies = [];
       for (const [id, n] of s.enemies.entries()) {
@@ -27,7 +27,7 @@
       }
       const ids = new Set(), drops = [];
       for (const n of s.drops) {
-        if (!n || !integer(n.id, 0, 3) || ids.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 14 || Math.abs(n.z) > 14 || n.y < -73 || n.y > 3 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25) || !Array.isArray(n.cargo) || n.cargo.length !== B.ORES.length || n.cargo.some(n => !integer(n, 0, 1e9))) throw new Error('Invalid recovery cache.');
+        if (!n || !integer(n.id, 0, 3) || ids.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 14 || Math.abs(n.z) > 14 || n.y < world.floor || n.y > 3 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25) || !Array.isArray(n.cargo) || n.cargo.length !== B.ORES.length || n.cargo.some(n => !integer(n, 0, 1e9))) throw new Error('Invalid recovery cache.');
         if (n.id === 3 ? n.charges !== 0 || !n.cargo.some(n => n > 0) : !integer(n.charges, 1, 2) || n.cargo.some(n => n) || enemies[n.id].hp !== 0 || enemies[n.id].reward !== n.charges) throw new Error('Invalid recovered supplies.');
         if (DROP.some(p => world.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Recovery cache is inside terrain.');
         ids.add(n.id); drops.push({ id: n.id, ...point(n), vx: n.vx, vy: n.vy, vz: n.vz, charges: n.charges, cargo: [...n.cargo] });
@@ -36,7 +36,7 @@
       return { version: 1, health: s.health, grace: s.grace, rescues: s.rescues, weaponCooldown: s.weaponCooldown, swing: s.swing, enemies, drops };
     }
     blocked(p) {
-      if (Math.abs(p.x) > 13.3 || Math.abs(p.z) > 13.3 || p.y < -72 || p.y > -5.5) return true;
+      if (Math.abs(p.x) > 13.3 || Math.abs(p.z) > 13.3 || p.y < this.world.floor + 1 || p.y > -5.5) return true;
       if (this.obstacles.some(b => p.x + SIZE[0] / 2 > b[0] && p.x - SIZE[0] / 2 < b[3] && p.y + SIZE[1] / 2 > b[1] && p.y - SIZE[1] / 2 < b[4] && p.z + SIZE[2] / 2 > b[2] && p.z - SIZE[2] / 2 < b[5])) return true;
       return BODY.some(o => this.world.density(p.x + o[0], p.y + o[1], p.z + o[2]) < -.004);
     }
@@ -160,7 +160,7 @@
         n.timer = Math.max(0, n.timer - dt); n.alert = Math.max(0, n.alert - dt);
         const dist = distance(n, target), inTerritory = player.y < -6 && distance(target, this.homes[n.id]) < 10;
         const sees = inTerritory && dist < 7 && this.world.clearLine(n, target, .05);
-        if (sees) { n.known = true; n.lastSeen = { ...point(target), y: B.clamp(target.y, -72.6, -5.5) }; n.alert = 4; this.revision++; }
+        if (sees) { n.known = true; n.lastSeen = { ...point(target), y: B.clamp(target.y, this.world.floor + .4, -5.5) }; n.alert = 4; this.revision++; }
         const lamp = this.lightAt(n), sheltered = this.lightAt(target);
         if ((lamp || sheltered) && !['stunned', 'recover'].includes(n.phase)) { n.phase = 'recover'; n.timer = 1; }
         if (n.phase === 'stunned') { if (!n.timer) n.phase = 'idle'; continue; }

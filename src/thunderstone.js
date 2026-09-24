@@ -25,7 +25,7 @@
       if (!s || s.version !== 1 || !ids(s.known) || !ids(s.spent) || s.spent.some(id => !s.known.includes(id)) || !Array.isArray(s.loose) || s.loose.length > STONES.length || !Array.isArray(s.lit) || s.lit.length > STONES.length) throw new Error('Invalid thunderstone seam.');
       const seen = new Set();
       for (const n of s.loose) {
-        if (!n || !validID(n.id) || seen.has(n.id) || s.spent.includes(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 24 || Math.abs(n.z) > 24 || n.y < -74 || n.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid loose thunderstone.');
+        if (!n || !validID(n.id) || seen.has(n.id) || s.spent.includes(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 24 || Math.abs(n.z) > 24 || n.y < (world?.floor ?? B.WORLD.floor) - 1 || n.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid loose thunderstone.');
         seen.add(n.id);
         if (B.oreOffsets({ ...STONES[n.id], kind: 0 }).some(p => world.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Thunderstone is inside terrain.');
       }

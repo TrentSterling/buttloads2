@@ -8,6 +8,8 @@ globalThis.B2 = globalThis.B2 || {};
     return () => { s += 0x6d2b79f5; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   }
   const WORLD = Object.freeze({ min: -16, max: 16, bottom: -80, top: 2, step: .5, cells: 16, size: 8, limit: 14, floor: -73 });
+  const DEPTHS = Object.freeze([{ bottom: -80, floor: -73, ny: 165 }, { bottom: -304, floor: -297, ny: 613 }]);
+  B.DEPTHS = DEPTHS; B.DEPTH_VERSION = 1;
   const ORES = Object.freeze([
     { name: 'Copper', value: 8, color: '#e78c47', depth: 0 },
     { name: 'Iron', value: 18, color: '#becbd1', depth: 9 },
@@ -70,9 +72,13 @@ globalThis.B2 = globalThis.B2 || {};
     if (depth < 25) return { name: 'Red clay', resistance: 1.65, color: [171, 88, 53] };
     if (depth < 43) return { name: 'Limestone', resistance: 2.8, color: [134, 140, 132] };
     if (depth < 59) return { name: 'Basalt', resistance: 4.8, color: [66, 77, 87] };
-    return { name: 'Prismatic rock', resistance: 7, color: [66, 94, 89] };
+    if (depth < 80) return { name: 'Prismatic rock', resistance: 7, color: [66, 94, 89] };
+    if (depth < 128) return { name: 'The rootworks', resistance: 8, color: [106, 98, 63] };
+    if (depth < 208) return { name: 'Ashfall', resistance: 9, color: [105, 65, 58] };
+    if (depth < 266) return { name: 'The old foundry', resistance: 10, color: [72, 76, 85] };
+    return { name: 'The furnace roots', resistance: 11, color: [98, 59, 48] };
   }
-  function generateDeposits(seed) {
+  function generateDeposits(seed, depthVersion = 0) {
     const rng = random(seed ^ 0x9e3779b9), nodes = [], veins = [];
     const add = (x, y, z, kind, vein) => nodes.push({ id: nodes.length, x, y, z, kind, vein, radius: .18 + rng() * .15, collected: false });
     // A readable first seam directly in front of the spawn; enough for an upgrade.
@@ -114,6 +120,7 @@ globalThis.B2 = globalThis.B2 || {};
       veins.push({ x: stone.x, y: stone.y, z: stone.z, kind: stone.kind, radius: 2, name: 'Thunderstone pocket' });
       for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; add(stone.x + Math.cos(a) * .85, stone.y - .7, stone.z + Math.sin(a) * .85, stone.kind, id); }
     }
+    if (depthVersion) B.appendDeepDeposits(seed, nodes, veins);
     return { nodes, veins };
   }
   class SpatialIndex {

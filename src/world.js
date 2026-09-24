@@ -2,8 +2,9 @@
 (function (B) {
   const { WORLD: W, clamp, RELICS } = B;
   class World {
-    constructor(seed, generation = 0) {
-      this.seed = seed; this.generation = generation; this.caverns = new B.Caverns(seed, generation); this.nx = 65; this.ny = 165; this.nz = 65;
+    constructor(seed, generation = 0, depthVersion = 0) {
+      if (!B.DEPTHS[depthVersion] || !Number.isInteger(depthVersion)) throw new Error('Unsupported mine depth.');
+      this.seed = seed; this.generation = generation; this.depthVersion = depthVersion; this.deepOpen = false; this.caverns = new B.Caverns(seed, generation); this.deepTerrain = depthVersion ? new B.DeepTerrain(seed) : null; this.nx = 65; this.ny = B.DEPTHS[depthVersion].ny; this.nz = 65;
       this.field = new Float32Array(this.nx * this.ny * this.nz);
       this.kernel = B.createMesher(); this.chunks = new Map(); this.revision = 0;
       this.audit = { edits: 0, samples: 0, lastEditMs: 0, maxEditMs: 0 };
@@ -11,25 +12,41 @@
       this.generate();
     }
     index(x, y, z) { return x + this.nx * (y + this.ny * z); }
+    get bottom() { return B.DEPTHS[this.depthVersion || 0].bottom; }
+    get floor() { return B.DEPTHS[this.depthVersion || 0].floor; }
+    get digFloor() { return this.depthVersion && !this.deepOpen ? W.floor : this.floor; }
+    get minChunkY() { return this.bottom / W.size; }
+    installField(field, depthVersion = 0) {
+      const source = B.DEPTHS[depthVersion]; if (!source || field.length !== this.nx * source.ny * this.nz || source.bottom < this.bottom) throw new Error('Invalid terrain extent.');
+      const offset = (source.bottom - this.bottom) * 2;
+      for (let z = 0; z < this.nz; z++) this.field.set(field.subarray(z * source.ny * this.nx, (z + 1) * source.ny * this.nx), this.index(0, offset, z));
+    }
+    fieldAtDepth(depthVersion) {
+      const target = B.DEPTHS[depthVersion]; if (!target || target.bottom < this.bottom) throw new Error('Invalid terrain projection.');
+      const field = new Float32Array(this.nx * target.ny * this.nz), offset = (target.bottom - this.bottom) * 2;
+      for (let z = 0; z < this.nz; z++) field.set(this.field.subarray(this.index(0, offset, z), this.index(0, offset, z) + target.ny * this.nx), z * target.ny * this.nx);
+      return field;
+    }
     base(x, y, z) {
+      if (y < -80) return clamp(this.deepTerrain?.density(x, y, z) ?? -2, -2, 2);
       let density = y;
       for (const r of RELICS) { const cave = 3.3 - Math.hypot((x - r.x) * .9, (y - r.y - 1.1) * 1.1, (z - r.z) * .9); density = Math.max(density, cave); }
       // The final chamber opens out into a low, asymmetric crystal garden.
       const garden = 4.8 - Math.hypot((x - 1) * .85, (y + 67.1) * 1.7, (z - 1) * .9);
       density = Math.max(density, garden);
       for (const c of B.MYSTERY_CAVES || []) density = Math.max(density, c.radius - Math.hypot(x - c.x, (y - c.y) * 1.15, z - c.z));
-      return clamp(Math.max(density, this.caverns?.density(x, y, z) ?? -2), -2, 2);
+      return clamp(Math.max(density, this.caverns?.density(x, y, z) ?? -2, this.deepTerrain?.density(x, y, z) ?? -2), -2, 2);
     }
     generate() {
-      for (let z = 0; z < this.nz; z++) for (let y = 0; y < this.ny; y++) for (let x = 0; x < this.nx; x++) this.field[this.index(x, y, z)] = this.base(W.min + x * .5, W.bottom + y * .5, W.min + z * .5);
+      for (let z = 0; z < this.nz; z++) for (let y = 0; y < this.ny; y++) for (let x = 0; x < this.nx; x++) this.field[this.index(x, y, z)] = this.base(W.min + x * .5, this.bottom + y * .5, W.min + z * .5);
     }
     sample(x, y, z) {
-      if (x < 0 || x >= this.nx || y < 0 || y >= this.ny || z < 0 || z >= this.nz) return clamp(W.bottom + y * .5, -2, 2);
+      if (x < 0 || x >= this.nx || y < 0 || y >= this.ny || z < 0 || z >= this.nz) return clamp(this.bottom + y * .5, -2, 2);
       return this.field[this.index(x, y, z)];
     }
     density(x, y, z) {
       if (y > W.top) return 2;
-      const fx = (x - W.min) * 2, fy = (y - W.bottom) * 2, fz = (z - W.min) * 2;
+      const fx = (x - W.min) * 2, fy = (y - this.bottom) * 2, fz = (z - W.min) * 2;
       const ix = Math.floor(fx), iy = Math.floor(fy), iz = Math.floor(fz), u = fx - ix, v = fy - iy, w = fz - iz;
       let d = 0;
       for (let c = 0; c < 8; c++) d += this.sample(ix + (c & 1), iy + ((c >> 1) & 1), iz + (c >> 2)) * (c & 1 ? u : 1 - u) * (c & 2 ? v : 1 - v) * (c & 4 ? w : 1 - w);
@@ -59,7 +76,7 @@
     }
     samplesFor(cx, cy, cz) {
       const m = this.kernel.M, samples = new Float32Array(m ** 3);
-      for (let z = -1; z <= 16; z++) for (let y = -1; y <= 16; y++) for (let x = -1; x <= 16; x++) samples[this.kernel.sampleId(x, y, z)] = this.sample(cx * 16 + x + 32, cy * 16 + y + 160, cz * 16 + z + 32);
+      for (let z = -1; z <= 16; z++) for (let y = -1; y <= 16; y++) for (let x = -1; x <= 16; x++) samples[this.kernel.sampleId(x, y, z)] = this.sample(cx * 16 + x + 32, cy * 16 + y - this.bottom * 2, cz * 16 + z + 32);
       return samples;
     }
     adopt(cx, cy, cz, mesh) {
@@ -70,7 +87,7 @@
     }
     async build(progress = () => {}) {
       const jobs = [];
-      for (let cy = -1; cy >= -10; cy--) for (let cz = -2; cz < 2; cz++) for (let cx = -2; cx < 2; cx++) {
+      for (let cy = -1; cy >= this.minChunkY; cy--) for (let cz = -2; cz < 2; cz++) for (let cx = -2; cx < 2; cx++) {
         const samples = this.samplesFor(cx, cy, cz); let positive = false, negative = false;
         for (const v of samples) { if (v < 0) negative = true; else positive = true; if (positive && negative) break; }
         if (positive && negative) jobs.push({ cx, cy, cz, samples });
@@ -106,12 +123,12 @@
     }
     carve(p, radius, strength = Infinity) {
       const begin = performance.now();
-      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, W.bottom, W.min], dims = [this.nx, this.ny, this.nz];
+      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, this.bottom, W.min], dims = [this.nx, this.ny, this.nz];
       for (let k = 0; k < 3; k++) { lo[k] = clamp(Math.floor((lo[k] - base[k]) * 2), 0, dims[k] - 1); hi[k] = clamp(Math.ceil((hi[k] - base[k]) * 2), 0, dims[k] - 1); }
       let changed = 0; const dirty = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
       for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
-        const wx = W.min + x * .5, wy = W.bottom + y * .5, wz = W.min + z * .5;
-        if (Math.abs(wx) >= W.limit || Math.abs(wz) >= W.limit || wy <= W.floor) continue;
+        const wx = W.min + x * .5, wy = this.bottom + y * .5, wz = W.min + z * .5;
+        if (Math.abs(wx) >= W.limit || Math.abs(wz) >= W.limit || wy <= this.digFloor) continue;
         const distance = Math.hypot(wx - p.x, wy - p.y, wz - p.z); if (distance >= radius) continue;
         const id = this.index(x, y, z), target = radius - distance, value = Math.fround(Math.max(this.field[id], Math.min(target, this.field[id] + strength)));
         if (value <= this.field[id] + 1e-7) continue;
@@ -121,12 +138,12 @@
       if (!changed) return 0;
       this.revision++;
       // Include the sample halo of every affected chunk, including corners.
-      const min = [Math.max(-2, Math.floor((dirty[0] - 33) / 16)), Math.max(-10, Math.floor((dirty[1] - 161) / 16)), Math.max(-2, Math.floor((dirty[2] - 33) / 16))];
-      const max = [Math.min(1, Math.floor((dirty[3] - 31) / 16)), Math.min(-1, Math.floor((dirty[4] - 159) / 16)), Math.min(1, Math.floor((dirty[5] - 31) / 16))];
+      const min = [Math.max(-2, Math.floor((dirty[0] - 33) / 16)), Math.max(this.minChunkY, Math.floor((dirty[1] + this.bottom * 2 - 1) / 16)), Math.max(-2, Math.floor((dirty[2] - 33) / 16))];
+      const max = [Math.min(1, Math.floor((dirty[3] - 31) / 16)), Math.min(-1, Math.floor((dirty[4] + this.bottom * 2 + 1) / 16)), Math.min(1, Math.floor((dirty[5] - 31) / 16))];
       for (let cz = min[2]; cz <= max[2]; cz++) for (let cy = min[1]; cy <= max[1]; cy++) for (let cx = min[0]; cx <= max[0]; cx++) {
         const key = `${cx},${cy},${cz}`; let rec = this.chunks.get(key);
         if (!rec) { this.adopt(cx, cy, cz, this.kernel.build([cx * 8, cy * 8, cz * 8], this.samplesFor(cx, cy, cz))); continue; }
-        const offset = [cx * 16 + 32, cy * 16 + 160, cz * 16 + 32], bounds = dirty.map((v, i) => clamp(v - offset[i % 3], -1, 16));
+        const offset = [cx * 16 + 32, cy * 16 - this.bottom * 2, cz * 16 + 32], bounds = dirty.map((v, i) => clamp(v - offset[i % 3], -1, 16));
         for (let z = bounds[2]; z <= bounds[5]; z++) for (let y = bounds[1]; y <= bounds[4]; y++) for (let x = bounds[0]; x <= bounds[3]; x++) rec.mesh.samples[this.kernel.sampleId(x, y, z)] = this.sample(offset[0] + x, offset[1] + y, offset[2] + z);
         this.kernel.update(rec.mesh, bounds); this.onChange(rec); this.kernel.clear(rec.mesh);
       }

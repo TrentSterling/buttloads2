@@ -1,6 +1,6 @@
 'use strict';
 (function (B) {
-  const FORMAT = 'buttloads2', VERSION = 2, FIELD_LENGTH = 65 * 165 * 65;
+  const FORMAT = 'buttloads2', VERSION = 2;
   function encode(field) {
     const bytes = new Uint8Array(field.buffer, field.byteOffset, field.byteLength); let text = '';
     for (let i = 0; i < bytes.length; i += 16384) text += String.fromCharCode(...bytes.subarray(i, i + 16384));
@@ -10,6 +10,9 @@
     if (!input || input.format !== FORMAT || input.version !== VERSION) throw new Error('This save belongs to a different game or version. Original prototype saves remain in their original browser storage.');
     const generation = input.generation ?? 0;
     if (generation !== 0 && generation !== B.CAVE_VERSION) throw new Error('Unsupported cave generation.');
+    const depthVersion = input.depthVersion ?? 0, extent = B.DEPTHS[depthVersion];
+    if (!Number.isInteger(depthVersion) || !extent) throw new Error('Unsupported mine depth.');
+    const FIELD_LENGTH = 65 * extent.ny * 65, floor = extent.floor;
     const st = input.state;
     const integer = (n, max = 1e9) => Number.isSafeInteger(n) && n >= 0 && n <= max;
     if (!st || !integer(st.seed, 4294967295)) throw new Error('Invalid world seed.');
@@ -20,13 +23,13 @@
     for (const key of ['relics', 'paidRelics']) if (!Array.isArray(st[key]) || st[key].some(id => !integer(id, 2)) || new Set(st[key]).size !== st[key].length) throw new Error('Invalid discoveries.');
     if (st.paidRelics.some(id => !st.relics.includes(id)) || (st.core && st.relics.length !== 3)) throw new Error('Inconsistent discoveries.');
     if (typeof st.core !== 'boolean' || typeof st.won !== 'boolean' || (st.won && !st.core)) throw new Error('Invalid ending state.');
-    if (!Number.isFinite(st.deepest) || st.deepest < 0 || st.deepest > 74 || !Number.isFinite(st.seconds) || st.seconds < 0 || st.seconds > 1e9) throw new Error('Invalid statistics.');
-    const generated = B.generateDeposits(st.seed), ids = input.collected;
+    if (!Number.isFinite(st.deepest) || st.deepest < 0 || st.deepest > -floor + 1 || !Number.isFinite(st.seconds) || st.seconds < 0 || st.seconds > 1e9) throw new Error('Invalid statistics.');
+    const generated = B.generateDeposits(st.seed, depthVersion), ids = input.collected;
     if (!Array.isArray(ids) || ids.some(id => !integer(id, generated.nodes.length - 1)) || new Set(ids).size !== ids.length || ids.length !== st.mined) throw new Error('Invalid collected deposits.');
     const freight = st.expedition?.freight === undefined ? null : B.Freight.validate(st.expedition.freight, st);
     const counts = Array(B.ORES.length).fill(0); for (const id of ids) counts[generated.nodes[id].kind]++;
     const p = input.player;
-    if (!p || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(p[k])) || p.x < B.SURFACE.minX || p.x > B.SURFACE.maxX || p.z < B.SURFACE.minZ || p.z > B.SURFACE.maxZ || p.y < -74 || p.y > 17 || Math.abs(p.pitch) > 1.55) throw new Error('Invalid player position.');
+    if (!p || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(p[k])) || p.x < B.SURFACE.minX || p.x > B.SURFACE.maxX || p.z < B.SURFACE.minZ || p.z > B.SURFACE.maxZ || p.y < floor - 1 || p.y > 17 || Math.abs(p.pitch) > 1.55) throw new Error('Invalid player position.');
     let field;
     if (input.field instanceof Float32Array) field = input.field.slice();
     else if (typeof input.field === 'string' && input.field.length <= FIELD_LENGTH * 6) {
@@ -39,13 +42,13 @@
     // Additive v2 field: saves made before ore physics omit this array and detach on load.
     const loose = input.loose === undefined ? [] : input.loose, seen = new Set(), collected = new Set(ids);
     if (!Array.isArray(loose) || loose.length > generated.nodes.length) throw new Error('Invalid loose ore list.');
-    const savedWorld = Object.create(B.World.prototype); Object.assign(savedWorld, { nx: 65, ny: 165, nz: 65, field, seed: st.seed, generation, caverns: new B.Caverns(st.seed, generation) });
+    const savedWorld = Object.create(B.World.prototype); Object.assign(savedWorld, { nx: 65, ny: extent.ny, nz: 65, field, seed: st.seed, generation, depthVersion, caverns: new B.Caverns(st.seed, generation) });
     const combat = st.expedition?.combat === undefined ? null : B.Combat.validate(st.expedition.combat, savedWorld), cached = combat?.drops.find(n => n.id === 3)?.cargo;
     if (counts.some((count, i) => count !== st.cargo[i] + st.sold[i] + (freight?.load[i] || 0) + (freight?.stock[i] || 0) + (cached?.[i] || 0))) throw new Error('Inventory does not match the excavated deposits.');
     for (const body of loose) {
       if (!body || !integer(body.id, generated.nodes.length - 1) || seen.has(body.id) || collected.has(body.id)) throw new Error('Invalid loose ore ID.');
       seen.add(body.id);
-      if (!['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(body[k])) || Math.abs(body.x) > 24 || Math.abs(body.z) > 24 || body.y < -74 || body.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(body[k]) > 25)) throw new Error('Invalid loose ore position or velocity.');
+      if (!['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(body[k])) || Math.abs(body.x) > 24 || Math.abs(body.z) > 24 || body.y < floor - 1 || body.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(body[k]) > 25)) throw new Error('Invalid loose ore position or velocity.');
       const offsets = B.oreOffsets(generated.nodes[body.id]);
       if (offsets.some(p => savedWorld.density(body.x + p[0], body.y + p[1], body.z + p[2]) < -.01)) throw new Error('Loose ore is inside solid terrain.');
     }
@@ -62,13 +65,13 @@
       if (!Array.isArray(e.bodies) || e.bodies.length > 2) throw new Error('Invalid salvage.');
       const bodyIDs = new Set();
       for (const n of e.bodies) {
-        if (!n || !integer(n.id, 1) || bodyIDs.has(n.id) || e.recovered.includes(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 15 || Math.abs(n.z) > 15 || n.y < -74 || n.y > 4 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid salvage body.');
+        if (!n || !integer(n.id, 1) || bodyIDs.has(n.id) || e.recovered.includes(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 15 || Math.abs(n.z) > 15 || n.y < floor - 1 || n.y > 4 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid salvage body.');
         bodyIDs.add(n.id);
         if (B.boxOffsets(B.SALVAGE[n.id].size).some(p => savedWorld.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Salvage is inside terrain.');
       }
       if (e.anchor !== null) {
         const a = e.anchor;
-        if (!a || !e.recovered.includes(0) || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(a[k])) || Math.abs(a.x) > 14 || Math.abs(a.z) > 14 || a.y < -73 || a.y > -3 || Math.abs(a.pitch) > 1.55) throw new Error('Invalid survey anchor.');
+        if (!a || !e.recovered.includes(0) || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(a[k])) || Math.abs(a.x) > 14 || Math.abs(a.z) > 14 || a.y < floor || a.y > -3 || Math.abs(a.pitch) > 1.55) throw new Error('Invalid survey anchor.');
         const probe = new B.Player(savedWorld); if (probe.blocked(a.x, a.y, a.z)) throw new Error('Survey anchor is inside terrain.');
       }
       state.expedition = { version: 1, tool: e.tool, recovered: [...e.recovered], runes: [...e.runes], awakened: e.awakened, vaults: [...e.vaults], bodies: e.bodies.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, vx: n.vx, vy: n.vy, vz: n.vz })), anchor: e.anchor ? { x: e.anchor.x, y: e.anchor.y, z: e.anchor.z, yaw: e.anchor.yaw, pitch: e.anchor.pitch } : null };
@@ -76,7 +79,7 @@
       if (!integer(supplies.bombs, 99) || !integer(supplies.lights, 99) || !Array.isArray(devices) || devices.length > 54) throw new Error('Invalid field supplies.');
       const deviceIDs = new Set();
       for (const d of devices) {
-        if (!d || !integer(d.id) || deviceIDs.has(d.id) || !['lamp', 'bomb'].includes(d.type) || !['x', 'y', 'z', 'vx', 'vy', 'vz', 'fuse'].every(k => Number.isFinite(d[k])) || Math.abs(d.x) > 24 || Math.abs(d.z) > 24 || d.y < -74 || d.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(d[k]) > 25) || d.fuse < 0 || d.fuse > 3.21 || (d.type === 'lamp' && d.fuse !== 0)) throw new Error('Invalid deployed device.');
+        if (!d || !integer(d.id) || deviceIDs.has(d.id) || !['lamp', 'bomb'].includes(d.type) || !['x', 'y', 'z', 'vx', 'vy', 'vz', 'fuse'].every(k => Number.isFinite(d[k])) || Math.abs(d.x) > 24 || Math.abs(d.z) > 24 || d.y < floor - 1 || d.y > 20 || ['vx', 'vy', 'vz'].some(k => Math.abs(d[k]) > 25) || d.fuse < 0 || d.fuse > 3.21 || (d.type === 'lamp' && d.fuse !== 0)) throw new Error('Invalid deployed device.');
         const mode = d.mode || 'blast', spec = B.CHARGES[mode];
         if (!Object.hasOwn(B.CHARGES, mode) || (d.mode !== undefined && !Object.hasOwn(B.CHARGES, d.mode)) || (d.type === 'lamp' && (d.mode !== undefined || d.anchor !== undefined || d.direction !== undefined || d.triggered !== undefined)) || (d.type === 'bomb' && st.deepest < spec.depth)) throw new Error('Invalid charge type.');
         if (mode === 'sticky' ? typeof d.triggered !== 'boolean' || (!d.triggered && d.fuse !== 0) || d.fuse > .7 : d.triggered !== undefined || d.fuse > spec.fuse + .01) throw new Error('Invalid charge fuse.');
@@ -94,21 +97,22 @@
       if (freight) state.expedition.freight = B.Freight.validate(freight, st, savedWorld);
       if (e.refuges !== undefined) state.expedition.refuges = B.Refuges.validate(e.refuges, savedWorld);
       if (combat) state.expedition.combat = combat;
+      if (e.deep !== undefined) state.expedition.deep = B.DeepExpedition.validate(e.deep, savedWorld, st);
       if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town);
       if (e.guide !== undefined) state.expedition.guide = B.FieldGuide.validate(e.guide);
       if (e.thunder !== undefined) state.expedition.thunder = B.Thunderstone.validate(e.thunder, savedWorld);
       if (e.mysteries !== undefined) state.expedition.mysteries = B.Mysteries.validate(e.mysteries);
-      if (e.survey !== undefined) state.expedition.survey = B.Survey.validate(e.survey, generated.nodes.length);
+      if (e.survey !== undefined) state.expedition.survey = B.Survey.validate(e.survey, generated.nodes.length, savedWorld);
       if (!B.availableTools(state).includes(e.tool)) throw new Error('Selected tool is not unlocked.');
     }
     const settings = input.settings || {};
-    return { generation, state, player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, field, collected: [...ids], loose: loose.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, vx: n.vx, vy: n.vy, vz: n.vz })), settings: { sound: settings.sound !== false, tips: settings.tips !== false, sensitivity: B.clamp(Number(settings.sensitivity) || 1, .25, 3), quality: B.clamp(Number(settings.quality) || 1.5, .75, 2), motion: settings.motion !== false } };
+    return { generation, depthVersion, state, player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, field, collected: [...ids], loose: loose.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, vx: n.vx, vy: n.vy, vz: n.vz })), settings: { sound: settings.sound !== false, tips: settings.tips !== false, sensitivity: B.clamp(Number(settings.sensitivity) || 1, .25, 3), quality: B.clamp(Number(settings.quality) || 1.5, .75, 2), motion: settings.motion !== false } };
   }
   function snapshot(game, portable = false) {
     const p = game.player;
     if (game.expedition) game.economy.state.expedition.bodies = game.expedition.physics.snapshot();
-    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save();
-    return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
+    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save(); game.deep?.save();
+    return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, depthVersion: game.world.depthVersion || 0, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
   }
   class SaveStore {
     constructor() { this.db = null; this.pending = Promise.resolve(); }

@@ -22,7 +22,7 @@
       if (!s || s.version !== 1 || !Array.isArray(s.known) || !Array.isArray(s.lit) || [s.known, s.lit].some(a => a.length > 3 || a.some(n => !validID(n)) || new Set(a).size !== a.length) || s.lit.some(id => !s.known.includes(id)) || !Array.isArray(s.bodies) || s.bodies.length > 3) throw new Error('Invalid survey refuges.');
       const seen = new Set();
       for (const n of s.bodies) {
-        if (!n || !validID(n.id) || seen.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 14 || Math.abs(n.z) > 14 || n.y < -73 || n.y > 4 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid refuge body.');
+        if (!n || !validID(n.id) || seen.has(n.id) || !['x', 'y', 'z', 'vx', 'vy', 'vz'].every(k => Number.isFinite(n[k])) || Math.abs(n.x) > 14 || Math.abs(n.z) > 14 || n.y < (world?.floor ?? B.WORLD.floor) || n.y > 4 || ['vx', 'vy', 'vz'].some(k => Math.abs(n[k]) > 25)) throw new Error('Invalid refuge body.');
         if (world && OFFSETS().some(p => world.density(n.x + p[0], n.y + p[1], n.z + p[2]) < -.01)) throw new Error('Refuge body is inside terrain.');
         seen.add(n.id);
       }

@@ -40,6 +40,13 @@
         }
         const f = g.freight, unlocked = s.expedition.recovered.includes(f.state.owned ? 1 : 0), cost = f.state.owned ? B.FREIGHT.upgrade : B.FREIGHT.price;
         add(f.state.owned ? 'Freight cage' : 'Freight rig', f.state.upgraded ? '64 minerals per shipment' : !unlocked ? f.state.owned ? 'Recover the resonance engine' : 'Recover the survey flywheel' : f.state.owned ? 'Increase capacity to 64 minerals' : 'A reusable crane and loading dock', f.state.upgraded ? 'Complete' : money(cost), !unlocked || f.state.upgraded || s.cash < cost, () => g.buyFreight());
+        for (const id of g.deep.state.repaired) {
+          const station = B.DEEP_STATIONS[id];
+          add('Return to ' + station.name, station.reward + ' installed. E at the station resets your landing.', 'Travel', false, () => {
+            if (!g.deep.travel(id, g.player, g.expedition)) { g.toast('The landing is obstructed. Reset it with E at the station.'); return; }
+            g.clearInput(); g.changed(); g.save(); g.play(); g.toast('Back at ' + station.name + '.');
+          });
+        }
       }
     }
   }

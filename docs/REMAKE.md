@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Lower workings update (local 2.12.0)
+
+The heart opens the old floor into a 297 m continuation with four lower regions, five seeded cave networks and three restorable stations. Station rewards improve deep excavation, lift and scanning; repaired return routes appear in Otis's services. Depth-versioned field migration copies upper samples exactly, appends ore IDs, and extends charts and equipment/save bounds. DEEP-WORKINGS.md records the implementation and complete coordinate-aware descent. The furnace boss and final payoff remain unfinished; the broader expansion goal stays active.
+
 ### Cinder moth update (local 2.11.0)
 
 Mining tools now share target resolution with creature damage, including a timed mining axe at 9 m. Three persistent cinder moths provide the first terrain-aware encounters: collision-checked flight, alternate routes, telegraphed lunges, light deterrence and physical supply rewards. Health, surface recovery and a recoverable cargo cache complete the defeat loop without removing equipment or earned progress. COMBAT.md records the implementation, conservation rules and simulation evidence. Deeper terrain and the boss remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md.

@@ -105,11 +105,11 @@ try {
   });
   await test('legacy claims retain exact terrain and receive cabinets in existing authored chambers', async () => {
     const legacy = new B.World(260923, 0); legacy.carve({ x: 1, y: -3, z: 8 }, 2);
-    const snapshot = B.Saves.snapshot(g); snapshot.field = legacy.field.slice(); snapshot.generation = 0; snapshot.loose = []; snapshot.collected = []; snapshot.state = B.freshState(); snapshot.player = { x: 0, y: .06, z: 12, yaw: 0, pitch: 0 };
+    const snapshot = B.Saves.snapshot(g); snapshot.field = legacy.field.slice(); snapshot.generation = 0; snapshot.depthVersion = 0; snapshot.loose = []; snapshot.collected = []; snapshot.state = B.freshState(); snapshot.player = { x: 0, y: .06, z: 12, yaw: 0, pitch: 0 };
     const withoutVersion = structuredClone(snapshot); delete withoutVersion.generation; const data = B.Saves.validate(withoutVersion);
-    await g.install(data); assert.equal(g.world.generation, 0); assert.equal(g.world.caverns.networks.length, 0); assert.deepEqual(g.world.field, legacy.field);
+    await g.install(data); assert.equal(g.world.generation, 0); assert.equal(g.world.caverns.networks.length, 0); assert.deepEqual(g.world.fieldAtDepth(0), legacy.field);
     assert.equal(g.refuges.nodes.length, 3); assert.ok(g.refuges.nodes.every(n => n.name === 'Old survey shelter'));
-    const roundTrip = B.Saves.validate(B.Saves.snapshot(g, true)); assert.equal(roundTrip.generation, 0); assert.deepEqual(roundTrip.field, legacy.field);
+    const roundTrip = B.Saves.validate(B.Saves.snapshot(g, true)); assert.equal(roundTrip.generation, 0); assert.deepEqual(roundTrip.field, g.world.field);
   });
   await test('malformed generation, duplicate repairs and invalid refuge bodies fail before mutation', () => {
     const good = B.Saves.snapshot(g), before = structuredClone(g.economy.state);

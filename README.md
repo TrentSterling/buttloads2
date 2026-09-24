@@ -1,12 +1,16 @@
 # BUTTLOADS 2: The Deepening
 
-**Cinder moths and mining weapons, local 2.11.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Ridge Common and the lower workings, local 2.12.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
-The local build adds a small town, friendly merchants, natural cave networks, repairable survey cabinets and the first creature encounters. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- The awakened heart opens a rootway through the former floor. Four lower strata, five seeded cave networks and 588 appended minerals extend the mine to 297 m while preserving every upper terrain sample and ore ID from existing claims.
+- Restore three physical stations with two lights and three charges each. Earn double deep drilling torque, a faster deep lift and a longer-range deep scanner. Otis offers free return travel to repaired stations. Their bodies and lights fall when undermined, and return landings recheck collision.
+- The three-geode celebration is an upper-mine milestone. The lower furnace boss and further enemy varieties are still planned.
 
 - Cinder moths inhabit underground pockets, fly around real rock and telegraph a dodgeable lunge. Drills deal contact damage; a mining axe unlocks at 9 m on key 6 for short, heavy swings. Resonance staggers creatures, the heart drains and pulls them, and explosives damage them through actual opened terrain. Cleared moths stay cleared and leave recoverable husks worth two charges.
 - Placed lights and repaired refuge lamps keep moths back along clear sight lines. Surface rest restores health. Defeat returns you to the yard with equipment and money intact; lost minerals wait in a persistent physical cache marked on M. E recovers its contents, leaving overflow safely below. Townsfolk and field notes explain encounters.
@@ -34,7 +38,7 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 
 - Two optional underground discoveries with equipment rewards. The echo vault responds to coordinated explosions across three seals. The blackglass array needs excavated light paths and two aimed, E-operated prisms. Scan to discover them, or recover machinery for leads; J lets you track one.
 - The vault's Aftershock core increases remote blast radius from 3.2 to 3.6 m and bore length from 6 to 9 m without increasing supply costs. The array's prism lens adds a mineral filter to the M survey; focused scans reach 8 m farther. Notes reveal the main descent gradually.
-- A deformable 28 m wide claim, 73 m deep. Five strata unlock new capabilities. Longer mineral seams descend toward recoveries and branch into richer pockets.
+- A deformable 28 m wide claim, now reaching 297 m. Nine strata guide the descent and new capabilities. Longer mineral seams descend toward recoveries and branch into richer pockets.
 - Cutter, broad soft-ground scoop, narrow hard-rock lance, charged resonator, and the heart's gravity field. Four equipment upgrade tracks remain at the workshop.
 - Three explosive tools share charge supplies. Blast charges make a broad pocket after 2.6 seconds. At 9 m, remote satchels stick to rock and wait for H; disarm and recover one with E. At 25 m, bore charges cut a 6 m line along your throw's aim after 3.2 seconds and use two charges. N cycles unlocked types. Hold C to preview the trajectory and excavation shape; release to throw. Up to six charges can be deployed together. Restock three for $32.
 - Blasts preserve valuables, release supported ore, and push loose minerals, machinery and the player. Remaining rock blocks impulses. Attached charges fall if their support is removed. Charges can be dropped while hovering above the claim.

@@ -1,5 +1,32 @@
 # Remake verification
 
+## Lower workings, local 2.12.0
+
+Extends the mine to 297 m through an earned heart breakthrough, with four lower strata, five additional cave networks, 588 appended deposits, three physical repairable stations, equipment rewards and town return routes. The original upper terrain and ore prefix remain intact. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 11 lower mine checks passed (no browser or input automation)
+COMPLETE 183 system checks passed
+
+node tools/simulate-journey.mjs --deep
+Rootworks pump house restored: 316.1 simulated seconds
+Ashfall exchange restored: 378.9 simulated seconds
+Furnace approach restored: 441.8 simulated seconds
+Saved/reloaded at 279.1 m, then used Otis's return service: 460.5 simulated seconds
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (999 KiB)
+PASS standalone: 35 scripts compile; no external scripts or stylesheets.
+```
+
+All 183 checks passed together on the final gameplay source. Evidence: tools/out/verification-2.12.log and tools/out/journey-deep.json (generated, ignored). The journey uses earned supplies, production Game interactions, mining and magic, ordinary recall, exact terrain save/reload and the real town service callback. It uses coordinate knowledge and does not measure human pacing. Isolated tests also prove bit-exact legacy field copying, stable ore prefixes, locked/open gate behavior, full player clearance through the breakthrough, deep seam/cold-remesh parity, repair atomicity, moving station support, rejected obstructed travel, bounded deep survey profiles, actual drill/lift/scanner rewards, and deep mineral/light/anchor/freight persistence.
+
+The old survey-range and five-palette assertions were updated to the versioned world extent and nine strata. Legacy cave tests compare the preserved upper projection and then the entire migrated field on round-trip. Early failures in the new isolated checks were fixture bookkeeping/API assumptions (collected salvage, fixed-step sample count, floor aim reach and empty-string placement status); the full fresh journey passed without a gameplay bypass. No browser, OS input or real sound device was used. The Node adapter explicitly replaces play() to prevent browser input acquisition.
+
+The boss and final underground transformation remain unfinished; this checkpoint does not complete the active goal. Actual WebGL appearance, layout, sound and human feel remain unreviewed under AGENTS.md. Architecture and constraints are in DEEP-WORKINGS.md and remaining scope is in BEAUTY-DEPTH-COMBAT-PLAN.md.
+
 ## Cinder moths and mining weapons, local 2.11.0
 
 Adds shared excavation/damage targeting, a timed mining axe on key 6, three persistent cinder moths with collision-checked flight and telegraphed attacks, defensive work lights, health, recoverable mineral cargo and physical supply rewards. Original moth/axe models, hit/health/threat feedback, field notes and town dialogue connect the encounter to the rest of the game. The site remains on 2.8.0.

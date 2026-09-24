@@ -1,6 +1,6 @@
 # Ridge Common, local 2.9.0
 
-The first implementation checkpoint of the beauty/depth/combat expansion. This adds a surface town and two functional residents. Cave generation, deeper regions, combat, more residents and a boss remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md. The deployed site remains 2.8.0 until a later publish.
+The first town checkpoint added an expanded surface and two functional residents. Local 2.12.0 also includes cave networks, combat and deeper regions. Otis now offers free return travel to restored lower stations; both residents react to opening the rootway and repairing machinery. See DEEP-WORKINGS.md. More residents, parcels and the boss remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md. The deployed site remains 2.8.0 until a later publish.
 
 ## Surface and services
 

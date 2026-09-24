@@ -27,7 +27,7 @@
       if (!s.owned && (s.dock || s.upgraded || count(s.load) || count(s.stock))) throw new Error('Unowned freight equipment contains cargo.');
       if (s.dock !== null) {
         const d = s.dock;
-        if (!d || !['x', 'y', 'z'].every(k => Number.isFinite(d[k])) || Math.abs(d.x) > 12 || Math.abs(d.z) > 12 || d.y < -72.7 || d.y > -3 || s.travel > Freight.length(d) + 1e-6) throw new Error('Invalid freight route.');
+        if (!d || !['x', 'y', 'z'].every(k => Number.isFinite(d[k])) || Math.abs(d.x) > 12 || Math.abs(d.z) > 12 || d.y < (world?.floor ?? B.DEPTHS[1].floor) + .3 || d.y > -3 || s.travel > Freight.length(d) + 1e-6) throw new Error('Invalid freight route.');
         if (world && Freight.contact(world, Freight.position(s)).density < -.01) throw new Error('Freight cage is inside terrain.');
       } else if (s.phase !== 'idle' || s.travel !== 0 || count(s.load)) throw new Error('Freight has no loading dock.');
       if ((s.phase === 'idle' && s.travel !== 0) || (s.phase === 'outbound' && !count(s.load))) throw new Error('Inconsistent freight journey.');
@@ -49,7 +49,7 @@
       const hit = this.world.ray(player.head, player.direction, 5.5);
       if (!hit || this.world.normal(hit.x, hit.y, hit.z)[1] < .55) return { reason: 'Aim at the floor of an open chamber.' };
       const dock = { x: hit.x, y: hit.y + .4, z: hit.z };
-      if (Math.abs(dock.x) > 12 || Math.abs(dock.z) > 12 || dock.y > -3 || dock.y < -72.7) return { reason: 'Place the dock below 3 m, away from the claim boundary.' };
+      if (Math.abs(dock.x) > 12 || Math.abs(dock.z) > 12 || dock.y > -3 || dock.y < this.world.floor + .3) return { reason: 'Place the dock below 3 m, away from the claim boundary.' };
       if (Math.hypot(dock.x - player.x, dock.z - player.z) < 1.3) return { reason: 'Leave room in front of you for the loading cage.', dock };
       for (const o of B.boxOffsets([1.4, 1.6, 1.4])) if (this.world.density(dock.x + o[0], dock.y + .8 + o[1], dock.z + o[2]) < -.004) return { reason: 'Clear a 1.4 m wide loading bay around the preview.', dock };
       const probe = { dock, travel: 0 }, obstruction = this.routeObstruction(probe);

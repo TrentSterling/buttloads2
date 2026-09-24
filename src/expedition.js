@@ -6,7 +6,8 @@
     { depth: 9, name: 'Rustwater', subtitle: 'There was a mine here before your yard.', color: '#e89c6f', unlock: 'Scoop, mining axe, salvage tether & remote satchels' },
     { depth: 25, name: 'The white roots', subtitle: 'The rock grew around the machines.', color: '#a9dcdf', unlock: 'Precision lance & bore charges' },
     { depth: 43, name: 'The hollow choir', subtitle: 'That sound is coming from inside the stone.', color: '#baacf1', unlock: 'Deep receiver: +10 m scanner range' },
-    { depth: 59, name: 'The impossible garden', subtitle: 'Nothing down here remembers gravity.', color: '#78f1cc', unlock: 'Echo sight: scans reveal sealed geodes' }
+    { depth: 59, name: 'The impossible garden', subtitle: 'Nothing down here remembers gravity.', color: '#78f1cc', unlock: 'Echo sight: scans reveal sealed geodes' },
+    ...B.DEEP_STRATA
   ];
   const TOOLS = {
     cutter: { key: '1', name: 'Cutter', short: 'CUT', hint: 'Balanced excavation', color: '#edbe60', radius: 1, power: 1, depth: 0 },

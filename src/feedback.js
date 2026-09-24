@@ -3,7 +3,9 @@
 (function (B) {
   const ATMOSPHERES = [
     { fog: '#14231f', lamp: '#ffe8bf' }, { fog: '#251a16', lamp: '#ffdfb1' },
-    { fog: '#111f27', lamp: '#d7eff3' }, { fog: '#171322', lamp: '#e8def7' }, { fog: '#0a231f', lamp: '#bdf5de' }
+    { fog: '#111f27', lamp: '#d7eff3' }, { fog: '#171322', lamp: '#e8def7' }, { fog: '#0a231f', lamp: '#bdf5de' },
+    { fog: '#20271b', lamp: '#e8e4b4' }, { fog: '#271619', lamp: '#ffd0b2' },
+    { fog: '#121a24', lamp: '#e3dfca' }, { fog: '#28170e', lamp: '#ffd395' }
   ];
   class Feedback {
     constructor(world, seed = 4091) {

@@ -82,7 +82,7 @@ await test('map depth controls render the real plan/profile, markers and geometr
 });
 await test('survey data survives saves; duplicates, unknown signals and huge maps are rejected', () => {
   const save = B.Saves.snapshot(g), valid = B.Saves.validate(save); assert.deepEqual(valid.state.expedition.survey, g.survey.data);
-  for (const mutate of [s => s.cells.push(-1), s => s.cells.push(B.SURVEY_CELLS), s => s.cells.push(s.cells[0]), s => s.ore.push(g.deposits.nodes.length), s => s.sites.push('unknown'), s => s.cells = null]) { const copy = structuredClone(save); mutate(copy.state.expedition.survey); assert.throws(() => B.Saves.validate(copy)); }
+  for (const mutate of [s => s.cells.push(-1), s => s.cells.push(g.survey.count), s => s.cells.push(s.cells[0]), s => s.ore.push(g.deposits.nodes.length), s => s.sites.push('unknown'), s => s.cells = null]) { const copy = structuredClone(save); mutate(copy.state.expedition.survey); assert.throws(() => B.Saves.validate(copy)); }
 });
 await test('actual preview geometry follows the prediction and disappears when aiming stops', () => {
   g.setScreen(null); g.player.teleport(4, .1, 3); g.player.pitch = -.6; g.aimBomb(); g.view.render(g, 1 / 60, 4); assert.ok(g.view.throwGuide.visible);

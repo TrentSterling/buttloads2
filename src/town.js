@@ -35,7 +35,7 @@
   class Town {
     constructor(progress) { this.progress = progress; this.state = progress.expedition.town ||= { version: 1, met: [], heard: [] }; }
     static validate(s) {
-      if (!s || s.version !== 1 || !Array.isArray(s.met) || !Array.isArray(s.heard) || s.met.length > 2 || s.heard.length > 16 || s.met.some(id => !PEOPLE.some(p => p.id === id)) || new Set(s.met).size !== s.met.length || new Set(s.heard).size !== s.heard.length || s.heard.some(id => !/^(mara|otis):(hello|first|refuge|cinder|flywheel|engine|heart|after)$/.test(id) || !s.met.includes(id.split(':')[0]))) throw new Error('Invalid town conversations.');
+      if (!s || s.version !== 1 || !Array.isArray(s.met) || !Array.isArray(s.heard) || s.met.length > 2 || s.heard.length > 20 || s.met.some(id => !PEOPLE.some(p => p.id === id)) || new Set(s.met).size !== s.met.length || new Set(s.heard).size !== s.heard.length || s.heard.some(id => !/^(mara|otis):(hello|first|refuge|cinder|flywheel|engine|heart|after|deep|stations)$/.test(id) || !s.met.includes(id.split(':')[0]))) throw new Error('Invalid town conversations.');
       return { version: 1, met: [...s.met], heard: [...s.heard] };
     }
     static obstacles() {
@@ -50,13 +50,15 @@
         return range <= 3.25 && range > .1 && (delta.x * d.x + delta.y * d.y + delta.z * d.z) / range > .68 && world.clearLine(a, b, .1) && !blockedLine(a, b, obstacles.filter(box => !(box[0] === p.x - .32 && box[2] === p.z - .28)));
       }) || null;
     }
-    chapter(id) { const s = this.progress, e = s.expedition; return !this.state.met.includes(id) ? 'hello' : e.vaults.length === 3 ? 'after' : e.awakened ? 'heart' : e.recovered.includes(1) ? 'engine' : e.recovered.includes(0) ? 'flywheel' : e.combat?.enemies.some(n => n.known) ? 'cinder' : e.refuges?.lit.length ? 'refuge' : s.trips > 0 ? 'first' : 'hello'; }
+    chapter(id) { const s = this.progress, e = s.expedition; return !this.state.met.includes(id) ? 'hello' : e.deep?.repaired.length ? 'stations' : e.deep?.open ? 'deep' : e.vaults.length === 3 ? 'after' : e.awakened ? 'heart' : e.recovered.includes(1) ? 'engine' : e.recovered.includes(0) ? 'flywheel' : e.combat?.enemies.some(n => n.known) ? 'cinder' : e.refuges?.lit.length ? 'refuge' : s.trips > 0 ? 'first' : 'hello'; }
     talk(id) {
       if (!PEOPLE.some(p => p.id === id)) return null;
       const chapter = this.chapter(id), key = id + ':' + chapter;
       if (!this.state.met.includes(id)) this.state.met.push(id);
       const fresh = !this.state.heard.includes(key); if (fresh) this.state.heard.push(key);
       const lines = id === 'mara' ? {
+        deep: "A whole mine under the mine? Take two lights and three charges for each old station. Otis knows the connections. I know what you forgot to pack.",
+        stations: "I could hear the pump from my shop. Those old stations still have a use, then. Come back with a proper haul.",
         hello: "You're the new owner of number two. Mara. I sell lights, charges, and the occasional sensible suggestion. The last one's free.",
         refuge: "You found one of the old shelter lamps. Good. Keep its chart. People used those passages long before we put fences up here.",
         cinder: "Cinder moths. They carry little nests of blasting salts. Keep a work light nearby, and get out of their way when they flare. If Otis has to pull you out, your lost ore waits in a marked cache.",
@@ -66,6 +68,8 @@
         heart: "I can hear it from here. Yes, I'll still buy your ore. No, I am not putting that thing in my stockroom.",
         after: "You brought daylight to somewhere that never had it. That's a decent day's work. Your tab's still a tab, though."
       } : {
+        deep: "The rootworks! Restore the pump house first. Two lights, three charges, a bit of nerve. Bring that circuit back and I can send you down from here.",
+        stations: "Your restored stations are on the board. Pick a landing and I will send you back. If you dig away its floor, reset the arrival beside the machine with E.",
         hello: "Otis Bell. If it turns, I can make it turn harder. If it doesn't, bring it here anyway. I like a challenge.",
         refuge: "That survey cabinet still works? The old crews made things to last. Its light stays with the cabinet, so leave solid rock under it.",
         cinder: "The drill bites them too. Your mining axe has more stopping power, but you have to get close. They flare before they charge. Step aside, then swing while they recover.",

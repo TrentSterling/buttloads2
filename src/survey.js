@@ -7,7 +7,7 @@
   const cell = (x, depth, z) => x + N * z + N * N * depth;
   class Survey {
     constructor(world, state, deposits, expedition) {
-      this.world = world; this.state = state; this.deposits = deposits; this.expedition = expedition;
+      this.maxDepth = -world.floor; this.count = N * N * (this.maxDepth + 1); this.world = world; this.state = state; this.deposits = deposits; this.expedition = expedition;
       const fresh = !state.expedition.survey;
       this.data = state.expedition.survey ||= { version: 1, cells: [], ore: [], sites: [] };
       this.cells = new Set(this.data.cells); this.ore = new Set(this.data.ore); this.knownSites = new Set(this.data.sites);
@@ -15,21 +15,22 @@
       if (fresh) {
         for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) this.mark(cell(x, 0, z));
         // Existing claims can recover their own excavations without exposing untouched caves.
-        for (let id = N * N; id < COUNT; id++) { const p = point(id); if (world.density(p.x, p.y, p.z) >= 0 && world.base(p.x, p.y, p.z) < 0) this.mark(id); }
+        for (let id = N * N; id < this.count; id++) { const p = point(id); if (world.density(p.x, p.y, p.z) >= 0 && world.base(p.x, p.y, p.z) < 0) this.mark(id); }
       }
       const before = world.onEdit;
       world.onEdit = (p, radius) => { before(p, radius); this.revealCut(p, radius); };
     }
-    static validate(data, oreCount) {
+    static validate(data, oreCount, world) {
+      const count = N * N * (-(world?.floor ?? B.WORLD.floor) + 1);
       if (!data || data.version !== 1) throw new Error('Invalid mine survey.');
       const list = (key, valid, max) => { const a = data[key]; if (!Array.isArray(a) || a.length > max || new Set(a).size !== a.length || a.some(v => !valid(v))) throw new Error('Invalid survey ' + key + '.'); return [...a]; };
-      return { version: 1, cells: list('cells', v => Number.isInteger(v) && v >= 0 && v < COUNT, COUNT), ore: list('ore', v => Number.isInteger(v) && v >= 0 && v < oreCount, oreCount), sites: list('sites', v => SITE_KEYS.includes(v), SITE_KEYS.length) };
+      return { version: 1, cells: list('cells', v => Number.isInteger(v) && v >= 0 && v < count, count), ore: list('ore', v => Number.isInteger(v) && v >= 0 && v < oreCount, oreCount), sites: list('sites', v => SITE_KEYS.includes(v), SITE_KEYS.length) };
     }
     mark(id) { if (this.cells.has(id)) return; this.cells.add(id); this.data.cells.push(id); this.revision++; }
     box(p, radius, visit) {
       const xmin = Math.max(0, Math.floor(p.x - radius + 16)), xmax = Math.min(31, Math.floor(p.x + radius + 16));
       const zmin = Math.max(0, Math.floor(p.z - radius + 16)), zmax = Math.min(31, Math.floor(p.z + radius + 16));
-      const ymin = Math.max(0, Math.floor(-p.y - radius)), ymax = Math.min(73, Math.floor(-p.y + radius));
+      const ymin = Math.max(0, Math.floor(-p.y - radius)), ymax = Math.min(this.maxDepth, Math.floor(-p.y + radius));
       for (let d = ymin; d <= ymax; d++) for (let z = zmin; z <= zmax; z++) for (let x = xmin; x <= xmax; x++) { const id = cell(x, d, z); if (!this.cells.has(id)) visit(id, point(id)); }
     }
     revealCut(p, radius) { this.box(p, radius + .7, (id, q) => { if (Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) <= radius + .7) this.mark(id); }); }
@@ -54,7 +55,7 @@
       found.forEach(p => this.remember(p)); return found;
     }
     slice(depth) {
-      const d = B.clamp(Math.round(depth), 0, 73), out = new Uint8Array(N * N);
+      const d = B.clamp(Math.round(depth), 0, this.maxDepth), out = new Uint8Array(N * N);
       for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const id = cell(x, d, z); if (!this.cells.has(id)) continue; const p = point(id); out[x + z * N] = this.world.density(p.x, p.y, p.z) >= 0 ? 2 : 1; }
       return out;
     }
@@ -65,6 +66,7 @@
       for (const n of game.gadgets.nodes) if (n.type === 'lamp') markers.push({ ...n, name: 'Work light', type: 'lamp', color: '#ffdb8b' });
       for (const n of game.gadgets.nodes) if (n.type === 'bomb' && n.mode === 'sticky') markers.push({ ...n, name: 'Remote satchel', type: 'charge', color: '#ef9479' });
       if (game.thunder) markers.push(...game.thunder.markers());
+      if (game.deep) markers.push(...game.deep.markers());
       if (game.refuges) markers.push(...game.refuges.markers());
       const freight = game.freight; if (freight?.state.dock) { markers.push({ ...freight.state.dock, name: 'Freight dock', type: 'freight', color: '#f0bf64' }); markers.push({ ...freight.cage, name: freight.status(), type: 'freight', color: '#91d8bd' }); }
       if (game.combat) markers.push(...game.combat.markers());
@@ -72,7 +74,7 @@
       return markers;
     }
     render(depth, game) {
-      const d = B.clamp(Math.round(depth), 0, 73), tiles = this.slice(d), markers = this.markers(game), paths = ['', '', ''];
+      const d = B.clamp(Math.round(depth), 0, this.maxDepth), tiles = this.slice(d), markers = this.markers(game), paths = ['', '', ''];
       const xy = p => ({ x: B.clamp((p.x + 16) * 20 + 32, 32, 672), y: B.clamp((p.z + 16) * 20 + 32, 32, 672) });
       for (let i = 0; i < tiles.length; i++) if (tiles[i]) paths[tiles[i]] += `M${32 + i % 32 * 20},${32 + Math.floor(i / 32) * 20}h20v20h-20z`;
       let map = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 704 704" role="img" aria-label="Surveyed tunnels at ${d} meters"><rect width="704" height="704" fill="#101b1b"/><path d="${paths[1]}" fill="#35413a"/><path d="${paths[2]}" fill="#768d7c"/>`;
@@ -88,12 +90,13 @@
       // Vertical profile projects only surveyed air, so it cannot reveal untouched caves.
       const columns = new Set();
       for (const id of this.cells) { const q = point(id); if (this.world.density(q.x, q.y, q.z) >= 0) columns.add(id % 32 + Math.floor(id / 1024) * 32); }
+      const scale = 370 / (this.maxDepth + 1);
       let profile = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 328 424" role="img" aria-label="East to west profile of explored passages"><rect width="328" height="424" fill="#101b1b"/>';
-      for (const c of B.STRATA) { const y = 22 + c.depth * 5; profile += `<path d="M34 ${y}H310" stroke="${c.color}" opacity=".22"/><text x="3" y="${y + 4}" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">${c.depth}m</text>`; }
-      let tunnel = ''; for (const id of columns) tunnel += `M${40 + id % 32 * 8},${22 + Math.floor(id / 32) * 5}h8v5h-8z`;
-      profile += `<path d="${tunnel}" fill="#718c7a"/><path d="M34 ${22 + d * 5}H310" stroke="#efc16c" stroke-dasharray="4 3"/>`;
-      for (const m of markers) if (!['ore', 'lamp'].includes(m.type)) profile += `<circle cx="${40 + (m.x + 16) * 8}" cy="${22 - m.y * 5}" r="4" fill="${m.color}"/>`;
-      profile += `<circle cx="${40 + B.clamp(game.player.x + 16, 0, 32) * 8}" cy="${22 + B.clamp(-game.player.head.y, 0, 73) * 5}" r="4" fill="white"/><text x="40" y="416" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">W / ALL SURVEYED PASSAGES / E</text></svg>`;
+      for (const c of B.STRATA.filter(c => c.depth <= this.maxDepth)) { const y = 22 + c.depth * scale; profile += `<path d="M34 ${y}H310" stroke="${c.color}" opacity=".22"/><text x="3" y="${y + 4}" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">${c.depth}m</text>`; }
+      let tunnel = ''; for (const id of columns) tunnel += `M${40 + id % 32 * 8},${22 + Math.floor(id / 32) * scale}h8v${scale}h-8z`;
+      profile += `<path d="${tunnel}" fill="#718c7a"/><path d="M34 ${22 + d * scale}H310" stroke="#efc16c" stroke-dasharray="4 3"/>`;
+      for (const m of markers) if (!['ore', 'lamp'].includes(m.type)) profile += `<circle cx="${40 + (m.x + 16) * 8}" cy="${22 - m.y * scale}" r="4" fill="${m.color}"/>`;
+      profile += `<circle cx="${40 + B.clamp(game.player.x + 16, 0, 32) * 8}" cy="${22 + B.clamp(-game.player.head.y, 0, this.maxDepth) * scale}" r="4" fill="white"/><text x="40" y="416" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">W / ALL SURVEYED PASSAGES / E</text></svg>`;
       return { map, profile, markers: markers.filter(m => m.type !== 'ore' && m.type !== 'lamp'), ore: markers.filter(m => m.type === 'ore').length };
     }
   }

@@ -32,22 +32,24 @@
     }
     async install(data) {
       $('loading').hidden = false; $('loading-progress').value = 0;
-      const state = data ? data.state : B.freshState(), world = new B.World(state.seed, data ? data.generation : B.CAVE_VERSION);
-      if (data) world.field = data.field;
+      const state = data ? data.state : B.freshState(), world = new B.World(state.seed, data ? data.generation : B.CAVE_VERSION, B.DEPTH_VERSION);
+      world.deepOpen = !!state.expedition.deep?.open;
+      if (data) world.installField(data.field, data.depthVersion);
       await world.build(progress => { $('loading-progress').value = progress; });
       if (!data) world.carve({ x: 0, y: -.12, z: 7 }, 1.35);
-      const deposits = B.generateDeposits(state.seed), collected = new Set(data?.collected || []);
+      const deposits = B.generateDeposits(state.seed, world.depthVersion), collected = new Set(data?.collected || []);
       for (const node of deposits.nodes) node.collected = collected.has(node.id);
       // Everything above is staged. The live state is replaced only after construction succeeds.
       this.clearInput(); this.world = world; this.deposits = deposits; this.orePhysics = new B.OreSystem(world, deposits.nodes, data?.loose || []); this.index = this.orePhysics.index; this.economy = new B.Economy(state); this.player = new B.Player(world); this.cutter = new B.Cutter(world);
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
+      this.deep = new B.DeepExpedition(world, state);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.enemies, head, dir, reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.freight.obstacles()];
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -56,9 +58,10 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
-      const liftSpeed = this.expedition?.tether != null ? Math.min(B.GEAR.lift.values[state.gear.lift], state.expedition.awakened ? 7 : 3.5) : B.GEAR.lift.values[state.gear.lift];
+      const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
+      const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
       while (this.accumulator >= 1 / 120) { this.player.step(1 / 120, this.input.keys, liftSpeed); this.accumulator -= 1 / 120; }
       state.deepest = Math.max(state.deepest, Math.max(0, -this.player.y));
       const mode = state.expedition.tool, mechanical = ['cutter', 'scoop', 'lance'].includes(mode);
@@ -72,6 +75,7 @@
         this.expeditionEvents();
       }
       if (this.refuges?.update(dt, this.player)) this.changed();
+      if (this.deep?.update(dt, this.player)) this.changed();
       if (this.orePhysics.update(dt)) this.changed();
       if (this.gadgets?.update(dt, this.orePhysics, this.expedition.physics, this.player)) this.changed();
       if (this.thunder) { if (this.thunder.update(dt, this)) this.changed(); this.expedition.events.push(...this.thunder.events.splice(0)); }
@@ -105,7 +109,7 @@
       this.feedback?.update(dt, this);
       this.collect();
       if (this.input.keys.has('KeyR')) { this.recallTime += dt; if (this.recallTime >= 1.25) this.recall(); } else this.recallTime = 0;
-      if (this.player.y < -74 || !Number.isFinite(this.player.y)) { this.recall(); this.audit.recoveries++; }
+      if (this.player.y < this.world.floor - 1 || !Number.isFinite(this.player.y)) { this.recall(); this.audit.recoveries++; }
       this.audio.drill(this.input.fire && !this.input.aim, this.cutter.edited, -this.player.y, mode, this.expedition?.charge || 0);
       if (this.expedition && this.expedition.pulseSerial !== (this.lastSoundPulse || 0)) { this.lastSoundPulse = this.expedition.pulseSerial; this.audio.blast(this.expedition.lastPulse?.magic ? 'rift' : true, this.expedition.lastPulse, this.player, this.world); }
       if (this.clock - this.lastSave >= 20) { this.lastSave = this.clock; this.changed(); this.save(); }
@@ -164,6 +168,7 @@
       const resident = this.town?.target(p, this.world, this.view.obstacles);
       if (resident) return { kind: 'resident', id: resident.id, label: 'Talk to ' + resident.name + ' / ' + resident.role };
       const cache = this.combat?.interaction(p); if (cache) return cache;
+      const lower = this.deep?.interaction(p); if (lower) return lower;
       const exp = this.expedition;
       if (exp.tether !== null) return { kind: 'detach', label: exp.snagged ? 'Load caught. Widen the passage / release tether' : 'Release salvage tether' };
       const remote = this.gadgets.remoteTarget(p.head, p.direction);
@@ -189,6 +194,7 @@
       if (action.kind === 'shop') { $('receipt').hidden = true; this.updateShop(); this.setScreen('shop'); }
       if (action.kind === 'refuge') { const result = this.refuges.restore(action.id, this.player, this.survey); if (result) { this.changed(); this.audio.note(640, .4, .04); this.save(); if (result.fresh) this.toast('Survey light restored. Local passages copied to your M survey.', 6000); else this.openSurvey(); } }
       if (action.kind === 'resident') this.townUI.open(action.id);
+      if ((action.kind === 'deep-gate' && this.deep.open(this.player)) || (action.kind === 'deep-station' && this.deep.repair(action.id, this.player))) { this.expedition.events.push(...this.deep.events.splice(0)); this.expeditionEvents(); this.changed(); this.save(); }
       if (action.kind === 'combat-drop' && this.combat.collect(action.id, this.player)) { this.changed(); this.audio.note(760, .15, .025); this.save(); this.toast(action.id === 3 ? 'Lost cargo recovered. Any overflow stays in the cache.' : 'Cinder husk recovered. Charges added.'); }
       if (action.kind === 'freight') this.openFreight();
       if (action.kind === 'prism' && this.mysteries.rotate(action.id, this.player)) { this.changed(); this.audio.note(560 + this.mysteries.connected * 150, .18, .035); }
@@ -212,14 +218,14 @@
       if (!this.running) return;
       if (this.clock < this.scanCooldown) { this.toast('Scanner recharging.'); return; }
       this.scanCooldown = this.clock + 1.5; this.scanUntil = this.clock + 6;
-      const p = this.player.head, range = this.mysteries.scannerRange(), focus = this.mysteries.state.focus;
+      const p = this.player.head, range = this.mysteries.scannerRange() + (p.y < -80 && this.deep.state.repaired.includes(2) ? 12 : 0), focus = this.mysteries.state.focus;
       $('scan-mode').textContent = focus < 0 ? `SUBSURFACE SCAN / ${range} m` : `${B.ORES[focus].name.toUpperCase()} FOCUS / ${range} m`;
-      const nodes = this.index.query(p.x, p.y, p.z, range).filter(n => !n.collected && (focus < 0 || n.kind === focus)), relic = this.mysteries.target() || this.expedition.target();
+      const nodes = this.index.query(p.x, p.y, p.z, range).filter(n => !n.collected && (focus < 0 || n.kind === focus)), relic = this.mysteries.target() || this.deep.target() || this.expedition.target();
       nodes.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) - Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z));
       const echoes = this.economy.state.deepest >= 59 ? B.VAULTS.filter((v, i) => !this.expedition.state.vaults.includes(i) && Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z) < range) : [];
-      const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range);
+      const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range);
       this.mysteries.scan(p, range); this.survey.scan(p, range, nodes); this.changed();
-      this.view.scan([...nodes, ...echoes, ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
+      this.view.scan([...nodes, ...echoes, ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
       const target = nodes[0];
       const vein = target && this.deposits.veins[target.vein];
       $('scan-target').textContent = target ? `${vein?.name || B.ORES[target.kind].name} · ${Math.hypot(target.x - p.x, target.y - p.y, target.z - p.z).toFixed(1)} m` : focus < 0 ? 'No deposits in range' : `No ${B.ORES[focus].name.toLowerCase()} within ${range} m`;
@@ -247,8 +253,8 @@
       this.updateCombatHUD();
       const cavern = this.world.caverns.networks.find(n => Math.hypot(this.player.x - n.x, this.player.head.y - n.y, this.player.z - n.z) < 4);
       $('cash').textContent = money(s.cash); $('cargo').innerHTML = `${e.count} <small>/ ${e.capacity}</small>`; $('cargo-value').textContent = money(e.value); $('cargo-bar').style.width = `${e.count / e.capacity * 100}%`;
-      document.body.classList.toggle('cargo-full', full); $('depth').innerHTML = `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`; $('depth-marker').style.top = `${B.clamp(-this.player.y / 73, 0, 1) * 100}%`; $('layer').textContent = (B.Town.region(this.player) || cavern?.name || B.geology(this.player.y).name).toUpperCase();
-      const exp = this.expedition, target = this.mysteries.target() || exp.target(), t = B.TOOLS[exp.state.tool];
+      document.body.classList.toggle('cargo-full', full); $('depth').innerHTML = `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`; $('depth-marker').style.top = `${B.clamp(-this.player.y / -this.world.floor, 0, 1) * 100}%`; $('layer').textContent = (B.Town.region(this.player) || cavern?.name || B.geology(this.player.y).name).toUpperCase();
+      const exp = this.expedition, target = this.mysteries.target() || this.deep.target() || exp.target(), t = B.TOOLS[exp.state.tool];
       let title = this.mysteries.target() ? 'UNUSUAL SIGNAL' : exp.state.awakened ? 'AFTER THE AWAKENING' : 'RECOVERY LEAD', objective = `${target.name} · ${Math.max(0, Math.round(-target.y))} m down · F to prospect`;
       if (exp.tether !== null) { title = exp.snagged ? 'LOAD CAUGHT' : 'HEAVY LIFT'; objective = exp.snagged ? exp.obstruction ? 'Cut the rock at the orange marker. E releases the tether.' : 'Widen the shaft around the load. E releases the tether.' : 'Lift the machine above ground. Keep the cable route clear.'; }
       else if (full) { title = 'CARGO FULL'; objective = this.freight.state.dock ? 'Send cargo at the freight dock, or return to sell.' : 'Lift home or hold R. Sell at the hopper.'; }
@@ -278,7 +284,7 @@
       if (this.input.aim === 'freight') { $('throw-hint').hidden = false; $('throw-hint').textContent = this.freightPreview?.reason || (this.freightPreview?.obstruction ? 'Release to place / shaft needs excavation' : 'Release to place / freight route clear'); }
       document.body.classList.toggle('awakened', exp.state.awakened);
       const action = this.interaction(); $('interaction').hidden = !action || !!this.recallTime; if (action) $('interaction').innerHTML = `${action.locked ? '' : '<kbd>E</kbd>'}${action.label}`;
-      $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
+      $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.digFloor + .3 ? this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
       $('crosshair').classList.toggle('cutting', this.cutter.edited); $('scanner').hidden = this.scanUntil <= this.clock;
       this.fieldKit?.sync();
       $('recall').hidden = this.recallTime <= 0; $('recall-bar').style.width = `${this.recallTime / 1.25 * 100}%`; $('pickup').hidden = this.pickupUntil <= this.clock;
@@ -294,18 +300,18 @@
       const f = this.freight, unlocked = s.expedition.recovered.includes(f.state.owned ? 1 : 0), cost = f.state.owned ? B.FREIGHT.upgrade : B.FREIGHT.price;
       $('buy-freight').disabled = !unlocked || f.state.upgraded || s.cash < cost; $('buy-freight').textContent = f.state.upgraded ? 'Fully upgraded' : !unlocked ? f.state.owned ? 'Recover engine' : 'Recover flywheel' : `${f.state.owned ? '64-mineral cage' : 'Build crane'} / ${money(cost)}`;
       $('freight-shop-detail').textContent = `A reusable loading dock and crane. ${f.capacity} minerals per trip. Hold T to place underground; E opens the dock. Clear its shaft to the surface.`; $('freight-shop-stock').textContent = `${f.stockCount} minerals at yard / ${money(f.stockValue)} ready to sell`;
-      const lead = this.expedition.target(); $('contract-name').textContent = lead.name; $('contract-detail').textContent = lead.brief; $('contract-reward').textContent = lead.reward ? '+' + money(lead.reward) : 'Explore';
+      const lead = this.deep.target() || this.expedition.target(); $('contract-name').textContent = lead.name; $('contract-detail').textContent = lead.brief; $('contract-reward').textContent = lead.reward ? '+' + money(lead.reward) : 'Explore';
       $('buy-bombs').disabled = s.cash < 32 || s.expedition.supplies.bombs > 96; $('buy-lights').disabled = s.cash < 24 || s.expedition.supplies.lights > 93;
       $('charge-workshop').innerHTML = Object.keys(B.CHARGES).map(k => this.gadgets.spec(k)).map(c => `<div class="charge-info ${s.deepest >= c.depth ? 'unlocked' : ''}"><strong>${c.name}</strong><span>${s.deepest >= c.depth ? 'Available' : c.depth + ' m unlock'} / ${c.cost} ${c.cost === 1 ? 'charge' : 'charges'}</span><p>${c.hint}</p></div>`).join('');
       $('unlock-list').innerHTML = B.STRATA.slice(1).map(c => `<div class="unlock-row ${s.deepest >= c.depth ? 'unlocked' : ''}"><span>${String(c.depth).padStart(2, '0')} m</span><strong>${c.name}</strong><small>${c.unlock}</small></div>`).join('');
     }
     statsHTML(s) { return `<div><strong>${money(s.earned)}</strong><span>Total earned</span></div><div><strong>${s.deepest.toFixed(1)} m</strong><span>Deepest point</span></div><div><strong>${s.trips}</strong><span>Hauls delivered</span></div>`; }
-    openSurvey() { $('survey-depth').value = B.clamp(Math.floor(-this.player.head.y), 0, 73); this.updateSurvey(); this.setScreen('survey'); }
+    openSurvey() { $('survey-depth').max = -this.world.floor; $('survey-depth').value = B.clamp(Math.floor(-this.player.head.y), 0, -this.world.floor); this.updateSurvey(); this.setScreen('survey'); }
     updateSurvey() {
       $('survey-focus').hidden = !this.mysteries.state.solved.includes(1); $('mineral-focus').value = this.mysteries.state.focus;
       const depth = Number($('survey-depth').value), chart = this.survey.render(depth, this);
       $('survey-level').textContent = `${depth} m`; $('survey-plan').innerHTML = chart.map; $('survey-profile').innerHTML = chart.profile;
-      $('survey-contacts').innerHTML = chart.markers.length ? chart.markers.map(m => `<button data-survey-depth="${B.clamp(Math.floor(-m.y), 0, 73)}"><i style="background:${m.color}"></i>${m.name}<span>${Math.max(0, -m.y).toFixed(0)} m</span></button>`).join('') : '<p>Scan with F to record buried signals. Your excavations and placed lights appear automatically.</p>';
+      $('survey-contacts').innerHTML = chart.markers.length ? chart.markers.map(m => `<button data-survey-depth="${B.clamp(Math.floor(-m.y), 0, -this.world.floor)}"><i style="background:${m.color}"></i>${m.name}<span>${Math.max(0, -m.y).toFixed(0)} m</span></button>`).join('') : '<p>Scan with F to record buried signals. Your excavations and placed lights appear automatically.</p>';
       $('survey-summary').textContent = `${chart.ore} recorded deposits / ${this.gadgets.nodes.filter(n => n.type === 'lamp').length} work lights`;
       for (const button of document.querySelectorAll('[data-survey-depth]')) button.onclick = () => { $('survey-depth').value = button.dataset.surveyDepth; this.updateSurvey(); };
     }
@@ -319,7 +325,8 @@
       const thunderNotes = this.thunder.state.known.length ? `<div class="discovery-entry"><strong>Thunderstone seams</strong><p>Pink crystals store a shock. Dig one completely free and recover a charge with E, or ignite it with a blast or resonator pulse. After a short flash it explodes, opening more rock and lighting nearby crystals. Breaking a link limits the chain. Rich minerals run beside these seams. Drilling alone is safe.</p></div>` : '';
       const refugeNotes = this.refuges.state.known.length ? `<div class="discovery-entry"><strong>Old survey refuges (${this.refuges.state.lit.length}/3 restored)</strong><p>A cabinet marks a sheltered working. Expose it, then fit one work light with E. Its lamp lights the chamber and its chart records nearby passages on M. Cabinets fall if their supporting rock is removed.</p></div>` : '';
       const creatureNotes = this.combat.enemies.some(n => n.known) ? '<div class="discovery-entry"><strong>Cinder moths</strong><p>Drills cut their shells; the mining axe (6) staggers them. A bright flare warns of a lunge. Dodge sideways or lift. Placed lights and restored refuge lamps keep them back. Cleared moths stay cleared, leaving a husk worth two charges. Surface rest restores health. Lost cargo waits in a marked recovery cache after rescue; E retrieves it, with overflow left safely below.</p></div>' : '';
-      $('discovery-list').innerHTML = recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const deepNotes = e.awakened ? `<div class="discovery-entry"><strong>The lower workings (${this.deep.state.repaired.length}/3 stations restored)</strong><p>${this.deep.state.open ? 'The old floor opened into a much older mine. Follow F to the next station. Repairs cost two lights and three charges, grant new equipment, and give Otis a return link at Bell Works. E at a restored station resets its arrival point.' : 'The heart answers a ring beneath its pedestal. Aim at the ring and press E to open the rootway.'}</p></div>` : '';
+      $('discovery-list').innerHTML = deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {
@@ -380,7 +387,7 @@
       $('menu-button').onclick = () => { this.setScreen('pause'); this.save(); }; $('journal-button').onclick = () => this.journal();
       $('survey-button').onclick = $('journal-map').onclick = () => this.openSurvey();
       $('mineral-focus').onchange = () => { if (this.mysteries.focus(Number($('mineral-focus').value))) { this.changed(); this.updateSurvey(); } };
-      $('survey-depth').oninput = () => this.updateSurvey(); $('survey-here').onclick = () => { $('survey-depth').value = B.clamp(Math.floor(-this.player.head.y), 0, 73); this.updateSurvey(); };
+      $('survey-depth').oninput = () => this.updateSurvey(); $('survey-here').onclick = () => { $('survey-depth').value = B.clamp(Math.floor(-this.player.head.y), 0, -this.world.floor); this.updateSurvey(); };
       $('title-about').onclick = () => { this.aboutFrom = 'title'; this.setScreen('about'); }; $('pause-about').onclick = () => { this.aboutFrom = 'pause'; this.setScreen('about'); }; $('about-close').onclick = () => this.setScreen(this.aboutFrom || 'pause');
       $('shop-sell').onclick = () => this.sell(); $('return-button').onclick = () => { this.recall(); this.play(); };
       $('new-button').onclick = () => this.setScreen('confirm'); $('confirm-cancel').onclick = () => this.setScreen('pause'); $('confirm-new').onclick = () => this.newClaim();

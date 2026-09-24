@@ -8,7 +8,7 @@
     teleport(x, y, z) { this.x = x; this.y = y; this.z = z; this.vx = this.vy = this.vz = 0; }
     blocked(x, y, z) {
       const area = B.SURFACE;
-      if (x < area.minX + this.radius || x > area.maxX - this.radius || z < area.minZ + this.radius || z > area.maxZ - this.radius || y < -74) return true;
+      if (x < area.minX + this.radius || x > area.maxX - this.radius || z < area.minZ + this.radius || z > area.maxZ - this.radius || y < this.world.floor - 1) return true;
       for (const b of this.obstacles) if (x + this.radius > b[0] && x - this.radius < b[3] && y + this.height > b[1] && y < b[4] && z + this.radius > b[2] && z - this.radius < b[5]) return true;
       for (const h of [.025, .45, 1, 1.7]) {
         if (this.world.density(x, y + h, z) < -.005) return true;
@@ -75,11 +75,11 @@
       const hit = resolved === undefined ? this.trace(player, level, mode) : resolved;
       if (!hit) { this.target = null; return; }
       const layer = B.geology(hit.y), efficiency = mode === 'scoop' && hit.y < -25 ? .22 : mode === 'lance' && hit.y > -9 ? .5 : 1;
-      const amount = B.GEAR.drill.power[level] * tool.power * efficiency * dt / layer.resistance;
+      const amount = B.GEAR.drill.power[level] * tool.power * efficiency * dt / layer.resistance * (hit.y < -80 && this.world.deepUpgrades?.includes(0) ? 2 : 1);
       // Project rim contacts onto the center line, keeping the tunnel wide enough for the capsule.
       const distance = hit.distance + radius * .27;
       const target = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance };
-      this.contact = { ...hit, layer: layer.name, protected: Math.abs(hit.x) >= 13.8 || Math.abs(hit.z) >= 13.8 || hit.y <= -72.7 };
+      this.contact = { ...hit, layer: layer.name, protected: Math.abs(hit.x) >= 13.8 || Math.abs(hit.z) >= 13.8 || hit.y <= this.world.digFloor + .3 };
       if (this.contact.protected) return;
       this.edited = this.world.carve(target, radius, amount) > 0; this.target = target;
       // Interpolation can leave a sliver at a rim probe after the centered brush saturates.

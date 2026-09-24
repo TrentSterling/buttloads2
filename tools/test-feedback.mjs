@@ -55,7 +55,7 @@ await test('tool motion toggle freezes tool animation without altering player lo
   g.settings.motion = true; g.view.render(g, 1 / 60, 12); assert.notDeepEqual(transforms(), a); assert.deepEqual([g.player.yaw, g.player.pitch], orientation); g.input.fire = false;
 });
 await test('underground palettes are distinct and continuous at each layer boundary', () => {
-  const colors = B.STRATA.map(s => g.view.atmosphere(s.depth).fog.getHex()); assert.equal(new Set(colors).size, 5);
+  const colors = B.STRATA.map(s => g.view.atmosphere(s.depth).fog.getHex()); assert.equal(new Set(colors).size, B.STRATA.length);
   for (const layer of B.STRATA.slice(1)) { const before = g.view.atmosphere(layer.depth - .00001).fog.clone(), after = g.view.atmosphere(layer.depth).fog; assert.ok(Math.abs(before.r - after.r) + Math.abs(before.g - after.g) + Math.abs(before.b - after.b) < .00001); }
 });
 await test('procedural audio is finite, bounded and fades at common device rates', () => {

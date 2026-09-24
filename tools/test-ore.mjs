@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const root = path.resolve(import.meta.dirname, '..');
-if (!globalThis.B2?.OreSystem) for (const name of ['core', 'town', 'caverns', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'combat', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
+if (!globalThis.B2?.OreSystem) for (const name of ['core', 'town', 'caverns', 'deep-terrain', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'deep', 'combat', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
 const B = globalThis.B2;
 export let oreChecks = 0;
 function test(name, fn) { fn(); console.log('PASS ore: ' + name); oreChecks++; }

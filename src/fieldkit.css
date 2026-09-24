@@ -1,0 +1,61 @@
+/* Field controls. Description text lives in the paused kit, keeping the mine visible. */
+button:active:not(:disabled){transform:translateY(1px)}
+.telemetry,.field-supplies,.kit-summary,.kit-stock{font-variant-numeric:tabular-nums}
+.tool-readout{width:264px;right:24px;bottom:24px;top:auto;padding:12px 14px;background:#14251feb;border-left:2px solid var(--tool-color);box-shadow:none}
+.equipment-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.equipment-heading strong{font-size:19px;color:var(--tool-color);letter-spacing:-.4px;line-height:1.1}
+.equipment-heading button{padding:6px 8px;min-height:34px;font-size:12px;background:#c5d7bc0b;white-space:nowrap}
+.equipment-heading kbd{font-size:10px;padding:1px 3px;margin-left:5px}
+.tool-readout .tool-slots{display:flex;gap:4px;margin-top:9px}
+.tool-readout .tool-slots button{flex:1;min-height:32px;font-size:9px;padding:5px 2px}
+.tool-readout .tool-slots b{display:inline;font-size:10px;margin:0 3px 0 0}
+.tool-readout .field-supplies{align-items:center;gap:10px;margin-top:10px;font-size:11px}
+.tool-readout .field-supplies b{font-size:13px;margin-left:3px}
+.field-supplies>span{white-space:nowrap}
+.field-supplies>button{margin-left:auto;min-height:28px;padding:4px 6px;font:10px var(--mono)}
+.tool-readout .meter{height:3px;margin:9px 0 0}
+.tool-readout #remote-trigger{width:100%;padding:6px 8px;min-height:32px;margin-top:8px;border-color:#ed947955;color:#ffc4a9;font:11px var(--mono)}
+.key-guide{left:50%;right:auto;transform:translateX(-50%);bottom:24px;font-size:11px;gap:10px;padding:8px 10px}
+.telemetry{left:24px;bottom:24px;padding:14px 17px;gap:18px}
+.interaction{top:calc(50% + 45px);bottom:auto;max-width:min(470px,calc(100vw - 48px));font-size:14px;padding:10px 16px}
+.recall{top:calc(50% + 45px);bottom:auto}
+.field-tip{left:24px;top:115px;width:270px;padding:13px 14px;background:#14251fea;border-left:2px solid #a5c9b0}
+.field-tip>div{display:flex;align-items:center;gap:9px}
+.field-tip kbd{font-size:10px;white-space:nowrap}
+.field-tip strong{font-size:13px;font-weight:650}
+.field-tip p{font-size:12px;line-height:1.5;color:#cbd4c3;margin:9px 0 6px;text-wrap:pretty}
+.field-tip button{background:transparent;border:0;color:#b6c4ae;font-size:11px;min-height:28px;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.in-menu .field-tip{display:none}
+.kit-panel{width:min(880px,100%)}
+.kit-panel .panel-header{margin-bottom:12px}
+.kit-summary{font:12px/1.5 var(--mono);color:var(--muted);padding-bottom:22px;border-bottom:1px solid #53624f66}
+.kit-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:34px;margin-top:24px}
+.kit-grid h3{font-size:16px;letter-spacing:-.2px;margin-bottom:12px}
+.kit-equipped{font-size:12px;color:var(--muted);margin-bottom:13px}.kit-equipped strong{color:var(--accent);font-weight:600}
+.kit-tool{display:flex;align-items:center;gap:12px;width:100%;min-height:76px;border:0;border-bottom:1px solid #52604e66;border-left:2px solid transparent;border-radius:0;background:transparent;text-align:left;padding:10px 9px}
+.kit-tool:hover{background:#aebea20b}
+.kit-tool[aria-pressed=true]{border-left-color:var(--accent);background:#afbfaa12}
+.kit-tool>svg{width:42px;height:42px;flex:none;color:var(--accent)}
+.kit-tool>span{flex:1;min-width:0}.kit-tool strong{display:block;font-size:15px;font-weight:650}.kit-tool small{display:block;font-size:12px;font-weight:400;line-height:1.4;color:var(--muted);margin-top:4px}
+.kit-tool>kbd{font-size:12px;color:var(--muted)}
+.kit-stock{display:flex;gap:25px;margin-bottom:12px;padding:12px 0;border-top:1px solid #53624f66;border-bottom:1px solid #53624f66}
+.kit-stock strong{font:600 24px var(--mono);color:var(--accent)}.kit-stock span{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.kit-panel .charge-rig{border-top:0;margin-top:0;padding-top:0}
+.kit-panel .charge-heading{font-size:13px}.kit-panel .charge-slots button{min-height:44px;font-size:11px;padding:10px 5px}
+.kit-panel .charge-rig p{display:block;font-size:13px;line-height:1.5;margin-top:12px}
+.kit-note{color:var(--muted);font-size:12px;line-height:1.5;margin-top:14px;max-width:60ch}
+.kit-actions{margin-top:24px}.kit-actions p{padding:11px 0;border-top:1px solid #52604e66;font-size:12px;line-height:1.5;color:#cbd4c3}.kit-actions kbd{font-size:10px;margin-right:4px}
+.kit-panel #anchor-status,.kit-panel #freight-status{margin:6px 0 0;font-size:11px;line-height:1.4;display:block;color:#99c6ae}
+.kit-next{font:12px/1.6 var(--mono);color:var(--muted);border-top:1px solid #53624f66;padding-top:18px;margin-top:24px}
+.kit-footer{font-size:12px;color:var(--muted);margin-top:14px}
+@media(max-width:1250px){.key-guide{display:none}}
+@media(max-width:850px){.kit-grid{gap:22px}.kit-panel .panel-header h2{font-size:26px}.topbar{left:18px;right:18px}.mission{top:83px;width:max-content;max-width:calc(100vw - 36px)}.field-tip{top:166px;left:18px;width:235px}.scanner{top:166px;left:18px}}
+@media(max-width:650px){.kit-grid{grid-template-columns:1fr;gap:25px}.kit-panel .panel-header{align-items:center}.kit-panel .panel-header>button{white-space:nowrap}.kit-summary{font-size:11px;padding-bottom:16px}.kit-grid{margin-top:18px}.kit-tool{min-height:70px}.kit-tool small{font-size:12px}.kit-panel .charge-heading{font-size:13px}.kit-panel .charge-slots{display:flex}.kit-panel .charge-rig .charge-heading>span:last-child{display:block}.kit-next{font-size:11px}.kit-panel{padding:20px}.tool-readout{right:12px;bottom:12px;width:208px;padding:10px}.equipment-heading strong{font-size:16px}.equipment-heading button{font-size:11px;min-height:32px;padding:5px}.equipment-heading kbd{display:none}.tool-readout .tool-slots{display:none}.tool-readout .field-supplies{font-size:10px;gap:6px}.tool-readout .field-supplies b{font-size:12px}.field-supplies kbd{font-size:9px;padding:2px}.field-supplies>button{font-size:9px;padding:3px;min-height:24px}.telemetry{left:12px;bottom:12px;padding:9px 11px;gap:12px}.telemetry .depth-stat{display:none}.telemetry strong{font-size:21px}.telemetry span{font-size:9px}.cargo-stat{width:94px}.interaction{top:calc(50% + 38px);bottom:auto;font-size:12px;padding:9px 12px}.field-tip{width:210px}.field-tip p{font-size:11px}.field-tip strong{font-size:12px}}
+@media(max-width:430px){.telemetry{bottom:120px;left:12px}.tool-readout{left:12px;right:auto;width:calc(100vw - 24px)}.tool-readout .field-supplies{justify-content:flex-start;font-size:12px}.tool-readout .field-supplies b{font-size:14px}.telemetry .depth-stat{display:block}.field-tip{width:calc(100vw - 36px);top:154px;padding:10px 12px}.field-tip p{font-size:12px}}
+@media(pointer:coarse){.tool-readout{top:132px;bottom:auto;right:12px;left:auto;width:195px}.tool-readout .tool-slots{display:none}.tool-readout .field-supplies{font-size:10px;gap:5px}.equipment-heading strong{font-size:16px}.equipment-heading button{min-height:36px}.equipment-heading kbd,.field-supplies kbd,.field-supplies>button,.tool-readout #remote-trigger{display:none}.tool-readout .meter{margin-top:6px}.field-tip{top:132px;left:12px;width:min(245px,calc(100vw - 235px))}.field-tip>div{display:block}.field-tip kbd{display:none}.field-tip strong{font-size:12px}.field-tip p{font-size:11px}.field-tip button{min-height:36px}.telemetry{top:70px;bottom:auto;left:12px;padding:9px 11px;gap:13px}.telemetry .depth-stat{display:block}.telemetry strong{font-size:20px}.telemetry span{font-size:9px}.cargo-stat{width:86px}.mission{top:72px;left:auto;right:12px;transform:none;max-width:44vw;width:270px;padding:8px 11px}.mission strong{font-size:12px}.mission>span{font-size:9px}.scanner{top:132px;left:12px;max-width:calc(100vw - 235px);min-width:0;padding:10px}.scanner strong{font-size:14px}.scanner p{font-size:11px}.interaction{top:calc(50% + 36px);bottom:auto;max-width:calc(100vw - 300px)}.touch-actions{bottom:65px;grid-template-columns:repeat(3,60px)}#touch-recall{bottom:12px}.kit-panel .charge-rig .charge-heading>span:last-child,.kit-panel .charge-rig .charge-slots{display:flex}}
+@media(pointer:coarse) and (max-width:540px){.mission{top:126px;left:12px;right:12px;width:auto;max-width:none}.tool-readout{top:200px;left:12px;right:12px;width:auto}.field-tip,.scanner{top:285px;left:12px;width:calc(100vw - 24px);max-width:none}.telemetry{top:70px;right:12px}.interaction{top:auto;bottom:250px;max-width:calc(100vw - 24px)}.field-tip{display:none}.touch-actions{bottom:65px}.tool-readout .field-supplies{font-size:12px}.top-actions kbd{display:none}.top-actions button{padding:8px;font-size:11px}.brand{font-size:18px}}
+@media(max-height:620px){.field-tip,.depth-ruler{display:none}.kit-panel{max-height:calc(100dvh - 24px)}.chapter-banner{top:20%;padding:8px 0}.chapter-banner>strong{font-size:28px;margin:8px 0}.chapter-banner small{margin-top:8px}}
+@media(prefers-reduced-motion:reduce){.chapter-banner{animation:none}button:active:not(:disabled){transform:none}}
+@media(pointer:coarse){#joystick{bottom:24px}#touch-controls .touch-actions button{min-height:44px}.kit-panel .charge-slots button{min-height:44px}}
+@media(pointer:coarse) and (max-height:620px){.brand{display:none}.telemetry{top:12px;left:12px;right:auto}.topbar{top:12px}.tool-readout{top:84px;left:12px;right:auto;width:230px}.mission{top:78px;right:12px;max-width:min(340px,calc(100vw - 300px))}.mission strong{font-size:11px;line-height:1.3}.mission>span{font-size:9px}.scanner{top:150px;left:260px;max-width:calc(100vw - 480px)}.interaction{top:calc(50% + 20px);bottom:auto;max-width:calc(100vw - 460px)}.touch-actions{bottom:65px}.chapter-banner{top:30%;width:55vw}.chapter-banner p{display:none}}
+@media(pointer:coarse) and (max-height:390px){.mission{top:78px;padding:5px 8px}.mission>span{display:none}.mission strong{max-height:2.6em;overflow:hidden}}

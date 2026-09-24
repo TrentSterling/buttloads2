@@ -1,0 +1,156 @@
+// Excavation journey through the real game loop. No fixture shafts, free cash or direct teleports.
+// Pilot knows objective coordinates, so this verifies reachability, not human pacing or fun.
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { nodeGame } from './node-game.mjs';
+const harness = await nodeGame(), g = harness.game, B = B2, dt = 1 / 60;
+g.setScreen(null);
+const thunderstone = process.argv.includes('--thunderstone'), mysteries = process.argv.includes('--mysteries'), freight = process.argv.includes('--freight'), demolition = thunderstone || mysteries || freight || process.argv.includes('--demolition');
+let freightSent = 0, freightDelivered = 0;
+let echoSeal = 0, arrayNode = 0;
+const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, charges: [] }; let phase = 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
+function throwCharge(mode) { if(mode) g.selectCharge(mode); const supply=g.expedition.state.supplies.bombs; g.deploy('bomb'); lastBomb=g.clock; if(supply!==g.expedition.state.supplies.bombs) report.charges.push({mode:g.expedition.state.chargeMode,seconds:+g.clock.toFixed(1),depth:+(-g.player.y).toFixed(1)}); }
+function mark(name) { phase = name; phaseStart = g.clock; const m = { name, seconds: +g.clock.toFixed(1), cash: g.economy.state.cash, cargo: g.economy.count, depth: +g.economy.state.deepest.toFixed(1) }; report.milestones.push(m); console.log(JSON.stringify(m)); }
+function steer(target, { cut = true, lift = false, walk = true } = {}) {
+  const p = g.player, h = p.head, dx = target.x - p.x, dy = target.y - h.y, dz = target.z - p.z;
+  p.yaw = Math.atan2(-dx, -dz); p.pitch = B.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -1.54, 1.54);
+  g.input.keys.clear(); if (walk && Math.hypot(dx, dz) > .4) g.input.keys.add('KeyW'); if (lift) g.input.keys.add('Space'); g.input.fire = cut;
+}
+try {
+  mark(phase);
+  for (let frame = 0; frame < 60 * 60 * 12; frame++) {
+    if (!g.running) g.setScreen(null);
+    if (phase === 'first haul') {
+      if (g.economy.count === g.economy.capacity) { g.recall(); mark('first sale'); }
+      else {
+        if (!oreTarget || oreTarget.collected) oreTarget = g.deposits.nodes.filter(n => !n.collected && n.y > -5).sort((a,b)=>Math.hypot(a.x-g.player.x,a.y-g.player.head.y,a.z-g.player.z)-Math.hypot(b.x-g.player.x,b.y-g.player.head.y,b.z-g.player.z))[0];
+        steer(oreTarget);
+      }
+    } else if (phase === 'first sale') {
+      steer({x:-7,y:1,z:15},{cut:false}); if (g.interaction()?.kind === 'sell') { g.use(); mark('first upgrade'); }
+    } else if (phase === 'first upgrade') {
+      steer({x:0,y:1,z:15},{cut:false}); if (g.interaction()?.kind === 'shop') { g.use(); if (!g.buy('drill')) throw Error('First full haul could not buy the cutter'); g.buy('cargo'); g.setScreen(null); mark('flywheel descent'); }
+    } else if (phase === 'flywheel descent') {
+      if (g.economy.state.deepest >= 9 && g.expedition.state.tool !== 'scoop') g.selectTool('scoop');
+      const body=g.expedition.bodies[0]; steer({x:body.x,y:body.y+1.8,z:body.z});
+      const action=g.interaction(); if(action?.kind==='salvage' && action.id===0 && !action.locked) { g.use(); mark('flywheel ascent'); }
+    } else if (phase === 'flywheel ascent') {
+      const body=g.expedition.bodies[0];
+      steer({x:g.player.x,y:g.player.head.y+8,z:g.player.z},{lift:!g.expedition.snagged,walk:false});
+      if(g.expedition.snagged) steer({x:body.x,y:body.y+2,z:body.z},{walk:false});
+      if(g.expedition.state.recovered.includes(0)) { mark('flywheel recovered'); g.recall(); mark(demolition?'demolition resupply':'engine descent'); }
+      else if(g.expedition.tether===null) throw Error('Pilot lost its load');
+    } else if (phase === 'demolition resupply') {
+      steer({x:0,y:1,z:15},{cut:false}); if(g.interaction()?.kind==='shop') { g.use(); while(g.economy.state.cash>=32 && g.expedition.state.supplies.bombs<24) g.restock('bomb'); g.setScreen(null); mark(thunderstone ? 'thunderstone recovery' : 'engine descent'); }
+    } else if (phase === 'thunderstone recovery') {
+      const n=g.thunder.nodes[0]; steer(n,{lift:g.player.head.y<n.y-.2});
+      const action=g.interaction(); if(action?.kind==='thunderstone' && action.id===0 && !action.locked) { const supplies=g.expedition.state.supplies.bombs;g.use();assert.equal(g.expedition.state.supplies.bombs,supplies+1);mark('thunderstone ignition'); }
+    } else if (phase === 'thunderstone ignition') {
+      const n=g.thunder.nodes[1]; steer(n,{lift:g.player.head.y<n.y-.2});
+      if(g.world.density(n.x,n.y,n.z)>.04 && Math.hypot(g.player.x-n.x,g.player.head.y-n.y,g.player.z-n.z)<3) {
+        g.selectCharge('sticky'); let best=null;
+        for(const pitch of [1.2,.5,0,-.7,-1.3]) for(let i=0;i<8;i++) { g.player.pitch=pitch;g.player.yaw=i*Math.PI/4; const preview=g.gadgets.preview(g.player); if(preview.end) { const d=Math.hypot(preview.end.x-n.x,preview.end.y-n.y,preview.end.z-n.z); if(!best||d<best.d)best={d,pitch,yaw:g.player.yaw}; } }
+        if(best?.d<2) { g.player.pitch=best.pitch;g.player.yaw=best.yaw;g.input.fire=false;g.input.keys.clear();throwCharge('sticky');g.detonate();mark('thunderstone chain'); }
+      }
+    } else if (phase === 'thunderstone chain') {
+      g.input.fire=false;g.input.keys.clear();g.input.keys.add('Space');
+      if(g.thunder.nodes.slice(0,4).every(n=>n.collected)) {mark('thunderstone seam opened');g.recall();mark('engine descent');}
+      else if(g.clock-phaseStart>6) throw Error('Thunderstone chain did not reach the end of its seam');
+    } else if (phase === 'engine descent') {
+      const body = g.expedition.bodies[1]; if(g.economy.state.deepest >= 25 && g.expedition.state.tool !== 'lance') g.selectTool('lance');
+      steer({x:body.x,y:body.y+2,z:body.z});
+      const action=g.interaction(); if(action?.kind==='salvage' && action.id===1 && !action.locked) { g.use(); g.selectTool('scoop'); mark('engine ascent'); }
+    } else if (phase === 'engine ascent') {
+      const body = g.expedition.bodies[1]; steer({x:g.player.x,y:g.player.head.y+8,z:g.player.z},{lift:!g.expedition.snagged,walk:false});
+      if(g.expedition.snagged) steer(g.expedition.obstruction || body,{walk:false});
+      if(g.player.y < -23 && g.clock-lastBomb>4 && g.expedition.state.supplies.bombs>0) throwCharge(demolition?'sticky':null);
+      if(g.expedition.state.recovered.includes(1)) { mark('engine recovered'); g.recall(); g.selectTool('lance'); mark(freight ? 'freight purchase' : mysteries ? 'mystery resupply' : 'seal descent'); }
+      else if(g.expedition.tether===null) throw Error('Pilot lost its engine');
+    } else if (phase === 'freight purchase') {
+      steer({x:0,y:1,z:15},{cut:false}); if(g.interaction()?.kind==='shop') { g.use(); harness.elements.get('buy-freight').onclick(); assert.ok(g.freight.state.owned); g.setScreen(null); mark('freight bay'); }
+    } else if (phase === 'freight bay') {
+      const target={x:5,y:-31.8,z:-1.8}; steer(target,{lift:g.player.head.y<target.y-.2});
+      if(Math.hypot(g.player.x-target.x,g.player.head.y-target.y,g.player.z-target.z)<.8) mark('freight placement');
+    } else if (phase === 'freight placement') {
+      steer({x:5,y:Math.min(-35,g.player.head.y-2),z:-4},{walk:false,lift:g.player.head.y < -32.2});
+      let placement=g.freight.placement(g.player);
+      if(placement.reason) {
+        const pose={pitch:g.player.pitch,yaw:g.player.yaw}; let found=false;
+        for(const pitch of [-.55,-.85,-1.2]) { for(let i=0;i<8;i++) { g.player.pitch=pitch;g.player.yaw=i*Math.PI/4; const candidate=g.freight.placement(g.player); if(!candidate.reason) { placement=candidate;found=true;break; } } if(found)break; }
+        if(!found)Object.assign(g.player,pose);
+      }
+      if(!placement.reason) { g.input.fire=false;harness.handlers.get('keydown')({code:'KeyT',repeat:false,preventDefault(){}});harness.handlers.get('keyup')({code:'KeyT',preventDefault(){}});assert.ok(g.freight.state.dock); mark('freight loading'); }
+      else if(g.clock-phaseStart>15) throw Error('Freight placement: '+placement.reason);
+    } else if (phase === 'freight loading') {
+      const d=g.freight.state.dock;steer({x:d.x,y:d.y+1.6,z:d.z+2},{lift:g.player.head.y<d.y+1.3});
+      if(g.interaction()?.kind==='freight') { g.input.fire=false;g.use();harness.elements.get('freight-send').onclick();freightSent=g.freight.loadCount;assert.ok(freightSent>0);mark('freight shipment'); }
+    } else if (phase === 'freight shipment') {
+      if(g.freight.stockCount) { freightDelivered=g.freight.stockCount;assert.equal(freightDelivered,freightSent);mark('freight delivered');g.recall();mark('freight sale'); }
+      else if(g.freight.obstruction) steer(g.freight.obstruction,{lift:g.player.head.y<g.freight.obstruction.y-1});
+      else {g.input.fire=false;g.input.keys.clear();}
+    } else if (phase === 'freight sale') {
+      steer({x:-7,y:1,z:15},{cut:false});if(g.interaction()?.kind==='sell'){ const value=g.freight.stockValue, cash=g.economy.state.cash;g.use();assert.equal(g.freight.stockCount,0);assert.ok(g.economy.state.cash>=cash+value);mark('freight sold');g.recall();g.selectTool('lance');mark(mysteries?'mystery resupply':'seal descent'); }
+    } else if (phase === 'mystery resupply') {
+      steer({x:0,y:1,z:15},{cut:false}); if(g.interaction()?.kind==='shop') { g.use(); g.sell(); while(g.economy.state.cash>=32 && g.expedition.state.supplies.bombs<30) g.restock('bomb'); g.setScreen(null); g.selectTool('cutter'); mark('echo descent'); }
+    } else if (phase === 'echo descent') {
+      steer(B.MYSTERIES[0]); if(Math.hypot(g.player.x-7,g.player.head.y+21,g.player.z-6)<2.8) mark('echo planting');
+    } else if (phase === 'echo planting') {
+      if(echoSeal===3) { g.input.fire=false; g.input.keys.clear(); if(g.clock-lastBomb>1) { g.detonate(); mark('echo firing'); } }
+      else {
+        const seal=B.ECHO_SEALS[echoSeal], dx=7-seal.x,dz=6-seal.z,len=Math.hypot(dx,dz), target={x:seal.x+dx/len*.7,y:seal.y-.7,z:seal.z+dz/len*.7};
+        steer(target,{lift:g.player.head.y<target.y-.15});
+        if(Math.hypot(g.player.x-target.x,g.player.head.y-target.y,g.player.z-target.z)<1.2 && g.clock-lastBomb>1) {
+          g.selectCharge('sticky'); let best=null;
+          for(const pitch of [1.4,.6,0,-.7]) for(let i=0;i<8;i++) { g.player.pitch=pitch;g.player.yaw=i*Math.PI/4; const p=g.gadgets.preview(g.player); if(p.end) { const d=Math.hypot(p.end.x-seal.x,p.end.y-seal.y,p.end.z-seal.z); if(!best||d<best.d)best={d,pitch,yaw:g.player.yaw}; } }
+          if(best?.d<2.5) { g.player.pitch=best.pitch;g.player.yaw=best.yaw;g.input.fire=false;g.input.keys.clear();throwCharge('sticky');echoSeal++; }
+        }
+      }
+    } else if (phase === 'echo firing') {
+      g.input.fire=false;g.input.keys.clear(); if(g.mysteries.state.solved.includes(0)) { mark('echo vault recovered');g.recall();g.selectTool('lance');mark('array excavation'); }
+      else if(g.clock-phaseStart>3) throw Error('Planted charges failed to ring all echo seals');
+    } else if (phase === 'array excavation') {
+      const node=B.ARRAY_NODES[Math.min(arrayNode,3)];
+      steer(node,{lift:g.player.head.y<node.y-.2});
+      if(Math.hypot(g.player.x-node.x,g.player.head.y-node.y,g.player.z-node.z)<1.1) {
+        if(arrayNode===1||arrayNode===2) { const desired=arrayNode===1?1:0; if(g.mysteries.state.mirrors[arrayNode-1]!==desired) { if(g.interaction()?.kind==='prism')g.use(); } else arrayNode++; }
+        else arrayNode++;
+        if(arrayNode>3)mark('array connection');
+      }
+    } else if (phase === 'array connection') {
+      if(g.mysteries.state.solved.includes(1)) { mark('prism lens recovered');g.recall();g.selectTool('lance');mark('seal descent'); }
+      else { const beam=g.mysteries.beams.find(b=>b.hit); if(beam)steer(beam.end,{lift:g.player.head.y<beam.end.y-.2});else {g.input.fire=false;g.input.keys.clear();} }
+    } else if (phase === 'seal descent') {
+      steer(B.SEAL);
+      if(demolition && g.player.y < -25 && g.clock-lastBomb>3.6 && g.expedition.state.supplies.bombs>=2) throwCharge('bore');
+      if(Math.hypot(g.player.x-B.SEAL.x,g.player.head.y-B.SEAL.y,g.player.z-B.SEAL.z)<2) { g.selectTool('resonance'); mark('seal stones'); }
+    } else if (phase === 'seal stones') {
+      const rune=B.RUNES.find((_,i)=>!g.expedition.state.runes.includes(i));
+      if(rune) steer(rune,{walk:false,lift:g.player.head.y<rune.y-2});
+      else { mark('seal opened'); g.selectTool('lance'); mark('heart descent'); }
+    } else if (phase === 'heart descent') {
+      steer(B.HEART); if(g.interaction()?.kind==='heart' && !g.interaction().locked) { g.use(); mark('heart awakened'); g.recall(); mark('geode expedition'); }
+      else if(demolition && g.clock-lastBomb>3.6 && g.expedition.state.supplies.bombs>=2) throwCharge('bore');
+    } else if (phase === 'geode expedition') {
+      const vault=B.VAULTS.find((_,i)=>!g.expedition.state.vaults.includes(i));
+      if(vault) {
+        if(g.expedition.state.tool!=='gravity') g.selectTool('gravity'); steer(vault,{cut:false,lift:g.player.head.y<vault.y-.5}); harness.handlers.get('keydown')({code:'KeyQ',repeat:false,preventDefault(){}});
+        if(g.expedition.state.vaults.includes(B.VAULTS.indexOf(vault))) { mark(vault.name+' recovered'); g.recall(); mark('geode expedition'); }
+      } else { report.outcome='complete'; mark('all recoveries complete'); break; }
+    }
+    if(demolition && !phase.startsWith('echo') && g.gadgets.remoteCount && g.clock-lastBomb>.9) harness.handlers.get('keydown')({code:'KeyH',repeat:false,preventDefault(){}});
+    g.update(dt);
+    if(g.screen==='ending') report.endingSeen=true;
+    const interval=Math.floor(g.clock/30); if(interval!==lastReport) { lastReport=interval; console.log(`t=${g.clock.toFixed(0)} ${phase} p=${g.player.x.toFixed(1)},${g.player.y.toFixed(1)},${g.player.z.toFixed(1)} cargo=${g.economy.count} edits=${g.world.audit.edits} snag=${g.expedition.snagged}`); }
+    if(g.clock-phaseStart>240) throw Error(`No milestone for four simulated minutes: ${phase}`);
+    if(frame%600===0) await new Promise(r=>setTimeout(r,0));
+  }
+  if(report.outcome!=='complete') throw Error('Journey exceeded simulation limit');
+  assert.deepEqual(g.expedition.state.recovered, [0,1]); assert.equal(g.expedition.state.runes.length,3); assert.ok(g.expedition.state.awakened); assert.equal(g.expedition.state.vaults.length,3); assert.ok(report.endingSeen,'final recovery did not show the ending');
+  if(demolition) assert.ok(['sticky','bore'].every(mode=>report.charges.some(c=>c.mode===mode)),'journey did not exercise both new charge types');
+  if(thunderstone) { assert.ok(g.thunder.nodes.slice(0,4).every(n=>n.collected)); assert.ok(report.milestones.some(m=>m.name==='thunderstone seam opened')); console.log('COMPLETE thunderstone choice: excavated and recovered one crystal, planted a real remote, opened the remaining seam and finished the campaign.'); }
+  if(freight) { assert.ok(freightDelivered>0); assert.equal(g.freight.stockCount,0); assert.equal(g.freight.loadCount,0); console.log('COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.'); }
+  if(mysteries) { assert.deepEqual(g.mysteries.state.solved,[0,1]); assert.equal(g.gadgets.spec('bore').length,9); assert.ok(g.mysteries.focus(3)); console.log('COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.'); }
+  B.Saves.validate(B.Saves.snapshot(g));
+  console.log('COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.');
+} catch(error) { report.outcome='failed'; report.error=error.message; report.player=g.player.position; report.cutter={contact:g.cutter.contact,target:g.cutter.target}; report.load=g.expedition.bodies.map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,motion:b.motion})); fs.writeFileSync(new URL('./out/journey-stall.json',import.meta.url),JSON.stringify(B.Saves.snapshot(g,true))); console.error(report.error); process.exitCode=1; }
+finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }

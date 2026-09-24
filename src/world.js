@@ -1,0 +1,139 @@
+'use strict';
+(function (B) {
+  const { WORLD: W, clamp, RELICS } = B;
+  class World {
+    constructor(seed) {
+      this.seed = seed; this.nx = 65; this.ny = 165; this.nz = 65;
+      this.field = new Float32Array(this.nx * this.ny * this.nz);
+      this.kernel = B.createMesher(); this.chunks = new Map(); this.revision = 0;
+      this.audit = { edits: 0, samples: 0, lastEditMs: 0, maxEditMs: 0 };
+      this.onChunk = () => {}; this.onChange = () => {}; this.onEdit = () => {};
+      this.generate();
+    }
+    index(x, y, z) { return x + this.nx * (y + this.ny * z); }
+    base(x, y, z) {
+      let density = y;
+      for (const r of RELICS) { const cave = 3.3 - Math.hypot((x - r.x) * .9, (y - r.y - 1.1) * 1.1, (z - r.z) * .9); density = Math.max(density, cave); }
+      // The final chamber opens out into a low, asymmetric crystal garden.
+      const garden = 4.8 - Math.hypot((x - 1) * .85, (y + 67.1) * 1.7, (z - 1) * .9);
+      density = Math.max(density, garden);
+      for (const c of B.MYSTERY_CAVES || []) density = Math.max(density, c.radius - Math.hypot(x - c.x, (y - c.y) * 1.15, z - c.z));
+      return clamp(density, -2, 2);
+    }
+    generate() {
+      for (let z = 0; z < this.nz; z++) for (let y = 0; y < this.ny; y++) for (let x = 0; x < this.nx; x++) this.field[this.index(x, y, z)] = this.base(W.min + x * .5, W.bottom + y * .5, W.min + z * .5);
+    }
+    sample(x, y, z) {
+      if (x < 0 || x >= this.nx || y < 0 || y >= this.ny || z < 0 || z >= this.nz) return clamp(W.bottom + y * .5, -2, 2);
+      return this.field[this.index(x, y, z)];
+    }
+    density(x, y, z) {
+      if (y > W.top) return 2;
+      const fx = (x - W.min) * 2, fy = (y - W.bottom) * 2, fz = (z - W.min) * 2;
+      const ix = Math.floor(fx), iy = Math.floor(fy), iz = Math.floor(fz), u = fx - ix, v = fy - iy, w = fz - iz;
+      let d = 0;
+      for (let c = 0; c < 8; c++) d += this.sample(ix + (c & 1), iy + ((c >> 1) & 1), iz + (c >> 2)) * (c & 1 ? u : 1 - u) * (c & 2 ? v : 1 - v) * (c & 4 ? w : 1 - w);
+      return d;
+    }
+    normal(x, y, z) {
+      const e = .12, d = this.density.bind(this), n = [d(x + e, y, z) - d(x - e, y, z), d(x, y + e, z) - d(x, y - e, z), d(x, y, z + e) - d(x, y, z - e)];
+      const l = Math.hypot(...n) || 1; return n.map(v => v / l);
+    }
+    ray(origin, direction, reach = 5) {
+      let previous = 0;
+      for (let t = .05; t <= reach; t += .16) {
+        const x = origin.x + direction.x * t, y = origin.y + direction.y * t, z = origin.z + direction.z * t;
+        if (this.density(x, y, z) < 0) {
+          let lo = previous, hi = t;
+          for (let k = 0; k < 7; k++) { const m = (lo + hi) * .5; if (this.density(origin.x + direction.x * m, origin.y + direction.y * m, origin.z + direction.z * m) < 0) hi = m; else lo = m; }
+          const distance = (lo + hi) * .5;
+          return { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance, distance };
+        }
+        previous = t;
+      }
+      return null;
+    }
+    clearLine(a, b, margin = .2) {
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, distance = Math.hypot(dx, dy, dz);
+      return distance < margin || !this.ray(a, { x: dx / distance, y: dy / distance, z: dz / distance }, distance - margin);
+    }
+    samplesFor(cx, cy, cz) {
+      const m = this.kernel.M, samples = new Float32Array(m ** 3);
+      for (let z = -1; z <= 16; z++) for (let y = -1; y <= 16; y++) for (let x = -1; x <= 16; x++) samples[this.kernel.sampleId(x, y, z)] = this.sample(cx * 16 + x + 32, cy * 16 + y + 160, cz * 16 + z + 32);
+      return samples;
+    }
+    adopt(cx, cy, cz, mesh) {
+      if (!mesh) return;
+      const key = `${cx},${cy},${cz}`, rec = { key, cx, cy, cz, mesh };
+      this.chunks.set(key, rec); this.onChunk(rec); this.kernel.clear(mesh);
+      return rec;
+    }
+    async build(progress = () => {}) {
+      const jobs = [];
+      for (let cy = -1; cy >= -10; cy--) for (let cz = -2; cz < 2; cz++) for (let cx = -2; cx < 2; cx++) {
+        const samples = this.samplesFor(cx, cy, cz); let positive = false, negative = false;
+        for (const v of samples) { if (v < 0) negative = true; else positive = true; if (positive && negative) break; }
+        if (positive && negative) jobs.push({ cx, cy, cz, samples });
+      }
+      let at = 0, done = 0;
+      const source = `const K=(${B.createMesher.toString()})();onmessage=e=>{try{const j=e.data,s=K.build([j.cx*8,j.cy*8,j.cz*8],j.samples);postMessage(s,Object.values(s).filter(v=>ArrayBuffer.isView(v)).map(v=>v.buffer));}catch(e){postMessage({error:e.message});}};`;
+      let url;
+      try { if (typeof Worker !== 'undefined') url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' })); } catch { /* file:// or browser policy: synchronous cold-build fallback */ }
+      const work = async () => {
+        let worker;
+        try { if (url) worker = new Worker(url); } catch { /* fallback below */ }
+        try {
+          while (at < jobs.length) {
+            const job = jobs[at++]; let result;
+            if (worker) {
+              try {
+                result = await new Promise((resolve, reject) => {
+                  const timeout = setTimeout(() => reject(new Error('Mesher timeout')), 15000);
+                  worker.onmessage = e => { clearTimeout(timeout); e.data.error ? reject(new Error(e.data.error)) : resolve(e.data); };
+                  worker.onerror = e => { clearTimeout(timeout); reject(new Error(e.message)); };
+                  worker.postMessage(job);
+                });
+              } catch { worker.terminate(); worker = null; }
+            }
+            if (!result) { result = this.kernel.build([job.cx * 8, job.cy * 8, job.cz * 8], job.samples); await new Promise(r => setTimeout(r, 0)); }
+            this.adopt(job.cx, job.cy, job.cz, result); progress(++done / jobs.length);
+          }
+        } finally { worker?.terminate(); }
+      };
+      try { await Promise.all(Array.from({ length: Math.min(8, Math.max(1, (globalThis.navigator?.hardwareConcurrency || 4) - 2), jobs.length || 1) }, work)); }
+      finally { if (url) URL.revokeObjectURL(url); }
+      progress(1);
+    }
+    carve(p, radius, strength = Infinity) {
+      const begin = performance.now();
+      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, W.bottom, W.min], dims = [this.nx, this.ny, this.nz];
+      for (let k = 0; k < 3; k++) { lo[k] = clamp(Math.floor((lo[k] - base[k]) * 2), 0, dims[k] - 1); hi[k] = clamp(Math.ceil((hi[k] - base[k]) * 2), 0, dims[k] - 1); }
+      let changed = 0; const dirty = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+      for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
+        const wx = W.min + x * .5, wy = W.bottom + y * .5, wz = W.min + z * .5;
+        if (Math.abs(wx) >= W.limit || Math.abs(wz) >= W.limit || wy <= W.floor) continue;
+        const distance = Math.hypot(wx - p.x, wy - p.y, wz - p.z); if (distance >= radius) continue;
+        const id = this.index(x, y, z), target = radius - distance, value = Math.fround(Math.max(this.field[id], Math.min(target, this.field[id] + strength)));
+        if (value <= this.field[id] + 1e-7) continue;
+        this.field[id] = value; changed++;
+        dirty[0] = Math.min(dirty[0], x); dirty[1] = Math.min(dirty[1], y); dirty[2] = Math.min(dirty[2], z); dirty[3] = Math.max(dirty[3], x); dirty[4] = Math.max(dirty[4], y); dirty[5] = Math.max(dirty[5], z);
+      }
+      if (!changed) return 0;
+      this.revision++;
+      // Include the sample halo of every affected chunk, including corners.
+      const min = [Math.max(-2, Math.floor((dirty[0] - 33) / 16)), Math.max(-10, Math.floor((dirty[1] - 161) / 16)), Math.max(-2, Math.floor((dirty[2] - 33) / 16))];
+      const max = [Math.min(1, Math.floor((dirty[3] - 31) / 16)), Math.min(-1, Math.floor((dirty[4] - 159) / 16)), Math.min(1, Math.floor((dirty[5] - 31) / 16))];
+      for (let cz = min[2]; cz <= max[2]; cz++) for (let cy = min[1]; cy <= max[1]; cy++) for (let cx = min[0]; cx <= max[0]; cx++) {
+        const key = `${cx},${cy},${cz}`; let rec = this.chunks.get(key);
+        if (!rec) { this.adopt(cx, cy, cz, this.kernel.build([cx * 8, cy * 8, cz * 8], this.samplesFor(cx, cy, cz))); continue; }
+        const offset = [cx * 16 + 32, cy * 16 + 160, cz * 16 + 32], bounds = dirty.map((v, i) => clamp(v - offset[i % 3], -1, 16));
+        for (let z = bounds[2]; z <= bounds[5]; z++) for (let y = bounds[1]; y <= bounds[4]; y++) for (let x = bounds[0]; x <= bounds[3]; x++) rec.mesh.samples[this.kernel.sampleId(x, y, z)] = this.sample(offset[0] + x, offset[1] + y, offset[2] + z);
+        this.kernel.update(rec.mesh, bounds); this.onChange(rec); this.kernel.clear(rec.mesh);
+      }
+      this.audit.edits++; this.audit.samples += changed; this.audit.lastEditMs = performance.now() - begin; this.audit.maxEditMs = Math.max(this.audit.maxEditMs, this.audit.lastEditMs);
+      this.onEdit(p, radius);
+      return changed;
+    }
+  }
+  B.World = World;
+})(B2);

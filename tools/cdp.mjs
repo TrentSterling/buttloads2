@@ -13,7 +13,7 @@ export async function launch({port, width = 1280, height = 800, headless = true}
     `--window-size=${width},${height}`, '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
     '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', '--hide-scrollbars',
   ].filter(Boolean);
-  const proc = spawn(CHROME, args, {stdio: 'ignore'});
+  const proc = spawn(CHROME, args, {stdio: 'ignore', windowsHide: true});
   let info;
   for (let i = 0; i < 60; i++) {
     try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); break; } catch { await sleep(250); }
@@ -38,15 +38,23 @@ export async function launch({port, width = 1280, height = 800, headless = true}
   });
   const call = (method, params) => send(method, params, sessionId);
   await call('Page.enable'); await call('Runtime.enable'); await call('Log.enable');
+  // Trent: test automation must never capture the desktop cursor or take focus.
+  // Installed before navigation, including reloads and standalone file tests.
+  await call('Page.addScriptToEvaluateOnNewDocument', {source: `
+    Object.defineProperty(Element.prototype, 'requestPointerLock', {
+      configurable: true, value: function () { return Promise.resolve(); }
+    });
+    window.focus = function () {};
+  `});
   await call('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
   const page = {
-    logs, proc, dir,
+    logs, proc, dir, call,
     goto: url => call('Page.navigate', {url}),
     eval: async (expr) => { const r = await call('Runtime.evaluate', {expression: expr, returnByValue: true, awaitPromise: true}); if (r.exceptionDetails) throw new Error('eval: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text)); return r.result.value; },
     shot: async (file) => { const {data} = await call('Page.captureScreenshot', {format: 'png'}); const fs = await import('node:fs'); fs.writeFileSync(file, Buffer.from(data, 'base64')); return file; },
     mouse: (type, x, y, button = 'left') => call('Input.dispatchMouseEvent', {type, x, y, button, clickCount: 1, buttons: type === 'mouseReleased' ? 0 : 1}),
-    front: () => call('Page.bringToFront'),
-    kill: () => { try { proc.kill(); } catch {} },
+    front: () => Promise.resolve(), // Do not foreground test windows.
+    kill: () => { try { ws.close(); proc.kill(); } catch {} },
   };
   return page;
 }

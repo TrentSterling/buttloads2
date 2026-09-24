@@ -7,7 +7,8 @@
     get direction() { const c = Math.cos(this.pitch); return { x: -Math.sin(this.yaw) * c, y: Math.sin(this.pitch), z: -Math.cos(this.yaw) * c }; }
     teleport(x, y, z) { this.x = x; this.y = y; this.z = z; this.vx = this.vy = this.vz = 0; }
     blocked(x, y, z) {
-      if (Math.abs(x) > 21 || Math.abs(z) > 22 || y < -74) return true;
+      const area = B.SURFACE;
+      if (x < area.minX + this.radius || x > area.maxX - this.radius || z < area.minZ + this.radius || z > area.maxZ - this.radius || y < -74) return true;
       for (const b of this.obstacles) if (x + this.radius > b[0] && x - this.radius < b[3] && y + this.height > b[1] && y < b[4] && z + this.radius > b[2] && z - this.radius < b[5]) return true;
       for (const h of [.025, .45, 1, 1.7]) {
         if (this.world.density(x, y + h, z) < -.005) return true;
@@ -40,12 +41,9 @@
   }
   class Cutter {
     constructor(world) { this.world = world; this.target = null; this.lastDirection = null; this.contact = null; this.edited = false; this.frames = 0; }
-    update(dt, player, level, held, mode = 'cutter') {
-      this.edited = false; this.contact = null;
-      if (!held) { this.target = null; return; }
-      this.frames++;
+    trace(player, level, mode = 'cutter', reach = 5.2) {
       const tool = B.TOOLS?.[mode] || { radius: 1, power: 1 };
-      const origin = player.head, direction = player.direction, radius = B.clamp(B.GEAR.drill.values[level] * tool.radius, .72, 2.8), reach = 5.2;
+      const origin = player.head, direction = player.direction, radius = B.clamp(B.GEAR.drill.values[level] * tool.radius, .72, 2.8);
       let hit = this.world.ray(origin, direction, reach);
       // Wide brush contact: a center ray falling through its own hole does not release firing.
       const side = { x: Math.cos(player.yaw), y: 0, z: -Math.sin(player.yaw) };
@@ -66,6 +64,15 @@
           if (candidate && (!hit || candidate.distance < hit.distance)) hit = candidate;
         }
       }
+      return hit;
+    }
+    update(dt, player, level, held, mode = 'cutter', resolved = undefined) {
+      this.edited = false; this.contact = null;
+      if (!held) { this.target = null; return; }
+      this.frames++;
+      const tool = B.TOOLS?.[mode] || { radius: 1, power: 1 };
+      const origin = player.head, direction = player.direction, radius = B.clamp(B.GEAR.drill.values[level] * tool.radius, .72, 2.8);
+      const hit = resolved === undefined ? this.trace(player, level, mode) : resolved;
       if (!hit) { this.target = null; return; }
       const layer = B.geology(hit.y), efficiency = mode === 'scoop' && hit.y < -25 ? .22 : mode === 'lance' && hit.y > -9 ? .5 : 1;
       const amount = B.GEAR.drill.power[level] * tool.power * efficiency * dt / layer.resistance;

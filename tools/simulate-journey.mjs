@@ -4,11 +4,19 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { nodeGame } from './node-game.mjs';
 const harness = await nodeGame(), g = harness.game, B = B2, dt = 1 / 60;
+const legacy = process.argv.includes('--legacy'), refuges = process.argv.includes('--refuges');
+if (legacy) {
+  // Bootstrap the same starting claim written by the old generator. No new cave voids.
+  const snapshot = B.Saves.snapshot(g), world = new B.World(snapshot.state.seed, 0);
+  world.carve({ x: 0, y: -.12, z: 7 }, 1.35);
+  snapshot.field = world.field.slice(); snapshot.state = B.freshState(snapshot.state.seed); snapshot.loose = []; snapshot.collected = []; delete snapshot.generation;
+  await g.install(B.Saves.validate(snapshot)); assert.equal(g.world.generation, 0); assert.deepEqual(g.world.field, world.field);
+}
 g.setScreen(null);
 const thunderstone = process.argv.includes('--thunderstone'), mysteries = process.argv.includes('--mysteries'), freight = process.argv.includes('--freight'), demolition = thunderstone || mysteries || freight || process.argv.includes('--demolition');
 let freightSent = 0, freightDelivered = 0;
 let echoSeal = 0, arrayNode = 0;
-const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, charges: [] }; let phase = 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
+const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
 function throwCharge(mode) { if(mode) g.selectCharge(mode); const supply=g.expedition.state.supplies.bombs; g.deploy('bomb'); lastBomb=g.clock; if(supply!==g.expedition.state.supplies.bombs) report.charges.push({mode:g.expedition.state.chargeMode,seconds:+g.clock.toFixed(1),depth:+(-g.player.y).toFixed(1)}); }
 function mark(name) { phase = name; phaseStart = g.clock; const m = { name, seconds: +g.clock.toFixed(1), cash: g.economy.state.cash, cargo: g.economy.count, depth: +g.economy.state.deepest.toFixed(1) }; report.milestones.push(m); console.log(JSON.stringify(m)); }
 function steer(target, { cut = true, lift = false, walk = true } = {}) {
@@ -20,7 +28,18 @@ try {
   mark(phase);
   for (let frame = 0; frame < 60 * 60 * 12; frame++) {
     if (!g.running) g.setScreen(null);
-    if (phase === 'first haul') {
+    if (phase === 'survey descent') {
+      const n = g.refuges.nodes[0]; steer({ x: n.x, y: n.y + .25, z: n.z }, { lift: g.player.head.y < n.y - .2 });
+      const action = g.interaction();
+      if (action?.kind === 'refuge' && action.id === 0 && !action.locked) {
+        const stock = g.gadgets.state.supplies.lights, cells = g.survey.cells.size;
+        g.input.fire = false; g.use(); assert.equal(g.gadgets.state.supplies.lights, stock - 1); assert.ok(g.survey.cells.size > cells);
+        mark('survey refuge restored');
+        const save = B.Saves.snapshot(g, true), field = g.world.field.slice(); await g.install(B.Saves.validate(save));
+        assert.deepEqual(g.refuges.state.lit, [0]); assert.deepEqual(g.world.field, field); assert.equal(g.world.generation, legacy ? 0 : B.CAVE_VERSION);
+        mark('survey claim reloaded'); g.recall(); mark('first haul');
+      }
+    } else if (phase === 'first haul') {
       if (g.economy.count === g.economy.capacity) { g.recall(); mark('first sale'); }
       else {
         if (!oreTarget || oreTarget.collected) oreTarget = g.deposits.nodes.filter(n => !n.collected && n.y > -5).sort((a,b)=>Math.hypot(a.x-g.player.x,a.y-g.player.head.y,a.z-g.player.z)-Math.hypot(b.x-g.player.x,b.y-g.player.head.y,b.z-g.player.z))[0];
@@ -151,6 +170,7 @@ try {
   if(freight) { assert.ok(freightDelivered>0); assert.equal(g.freight.stockCount,0); assert.equal(g.freight.loadCount,0); console.log('COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.'); }
   if(mysteries) { assert.deepEqual(g.mysteries.state.solved,[0,1]); assert.equal(g.gadgets.spec('bore').length,9); assert.ok(g.mysteries.focus(3)); console.log('COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.'); }
   B.Saves.validate(B.Saves.snapshot(g));
-  console.log('COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.');
+  if (refuges) { assert.deepEqual(g.refuges.state.lit, [0]); console.log('COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.'); }
+  console.log(`COMPLETE ${legacy ? 'legacy-claim' : 'fresh-claim'} journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.`);
 } catch(error) { report.outcome='failed'; report.error=error.message; report.player=g.player.position; report.cutter={contact:g.cutter.contact,target:g.cutter.target}; report.load=g.expedition.bodies.map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,motion:b.motion})); fs.writeFileSync(new URL('./out/journey-stall.json',import.meta.url),JSON.stringify(B.Saves.snapshot(g,true))); console.error(report.error); process.exitCode=1; }
-finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }
+finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }

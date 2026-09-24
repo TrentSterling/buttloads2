@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { nodeGame } from './node-game.mjs';
 const root = path.resolve(import.meta.dirname, '..');
-if (!globalThis.B2?.Gadgets) for (const name of ['core', 'mesher', 'world', 'player', 'ore', 'expedition', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
+if (!globalThis.B2?.Gadgets) for (const name of ['core', 'town', 'caverns', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'combat', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'));
 const B = globalThis.B2;
 export let depthChecks = 0;
 const test = async (name, fn) => { await fn(); depthChecks++; console.log('PASS depths: ' + name); };
@@ -149,7 +149,7 @@ await test('43 m increases real scanner range; 59 m reveals sealed geodes', () =
   game.view.scan = nodes => { captured = nodes; }; game.setScreen(null); game.player.teleport(9, -19 - game.player.eye, -7);
   game.economy.state.deepest = 42; game.scanCooldown = 0; game.scan(); const count = captured.length;
   game.economy.state.deepest = 43; game.scanCooldown = 0; game.scan(); assert.ok(captured.length > count);
-  assert.ok(captured.every(n => n.kind !== undefined || B.MYSTERIES.some(m => m.name === n.name) || n.scanKey?.startsWith('thunder:'))); assert.ok(!captured.some(n => B.VAULTS.some(v => v.name === n.name))); game.economy.state.deepest = 59; game.scanCooldown = 0; game.scan(); assert.ok(captured.some(n => n.name === B.VAULTS[0].name));
+  assert.ok(captured.every(n => n.kind !== undefined || B.MYSTERIES.some(m => m.name === n.name) || n.scanKey?.startsWith('thunder:') || game.refuges.nodes.some(r => n.scanKey === 'refuge:' + r.id))); assert.ok(!captured.some(n => B.VAULTS.some(v => v.name === n.name))); game.economy.state.deepest = 59; game.scanCooldown = 0; game.scan(); assert.ok(captured.some(n => n.name === B.VAULTS[0].name));
   game.view.scan = original;
 });
 await test('real Game resolves the seal, heart and final geode into the new ending', () => {
@@ -167,7 +167,7 @@ await test('real Game resolves the seal, heart and final geode into the new endi
   assert.equal(game.expedition.state.vaults.length, 3); assert.equal(game.screen, 'ending'); B.Saves.validate(B.Saves.snapshot(game));
 });
 await test('concrete apron has no top triangles coplanar with the ground', () => {
-  let found = 0; game.view.scene.traverse(m => { if (m.material !== game.view.palette.concrete) return; const a = m.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 9) if (Math.abs(a[i + 1] - a[i + 4]) < 1e-6 && Math.abs(a[i + 4] - a[i + 7]) < 1e-6) { assert.ok(Math.abs(a[i + 1]) > .01); found++; } }); assert.ok(found >= 2);
+  let found = 0; game.view.scene.traverse(m => { if (m.material !== game.view.palette.concrete) return; const a = m.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 9) if (m.geometry.attributes.normal.array[i + 1] > .5 && Math.abs(a[i + 1] - a[i + 4]) < 1e-6 && Math.abs(a[i + 4] - a[i + 7]) < 1e-6) { assert.ok(Math.abs(a[i + 1]) > .01); found++; } }); assert.ok(found >= 2);
 });
 clearTimeout(game.toastTimer);
 console.log(`COMPLETE ${depthChecks} depth checks passed (no browser or input automation)`);

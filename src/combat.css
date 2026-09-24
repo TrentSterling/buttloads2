@@ -1,0 +1,13 @@
+.vitals { position: absolute; left: 22px; top: 112px; width: 144px; padding: 10px 12px; background: #192b28e8; border-left: 2px solid #ccad75; }
+.vitals > div:first-child { display: flex; justify-content: space-between; gap: 12px; font: 11px Consolas, monospace; letter-spacing: .08em; color: #dfd8c1; }
+.vitals .meter { margin-top: 7px; height: 4px; }
+#health-bar { background: #b5c691; }
+.vitals small { display: block; margin-top: 7px; color: #bbc4b3; font-size: 10px; }
+.threat { position: absolute; top: 155px; left: 50%; transform: translateX(-50%); width: min(290px, 80vw); text-align: center; padding: 10px 14px; background: #201b18e8; border-bottom: 2px solid #dd9d69; }
+.threat strong { display: block; font: 12px Consolas, monospace; letter-spacing: .1em; color: #f4c58f; }
+.threat span { display: block; margin-top: 5px; font-size: 12px; color: #e3d7bd; }
+.threat .meter { margin-top: 7px; height: 3px; }
+#enemy-health { background: #d9986d; }
+#hurt-shade { position: absolute; inset: 0; box-shadow: inset 0 0 100px 20px #a44528; pointer-events: none; opacity: 0; }
+#crosshair.hit-confirm i { background: #ffc77c; }
+@media (max-width: 720px), (max-height: 620px) { .vitals { top: 67px; left: 14px; width: 108px; padding: 6px 9px; } .vitals small { display: none; } .threat { top: 142px; padding: 6px 10px; } }

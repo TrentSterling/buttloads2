@@ -1,0 +1,58 @@
+# Beauty, depth and combat: ten work packages
+
+September 24, 2026. Trent liked the published 2.8.0 build and requested a beauty pass, greater depth, tools that also function as weapons, enemies and a memorable underground payoff. He asked for ten concrete ideas for today's work. This document records scope, implementation order and completed checkpoints. It supersedes the previous handoff's instruction not to resume feature work, while preserving the completed 2.8.0 release.
+
+## Direction
+
+A battered, sunlit mining yard descends into beautiful, increasingly hostile underground places. The tools used to create the mine also let the player survive its discoveries. The current heart becomes a passage to a deeper act. Encounters cluster around valuable pockets and discoveries, with breathing room in ordinary and cleared tunnels.
+
+Motherload's Mr. Natas reveals himself as Satan in its final fight. The relevant design lesson is a descent that builds toward a surprising playable confrontation. Use original characters, art and encounters. Reference: https://gamefaqs.gamespot.com/flash/933421-motherload/faqs/53229 (final battle section).
+
+## Ten packages, revised with Trent's cave and NPC requests
+
+Local 2.11.0 checkpoint: the expanded surface, two friendly merchants, three seeded cave networks, physical survey cabinets and the first creature encounters are implemented and system-tested. Mining tools damage cinder moths; an axe adds timed swings, placed lights protect the player, and defeat creates a persistent recovery cache. Old mines keep their exact terrain. Town art, service panels, cave formations and original moth/axe models are the first part of the beauty pass. Parcel purchases, more residents, larger structures, deeper regions, additional combat mechanics and the boss remain outstanding. See TOWN.md, CAVERNS.md, COMBAT.md and VERIFICATION.md. This is progress toward the complete plan, not completion of the goal.
+
+These are proposed work targets, not implemented features or a promise that every item can be fully polished today. First versions should form playable checkpoints. Keep the existing saved mine and expand it; never reroll a cave on load or overwrite an excavated claim.
+
+1. **Beauty pass across the world.** Distinct soil, fractured rock, mineral faces and worn machinery; stronger tool silhouettes, warm surface lighting, atmospheric cave lighting and restrained glow. First deliverable: a visibly improved yard and one underground region. Retain quality controls and readable minerals.
+2. **A real cave generation pass.** Pre-existing connected tunnels, pockets, branching chambers, loops and vertical spaces interrupt solid rock. Mix natural cave shapes with dense seams that still reward digging. Seed and version generation, keep discoveries concealed until found, and avoid generating new voids across existing edited save terrain or leaving unsupported ore suspended.
+3. **Structures worth breaking into.** Authored templates for abandoned workings, a collapsed lift station, buried workshop, giant fossil and strange shrine placed within the seeded mine. Each needs an action, clue or reward. Start with one finished discovery and verify accessible entrances, spatial clearance and persistence.
+4. **A larger explorable surface.** Expand beyond the current yard into woodland paths, a road, neighboring plots and a small settlement. Traversal and excavation ownership are separate: allow walking outside the claim while enforcing visible property boundaries for digging. Later land purchases should unlock meaningful adjacent mining space. Scope the first expansion around a walkable settlement and one prospective parcel.
+5. **Friendly NPCs and shops.** Start with a shopkeeper and mechanic with original models, idle behavior, concise dialogue and useful services. Prospector leads, an underground rescue and a strange visitor are extensions. Conversations and stock react to saved discoveries. Keep ordinary tool use from turning friendly commerce into an accidental combat encounter. Friendly roles should give the surface a purpose beyond its menus.
+6. **Go beyond the current floor.** Make the heart chamber an unlockable passage into a deeper act. First depth target around 250-300 m is subject to performance and save checks. Audit fixed field dimensions, meshing, survey limits, placement, travel and validation rather than only lowering a number. Give the eventual bottom a playable payoff and continuation.
+7. **Tools are also weapons.** Shared left-click targeting resolves reachable terrain or a damageable object with rock occlusion. Drill gives sustained contact, a new axe gives a timed wide swing, lance breaks armor, resonance staggers and gravity can throw loose objects. Prove drill and one melee tool first, including hit animation, cooldowns and save-safe health state.
+8. **Enemies that use mining's rules.** Prototype one complete creature before extending to an armored crawler, light-shy cave creature and ore mimic. Clear tells, actual cave navigation, sparse early encounters and useful loot. Connect bombs and thunderstone to damage; allow selected detachable rocks and excavated escape routes to matter. Define health, rescue and recovery. Avoid unexplained repeated spawns inside cleared routes.
+9. **Progression that changes both mine and town.** Distinct tool modifications, new shop inventory, repaired machinery and useful transport/lighting infrastructure. A discovery should unlock a capability or visibly change the home base. First examples: a drill modification and a restored route. Build on the existing freight and lamps instead of presenting them as new. Persist purchases, NPC state, structures, equipment placement and excavation.
+10. **A boss and an underground transformation.** Working concept: the Foreman Below, an ancient furnace creature asserting ownership of the minerals. Excavate armor, expose weak points and shape routes around signaled attacks. Start with one readable chamber and a small set of phases. Its reward opens further exploration or a magical ability and changes something visible in the world.
+
+## Reference synthesis
+
+SteamWorld Dig combines mining, upgrades, enemies, puzzles, characters and generated mine maps. Its official developer listing: https://store.steampowered.com/app/252410/SteamWorld_Dig/. SteamWorld Dig 2 is another reference for ability-driven underground exploration: https://store.steampowered.com/app/571310/SteamWorld_Dig_2/. Terraria is a reference for connecting digging, combat and building into a world players keep developing: https://store.steampowered.com/app/105600/Terraria/. These are design references, not sources of copied assets or code.
+
+For Buttloads 2, the proposed combination is discovery-led mining, terrain-aware combat and a persistent surface community. Pre-existing spaces and inhabitants should make excavation feel like uncovering a world rather than consuming a solid block.
+
+## Playable checkpoints
+
+- **A: a place to explore and return to.** Improved art, one meaningful cave network, an expanded surface route and a working friendly shopkeeper. Preserve current progress and establish versioned generation. Save/reload must keep the cave, excavations, placed gear and NPC state.
+- **B: tools can fight.** Shared targeting, drill plus melee, one enemy, explosive damage and a defined rescue loop. Verify wall occlusion, frame-rate-independent contact, enemy terrain movement, pause behavior and portable encounter saves.
+- **C: a deeper adventure.** Cross the old boundary into a distinct region, discover a structure, earn a capability and complete a boss encounter that opens the next route. Verify return travel, freight/anchor behavior, old-save migration and a complete progression path.
+
+Checkpoints A and B are implemented and pass simulation/save validation in local 2.11.0. B includes shared targeting, drill and axe damage, a persistent flying enemy with collision-checked navigation, explosive damage, light deterrence and a conserved cargo-recovery loop. Gravity currently pulls/drains creatures; throwing loose objects, armor and additional enemies remain future work. Actual browser appearance and human combat feel remain unreviewed under the session's input restriction.
+
+Next implementation is checkpoint C: audit fixed world dimensions and replace the 73 m stop with a saved continuation beyond the heart. Preserve the existing mine's samples and deposit IDs, extend survey/placement/return travel, then add a distinct deeper region and a playable boss that opens the next route. Keep every existing unlock and earned discovery intact; do not reroll old claims. The current heart and three geode ending must become a milestone rather than the final barrier.
+
+Further enemy varieties, surface parcels and discoveries grow from these checkpoints. Browser visual review remains constrained by AGENTS.md; do not claim art or combat feel is validated by inert renderer tests. No new goal or token budget is inferred from the user's mention of remaining weekly credits.
+
+## Existing implementation constraints
+
+- `src/core.js`: WORLD has bottom -80 and protected floor -73. `src/world.js`: fixed 65 x 165 x 65 density field, hardcoded generation coordinates and vertical chunk bounds. Meshing, survey bounds, placement, persistence validation and generation all need an audit when depth changes.
+- `src/actions.js`: shared tool target resolution owns continuous damage and timed axe strikes. Cutter.trace retains terrain brush probes; Expedition uses the same enemy-target callback for charged pulses. Preserve occlusion and cadence when adding armor or further weapons.
+- `src/expedition.js`: five existing tools, five strata, fixed salvage/seal/heart/geode positions. Retain previously earned rewards and discoveries when moving the ending into a deeper act.
+- `src/render.js`: procedural terrain grain, vertex colors, standard materials and a first-person tool scene. Art changes need actual rendered review; source inspection cannot establish their appearance.
+- Current automated baseline: 172 system checks, a combined thunderstone/freight/mysteries campaign journey and a fresh-start drill/axe encounter journey. Add focused tests for newly introduced failure modes and run the relevant regressions, rather than repeatedly running unchanged checks.
+- Preserve deployed 2.8.0 at commit `993d04f1b7fa78b5459b86bf82c8532458d829c7` and existing user saves. Keep new work local until there is a coherent reviewed build to publish.
+- Do not manipulate the user's mouse/keyboard or focus. Project AGENTS.md prohibits further browser interaction tests in this session. Existing procedural test adapters do not verify pixels, sound, browser usability or combat feel.
+
+## Open design choices
+
+Further enemy roster, final biome count, exact depth and boss appearance remain design choices. The first encounter now uses sparse cinder moths, free surface recovery with a recoverable dropped haul and no respawn after clearing. Expand from that implemented behavior, keeping threats concentrated around discoveries rather than repeatedly filling cleared routes.

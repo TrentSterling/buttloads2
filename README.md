@@ -1,12 +1,22 @@
 # BUTTLOADS 2: The Deepening
 
-**Field Kit update, 2.8.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Cinder moths and mining weapons, local 2.11.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
-This is the September 24 stopping build. Remaining review and future ideas are saved in [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md); current test evidence is in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+The local build adds a small town, friendly merchants, natural cave networks, repairable survey cabinets and the first creature encounters. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Cinder moths inhabit underground pockets, fly around real rock and telegraph a dodgeable lunge. Drills deal contact damage; a mining axe unlocks at 9 m on key 6 for short, heavy swings. Resonance staggers creatures, the heart drains and pulls them, and explosives damage them through actual opened terrain. Cleared moths stay cleared and leave recoverable husks worth two charges.
+- Placed lights and repaired refuge lamps keep moths back along clear sight lines. Surface rest restores health. Defeat returns you to the yard with equipment and money intact; lost minerals wait in a persistent physical cache marked on M. E recovers its contents, leaving overflow safely below. Townsfolk and field notes explain encounters.
+
+- Fresh claims contain three seeded natural workings with looped passages, side chambers and vertical spaces at roughly 14, 32 and 50 m. Existing claims keep their exact terrain. Ore exposed by generation falls onto real support.
+- Discover a survey cabinet, expose it and press E to fit one work light. Its lamp lights the chamber and its chart records nearby passages on M. Cabinets fall if undermined, carrying their light and map marker with them; repairs and movement persist. Older claims receive cabinets in existing chambers. Cave formations disappear when excavated support is removed, and Mara and Otis react to repaired cabinets.
+
+- Walk beyond the original yard into Ridge Common, with roads, gate openings, two enterable shops, a well, a survey office and neighboring property. Walking is allowed on common land; digging remains inside your marked claim.
+- Meet Mara Vale at Vale Supply and Otis Bell at Bell Works. Aim and E starts a conversation. Mara sells charges/lights and buys ore; Otis sells upgrades and freight equipment. Their dialogue reacts to your recoveries, and introductions and conversation history persist. The shops sit beyond the headframe, along the road south of the claim.
+- Buildings, counters, residents and nearby trees have physical boundaries. Shops include stocked shelves, warm lights, framed windows, weatherboards and original procedural characters. The existing mine and save ledger remain intact. The new service panel has character portraits, advice, live funds and explicit upgrade/stock states.
 
 - A compact equipment HUD shows owned tools and current supplies. I opens a paused field kit with tool illustrations, descriptions, charge selection and the next stratum unlock. Select with the buttons or 1?5, X and N; I or Escape returns to digging. Opening the kit cancels any held charge or crane placement.
 - Optional field tips appear when an action becomes useful and stop after it is used or dismissed with Y. They yield to interactions, aiming, scans, full cargo and nearby chain reactions. The Menu's Field tips setting disables them; both the setting and dismissed tips survive saves. Touch controls hide unavailable actions, and the use button reads Cut, Pulse or Draw for the equipped tool.
@@ -43,7 +53,7 @@ Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portabl
 | --- | --- |
 | Move / run / look | WASD / Shift / mouse or right-drag |
 | Use equipped tool | Hold left mouse |
-| Equip / cycle tool | 1-5 / X |
+| Equip / cycle tool | 1-6 / X |
 | Field kit / dismiss field tip | I / Y |
 | Lift | Hold Space |
 | Interact / attach or release tether | E |
@@ -63,7 +73,7 @@ Touch controls include the new actions. Lift, recall and the survey anchor consu
 
 ## Source and verification
 
-`src/core.js` holds economy and deposits; `mesher.js` and `world.js` implement incremental terrain; `player.js` handles movement and mechanical tools; `ore.js` provides support and swept collision. `expedition.js` owns recoveries and progression, `gadgets.js` owns charges and lights, `thunderstone.js` owns physical reactive seams, `mysteries.js` owns optional discoveries and rewards, `freight.js` owns the crane and its cargo, `survey.js` records and charts exploration, and `persistence.js` validates snapshots. `feedback.js` owns cosmetic particle motion, `audio.js` owns procedural samples and audio routing, and `feedback-view.js` renders those effects. `thunderstone-view.js` renders the reactive crystals. `render.js`, `scenery.js`, `ruins.js` and `crane.js` build the Three.js scene; `fieldkit.js` manages the paused kit and optional guidance; `fieldkit.css` styles the equipment HUD and kit. `game.js` connects input, audio, UI and simulation.
+`src/core.js` holds economy and deposits; `mesher.js` and `world.js` implement incremental terrain; `player.js` handles movement and mechanical tools; `ore.js` provides support and swept collision. `expedition.js` owns recoveries and progression, `gadgets.js` owns charges and lights, `thunderstone.js` owns physical reactive seams, `mysteries.js` owns optional discoveries and rewards, `freight.js` owns the crane and its cargo, `survey.js` records and charts exploration, and `persistence.js` validates snapshots. `feedback.js` owns cosmetic particle motion, `audio.js` owns procedural samples and audio routing, and `feedback-view.js` renders those effects. `thunderstone-view.js` renders the reactive crystals. `render.js`, `scenery.js`, `ruins.js` and `crane.js` build the Three.js scene; `fieldkit.js` manages the paused kit and optional guidance; `fieldkit.css` styles the equipment HUD and kit. `town.js` owns surface bounds, residents, physical building definitions and saved conversations; `town-view.js` builds the settlement and characters; `town-ui.js` and `town.css` provide conversation and trading. `game.js` connects input, audio, UI and simulation.
 
 ```text
 node tools/test.mjs
@@ -72,10 +82,17 @@ node tools/simulate-journey.mjs --demolition
 node tools/simulate-journey.mjs --mysteries
 node tools/simulate-journey.mjs --freight
 node tools/simulate-journey.mjs --thunderstone
+node tools/simulate-journey.mjs --refuges
+node tools/simulate-journey.mjs --legacy --refuges
+node tools/simulate-combat.mjs
 node tools/build.mjs
 ```
 
-The Node suite includes the ore, depths, fieldwork, explosives, mysteries, freight, feedback, thunderstone and field kit suites. The feedback checks exercise particle contact, bounded pools, inert rendering, motion settings, palette continuity, sound samples and a device-free WebAudio adapter. Field kit checks exercise real input cancellation, paused equipment selection, unlock visibility, guide priorities and portable tip preferences. It tests actual simulation, hauling, blasts, lamps, magic, surveys, saves, original-save migration, scene geometry and real Game update/UI bindings. The separate journey mines from a fresh claim, earns its equipment, excavates both hauling routes and reaches the final magical recoveries. Its demolition variant spends earned money on supplies and uses both remote and bore charges. The mysteries variant also excavates both optional sites, synchronizes real charges, rotates prisms through the E interaction and continues through the ending with both rewards. The freight variant earns and places the crane, sends collected ore, receives payment at the hopper, and continues to the ending. The thunderstone variant recovers a natural crystal for supplies, plants and fires a remote into the remaining seam, then completes the campaign. It uses no fixture shafts or direct teleports; it knows objective coordinates and uses the game's recall. Its renderer and DOM are inert adapters: these runs do **not** certify pixels, WebGL, audio playback, browser layout or campaign balance. No browser or OS input automation is used.
+The combat suite checks shared tool targeting, frame-rate-independent damage, full-body navigation, telegraphs and dodging, light/rock occlusion, explosive damage, physical loot, defeat recovery and persistent encounter saves. Its separate pilot digs from spawn, fights with the starter drill and axe, collects a husk, heals and reloads. Details and limits are in COMBAT.md.
+
+The cavern suite additionally checks connected routes with a full player body across three seeds, concealed exploration, falling cabinets and ore, chart repair, model/collision containment, exact saved terrain and old-generation compatibility. The refuge journey excavates a cabinet, spends a light, charts passages and reloads before completing the campaign; `--legacy` starts from an old-format claim. `caverns.js` owns seeded generation, `refuges.js` owns cabinet state and physics, and `cavern-view.js` renders the structures, formations and lights.
+
+The Node suite includes the ore, depths, fieldwork, explosives, mysteries, freight, feedback, thunderstone, field kit and town suites. The feedback checks exercise particle contact, bounded pools, inert rendering, motion settings, palette continuity, sound samples and a device-free WebAudio adapter. Field kit checks exercise real input cancellation, paused equipment selection, unlock visibility, guide priorities and portable tip preferences. It tests actual simulation, hauling, blasts, lamps, magic, surveys, saves, original-save migration, scene geometry and real Game update/UI bindings. The separate journey mines from a fresh claim, earns its equipment, excavates both hauling routes and reaches the final magical recoveries. Its demolition variant spends earned money on supplies and uses both remote and bore charges. The mysteries variant also excavates both optional sites, synchronizes real charges, rotates prisms through the E interaction and continues through the ending with both rewards. The freight variant earns and places the crane, sends collected ore, receives payment at the hopper, and continues to the ending. The thunderstone variant recovers a natural crystal for supplies, plants and fires a remote into the remaining seam, then completes the campaign. It uses no fixture shafts or direct teleports; it knows objective coordinates and uses the game's recall. Its renderer and DOM are inert adapters: these runs do **not** certify pixels, WebGL, audio playback, browser layout or campaign balance. No browser or OS input automation is used.
 
 `tools/verify-remake.mjs` and its underground alias are historical browser tests of the previous campaign. They have not been updated or rerun for this release. Browser interaction testing is prohibited in this session following cursor interference; see AGENTS.md. `docs/VERIFICATION.md` separates current results from historical browser results.
 

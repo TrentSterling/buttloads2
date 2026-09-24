@@ -4,6 +4,18 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Cinder moth update (local 2.11.0)
+
+Mining tools now share target resolution with creature damage, including a timed mining axe at 9 m. Three persistent cinder moths provide the first terrain-aware encounters: collision-checked flight, alternate routes, telegraphed lunges, light deterrence and physical supply rewards. Health, surface recovery and a recoverable cargo cache complete the defeat loop without removing equipment or earned progress. COMBAT.md records the implementation, conservation rules and simulation evidence. Deeper terrain and the boss remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md.
+
+### Natural workings update (local 2.10.0)
+
+Fresh claims now have three seeded cave networks with loops, branches, chambers and vertical passages. Physical survey cabinets accept a work light, illuminate their surroundings and chart nearby air. Their support, saved motion and discovery states use the existing mine systems. Older claims retain their exact terrain and receive cabinets in their original rooms. Generation is versioned independently of the additive v2 save format. See CAVERNS.md for implementation and validation; greater depth and combat remain outstanding in BEAUTY-DEPTH-COMBAT-PLAN.md.
+
+### Ridge Common update (local 2.9.0)
+
+The surface expansion adds a walkable town with two friendly, functional merchants and persistent conversations. See TOWN.md for the scene, shared collision definitions, services, old-save compatibility and visual-review limits. The broader beauty/depth/combat goal is active; this is the first town checkpoint, with cave generation and further systems still planned in BEAUTY-DEPTH-COMBAT-PLAN.md.
+
 ### Field Kit update (2.8.0)
 
 The source audit found that the expanded HUD repeated tool names, descriptions, five slots, three charge choices, counts and infrastructure notes while the player was digging. Future magical equipment was visible from the start. Touch also exposed an anchor action before its recovery. This pass makes those existing systems easier to discover and operate; it adds no new economy or progression gates.

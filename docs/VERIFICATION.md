@@ -1,5 +1,107 @@
 # Remake verification
 
+## Cinder moths and mining weapons, local 2.11.0
+
+Adds shared excavation/damage targeting, a timed mining axe on key 6, three persistent cinder moths with collision-checked flight and telegraphed attacks, defensive work lights, health, recoverable mineral cargo and physical supply rewards. Original moth/axe models, hit/health/threat feedback, field notes and town dialogue connect the encounter to the rest of the game. The site remains on 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 14 combat checks passed (inert renderer and DOM; no browser or OS input)
+COMPLETE 172 system checks passed
+
+node tools/test-combat.mjs
+COMPLETE 14 combat checks passed (inert renderer and DOM; no browser or OS input)
+
+node tools/simulate-combat.mjs
+COMPLETE fresh encounter: excavated from spawn, damaged with starter drill, won axe duel, recovered two charges, rested at surface and reloaded persistent cleared encounter.
+
+node tools/simulate-journey.mjs --thunderstone --freight --mysteries
+COMPLETE thunderstone choice: excavated and recovered one crystal, planted a real remote, opened the remaining seam and finished the campaign.
+COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.
+COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (974 KiB)
+PASS standalone: 32 scripts compile; no external scripts or stylesheets.
+```
+
+The full suite passed before final axe cadence and renderer resource cleanup. All 14 focused combat checks then passed on the final source. Their added assertions include sustained five-second axe damage at 30/60/120 Hz, model containment, real open-air resonance targeting and gravity drain/pull. The tests exercise navigation around a remaining rock wall, full-body swept movement, telegraphs and dodges, light/rock shielding, unique blast records, physical and partial loot, exact mineral conservation through rescue/reload and legacy encounter initialization. COMBAT.md describes the boundaries.
+
+The encounter pilot won with the starter drill and newly unlocked axe while taking one hit, recovered two charges, returned by recall, healed and reloaded the cleared encounter. Its initial underfoot-digging fallback walked diagonally away while cutting; correcting its aim to vertical with neutral movement completed the intended route without a production bypass. Report: tools/out/journey-combat.json. The complete campaign with thunderstone, freight and both mysteries finished in 379.5 simulated seconds with combat enabled; report: tools/out/journey-thunderstone.json.
+
+These are coordinate-aware pilots using actual simulation and Game actions. They do not estimate human pacing or difficulty. No browser, sound device or OS input was used. Render/DOM adapters are inert; WebGL appearance, sound, browser layout and human combat feel are unverified. Greater depth, additional enemies and the boss remain unfinished under the active expansion goal.
+
+## Natural workings, local 2.10.0
+
+Three versioned natural cave networks, physical repairable survey cabinets, local charts, cave formations, chamber names and townsfolk reactions. Old claims retain their exact density field and receive cabinets in existing rooms. The expanded surface and town from 2.9.0 are included. This build is local; the published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 12 cavern checks passed (inert renderer; no browser or OS input)
+COMPLETE 158 system checks passed
+
+node tools/test-caverns.mjs
+COMPLETE 12 cavern checks passed (inert renderer; no browser or OS input)
+
+node tools/simulate-journey.mjs --thunderstone --freight --mysteries
+COMPLETE thunderstone choice: excavated and recovered one crystal, planted a real remote, opened the remaining seam and finished the campaign.
+COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.
+COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/simulate-journey.mjs --refuges
+COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/simulate-journey.mjs --legacy --refuges
+COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.
+COMPLETE legacy-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (941 KiB)
+PASS standalone: 29 scripts compile; no external scripts or stylesheets.
+```
+
+The complete suite passed before the final cabinet face adjustment. The focused cavern suite then passed on the final source, including mesh containment within physical support and persistent NPC responses to repair. The older isolated Game fixture now admits an absent refuge system, consistent with its other absent systems. The scanner regression admits actual refuge IDs while retaining the prohibition on early geode detection.
+
+The combined campaign completed in 379.3 simulated seconds. The fresh refuge route completed in 316.8 s; the old-format refuge route completed in 301.9 s. These pilots use actual movement, cutting, purchases, E interactions, recall and save installation. They know coordinates and are not pacing estimates. Reports: tools/out/journey-thunderstone.json, journey-refuges.json and journey-legacy.json.
+
+The focused checks verify all loop junctions and side chambers are reachable by a full player across three seeds, original yard/rim/objective shells remain unchanged, unsupported ore/cabinets fall, repair consumes a light once, hidden caves stay off the survey, unsupported formations disappear, physical models stay inside their collision boxes, and portable saves retain generation, exact terrain and cabinet motion. See CAVERNS.md.
+
+No browser or OS input was used. Renderer and DOM adapters are inert. WebGL appearance, lighting, browser layout, sound and human gameplay quality remain unverified. The 73 m floor is unchanged; deeper regions, combat, enemies and the boss remain planned work under the active expansion goal.
+
+## Ridge Common, local 2.9.0
+
+Adds an expanded walkable surface, two enterable shops, two friendly residents with reactive dialogue and existing economy services, shared building collision, procedural town art, a service panel and additive saved conversation history. The published site remains 2.8.0; this is a local checkpoint of the active expansion goal.
+
+```text
+node tools/test.mjs
+COMPLETE 12 town checks passed (inert renderer and DOM; no browser or OS input)
+COMPLETE 146 system checks passed
+
+node tools/test-town.mjs
+COMPLETE 12 town checks passed (inert renderer and DOM; no browser or OS input)
+
+node tools/simulate-journey.mjs --thunderstone --freight --mysteries
+COMPLETE thunderstone choice: excavated and recovered one crystal, planted a real remote, opened the remaining seam and finished the campaign.
+COMPLETE freight loop: earned crane, placed dock, shipped real cargo, collected yard payment and continued the campaign.
+COMPLETE optional discoveries: excavated both sites, synchronized real charges, reconnected prisms and earned both rewards.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (925 KiB)
+PASS standalone: 26 scripts compile; no external scripts or stylesheets.
+```
+
+The full suite passed before the final conversation portrait and keyboard polish. The focused town suite then passed again with the final source, including the real E binding, native Tab navigation and direct Escape return. These checks cover actual movement into both shops and back to the claim, physical gate openings and walls, protection of unowned soil, aimed/occluded conversation, cancelled throws, real stock/sales/upgrades, freight gates, stale callbacks, persistent dialogue, expanded saved positions and exact old-claim terrain retention. See TOWN.md for details.
+
+The combined original campaign still completes in 386.7 simulated seconds with the town installed. This pilot has coordinate knowledge and does not estimate human pacing. Its report is tools/out/journey-thunderstone.json.
+
+One old assertion called all horizontal concrete faces top faces. It was updated to check upward normals, retaining its ground-flicker test while admitting the downward-facing underside of the new well. No production terrain workaround was introduced for that assertion.
+
+Offline projected-geometry images were inspected for character proportions and town placement. They do not reproduce textures, clipping, shadows or WebGL shading. No browser or OS input was used. Actual browser layout, lighting, sound and human usability remain unverified. Caves, greater depth, combat and the remaining planned expansion are not complete.
+
 ## Field Kit stopping build, 2.8.0
 
 The expanded equipment HUD is compacted around owned tools and current supplies. I opens a paused field kit; buttons and 1-5/X/N change equipment without resuming. Opening it cancels held throws, placement, firing and movement. Optional contextual tips retire after successful use or Y dismissal, yield to active interactions and hazards, and retain preferences in saves. Touch actions reveal with progression.

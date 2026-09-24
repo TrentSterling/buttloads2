@@ -23,7 +23,7 @@
       };
       this.terrain = new T.Group(); this.resources = new T.Group(); this.discovery = new T.Group(); this.scene.add(this.terrain, this.resources, this.discovery);
       this.palette = { dirt: material('#aa8c60'), grass: material('#919c59'), dark: material('#263434'), metal: material('#70817f', .5), steel: material('#b5bcb3', .65), yellow: material('#efb645'), red: material('#a85638'), wood: material('#726344'), leaf: material('#697e48'), black: material('#182321'), concrete: material('#b9b3a0'), pale: material('#d9d1ac') };
-      this.obstacles = []; this.makeYard(); this.makeTool(); this.makeParticles(); this.resize();
+      this.obstacles = []; this.makeYard(); this.makeTown(); this.makeTool(); this.makeParticles(); this.resize();
     }
     box(group, x, y, z, sx, sy, sz, mat, rotation = 0) {
       const m = new T.Mesh(new T.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.rotation.y = rotation; m.castShadow = m.receiveShadow = true; group.add(m); return m;
@@ -49,7 +49,8 @@
       for (let i = -14; i <= 14; i += 2) for (const z of [-14.1, 14.1]) { const b = box(i, .045, z, .9, .08, .16, i % 4 === 0 ? p.yellow : p.black); }
       for (let i = -14; i <= 14; i += 2) for (const x of [-14.1, 14.1]) box(x, .045, i, .16, .08, .9, i % 4 === 0 ? p.yellow : p.black);
       for (let i = -20; i <= 20; i += 2) {
-        for (const x of [-21, 21]) { box(x, .95, i, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(x, h, i, .09, .15, 2.1, p.wood); }
+        for (const x of [-21, 21]) { if (x < 0 ? i > -8 && i < 0 : i > 0 && i < 8) continue; box(x, .95, i, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(x, h, i, .09, .15, 2.1, p.wood); }
+        if (i > -4 && i < 4) continue;
         box(i, .95, -21, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(i, h, -21, 2.1, .15, .09, p.wood);
       }
       // Salvage shed and service apron.
@@ -77,6 +78,8 @@
       const rng = B.random(663);
       for (let i = 0; i < 48; i++) {
         const a = rng() * Math.PI * 2, r = 28 + rng() * 48, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 3 + rng() * 5;
+        if (z > 23 && x > -32 && x < 31 || Math.abs(z - 4) < 3 || Math.abs(z + 4) < 3 || Math.abs(x) < 3) continue;
+        if (x > B.SURFACE.minX && x < B.SURFACE.maxX && z > B.SURFACE.minZ && z < B.SURFACE.maxZ) this.obstacles.push([x - .24, 0, z - .24, x + .24, h * .9, z + .24]);
         cylinder(x, h * .45, z, .13, .27, h * .9, p.wood, 7);
         for (let j = 0; j < 3; j++) { const m = new T.Mesh(new T.IcosahedronGeometry(1, 0), p.leaf); m.scale.set(2.2 + rng(), 2 + rng(), 2 + rng()); m.position.set(x + (rng() - .5) * 2, h - j * .5, z + (rng() - .5) * 2); m.castShadow = true; g.add(m); }
       }
@@ -119,7 +122,7 @@
       this.oreMesh.instanceMatrix.setUsage(T.DynamicDrawUsage); this.oreMesh.frustumCulled = false;
       for (const o of deposits.nodes) { this.updateOre(o); this.oreMesh.setColorAt(o.id, new T.Color(B.ORES[o.kind].color).convertSRGBToLinear()); }
       this.resources.add(this.oreMesh);
-      this.ghosts = new T.InstancedMesh(new T.IcosahedronGeometry(.2, 0), new T.MeshBasicMaterial({ transparent: true, opacity: .65, depthTest: false, depthWrite: false, blending: T.AdditiveBlending }), count + 4 + B.MYSTERIES.length);
+      this.ghosts = new T.InstancedMesh(new T.IcosahedronGeometry(.2, 0), new T.MeshBasicMaterial({ transparent: true, opacity: .65, depthTest: false, depthWrite: false, blending: T.AdditiveBlending }), count + 7 + B.MYSTERIES.length + B.THUNDERSTONES.length);
       this.ghosts.count = 0; this.ghosts.frustumCulled = false; this.ghosts.renderOrder = 10; this.resources.add(this.ghosts);
     }
     updateOre(node) {
@@ -186,7 +189,7 @@
       if (moving) this.rotor.rotation.z += dt * (fire ? 35 : .5); this.tool.position.y = -.30 + Math.sin(time * 8) * (this.settings.motion && Math.hypot(p.vx, p.vz) > .5 ? .006 : 0); this.tool.position.x = .34 + Math.sin(time * 77) * shake;
       this.needle.rotation.z = fire ? -.6 + (moving ? Math.sin(time * 35) * .15 : 0) : .7;
       if (game.expedition) this.renderExpedition(game, dt, time);
-      this.renderFeedback(game);
+      this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time);
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);

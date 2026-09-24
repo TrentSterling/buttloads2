@@ -3,7 +3,7 @@
 (function (B) {
   const STRATA = [
     { depth: 0, name: 'The backyard', subtitle: 'A little copper. An unreasonable ambition.', color: '#edbe60', unlock: 'Cutter & scanner' },
-    { depth: 9, name: 'Rustwater', subtitle: 'There was a mine here before your yard.', color: '#e89c6f', unlock: 'Scoop, salvage tether & remote satchels' },
+    { depth: 9, name: 'Rustwater', subtitle: 'There was a mine here before your yard.', color: '#e89c6f', unlock: 'Scoop, mining axe, salvage tether & remote satchels' },
     { depth: 25, name: 'The white roots', subtitle: 'The rock grew around the machines.', color: '#a9dcdf', unlock: 'Precision lance & bore charges' },
     { depth: 43, name: 'The hollow choir', subtitle: 'That sound is coming from inside the stone.', color: '#baacf1', unlock: 'Deep receiver: +10 m scanner range' },
     { depth: 59, name: 'The impossible garden', subtitle: 'Nothing down here remembers gravity.', color: '#78f1cc', unlock: 'Echo sight: scans reveal sealed geodes' }
@@ -13,7 +13,8 @@
     scoop: { key: '2', name: 'Scoop', short: 'SCOOP', hint: 'Wide cuts in soil and clay', color: '#e89c6f', radius: 1.55, power: 1.4, depth: 9 },
     lance: { key: '3', name: 'Lance', short: 'LANCE', hint: 'Narrow, fast cuts through hard rock', color: '#a9dcdf', radius: .72, power: 2.8, depth: 25 },
     resonance: { key: '4', name: 'Resonator', short: 'PULSE', hint: 'Hold to charge a rock-breaking pulse', color: '#baacf1', radius: 1.5, power: 1, recovery: 1 },
-    gravity: { key: '5', name: 'Heart of the mine', short: 'GRAVITY', hint: 'Hold to draw loose ore. Q tears open rock.', color: '#78f1cc', radius: 1, power: 1, magic: true }
+    gravity: { key: '5', name: 'Heart of the mine', short: 'GRAVITY', hint: 'Hold to draw ore and drain creatures. Q tears open rock.', color: '#78f1cc', radius: 1, power: 1, magic: true },
+    axe: { key: '6', name: 'Mining axe', short: 'AXE', hint: 'A short, heavy swing. Chips rock and staggers creatures.', color: '#d59e6b', radius: .65, power: 7, depth: 9 }
   };
   const SALVAGE = [
     { id: 0, name: 'Survey flywheel', x: -4, y: -12.4, z: 1, size: [1.5, 1.2, 1.5], reward: 240, unlock: 'Survey anchor', brief: 'Excavate around the flywheel. Tether it with E, then lift it through a clear shaft to the surface. Delivery unlocks a return anchor.' },
@@ -118,6 +119,8 @@
       const head = player.head, dir = player.direction, reach = magic ? 10 : 7;
       const hit = this.world.ray(head, dir, reach);
       let target = hit, best = hit?.distance ?? reach;
+      const creature = this.damageTarget?.(head, dir, reach);
+      if (creature && creature.distance <= best) { target = creature; best = creature.distance; }
       const targets = magic ? VAULTS : RUNES;
       for (const p of targets) {
         const dx = p.x - head.x, dy = p.y - head.y, dz = p.z - head.z, along = dx * dir.x + dy * dir.y + dz * dir.z;

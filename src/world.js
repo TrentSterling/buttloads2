@@ -2,8 +2,8 @@
 (function (B) {
   const { WORLD: W, clamp, RELICS } = B;
   class World {
-    constructor(seed) {
-      this.seed = seed; this.nx = 65; this.ny = 165; this.nz = 65;
+    constructor(seed, generation = 0) {
+      this.seed = seed; this.generation = generation; this.caverns = new B.Caverns(seed, generation); this.nx = 65; this.ny = 165; this.nz = 65;
       this.field = new Float32Array(this.nx * this.ny * this.nz);
       this.kernel = B.createMesher(); this.chunks = new Map(); this.revision = 0;
       this.audit = { edits: 0, samples: 0, lastEditMs: 0, maxEditMs: 0 };
@@ -18,7 +18,7 @@
       const garden = 4.8 - Math.hypot((x - 1) * .85, (y + 67.1) * 1.7, (z - 1) * .9);
       density = Math.max(density, garden);
       for (const c of B.MYSTERY_CAVES || []) density = Math.max(density, c.radius - Math.hypot(x - c.x, (y - c.y) * 1.15, z - c.z));
-      return clamp(density, -2, 2);
+      return clamp(Math.max(density, this.caverns?.density(x, y, z) ?? -2), -2, 2);
     }
     generate() {
       for (let z = 0; z < this.nz; z++) for (let y = 0; y < this.ny; y++) for (let x = 0; x < this.nx; x++) this.field[this.index(x, y, z)] = this.base(W.min + x * .5, W.bottom + y * .5, W.min + z * .5);

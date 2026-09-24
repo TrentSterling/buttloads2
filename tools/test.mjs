@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
-for (const name of ['core', 'mesher', 'world', 'player', 'ore', 'expedition', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'), { filename: name + '.js' });
+for (const name of ['core', 'town', 'caverns', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'combat', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'), { filename: name + '.js' });
 const B = globalThis.B2;
 let passed = 0;
 async function test(name, fn) { await fn(); console.log('PASS ' + name); passed++; }
@@ -98,4 +98,7 @@ passed += (await import('./test-freight.mjs')).freightChecks;
 passed += (await import('./test-feedback.mjs')).feedbackChecks;
 passed += (await import('./test-thunderstone.mjs')).thunderChecks;
 passed += (await import('./test-fieldkit.mjs')).kitChecks;
+passed += (await import('./test-town.mjs')).townChecks;
+passed += (await import('./test-caverns.mjs')).cavernChecks;
+passed += (await import('./test-combat.mjs')).combatChecks;
 console.log(`COMPLETE ${passed} system checks passed`);

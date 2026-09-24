@@ -8,6 +8,8 @@
   }
   function validate(input) {
     if (!input || input.format !== FORMAT || input.version !== VERSION) throw new Error('This save belongs to a different game or version. Original prototype saves remain in their original browser storage.');
+    const generation = input.generation ?? 0;
+    if (generation !== 0 && generation !== B.CAVE_VERSION) throw new Error('Unsupported cave generation.');
     const st = input.state;
     const integer = (n, max = 1e9) => Number.isSafeInteger(n) && n >= 0 && n <= max;
     if (!st || !integer(st.seed, 4294967295)) throw new Error('Invalid world seed.');
@@ -23,9 +25,8 @@
     if (!Array.isArray(ids) || ids.some(id => !integer(id, generated.nodes.length - 1)) || new Set(ids).size !== ids.length || ids.length !== st.mined) throw new Error('Invalid collected deposits.');
     const freight = st.expedition?.freight === undefined ? null : B.Freight.validate(st.expedition.freight, st);
     const counts = Array(B.ORES.length).fill(0); for (const id of ids) counts[generated.nodes[id].kind]++;
-    if (counts.some((count, i) => count !== st.cargo[i] + st.sold[i] + (freight?.load[i] || 0) + (freight?.stock[i] || 0))) throw new Error('Inventory does not match the excavated deposits.');
     const p = input.player;
-    if (!p || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(p[k])) || Math.abs(p.x) > 21 || Math.abs(p.z) > 22 || p.y < -74 || p.y > 17 || Math.abs(p.pitch) > 1.55) throw new Error('Invalid player position.');
+    if (!p || !['x', 'y', 'z', 'yaw', 'pitch'].every(k => Number.isFinite(p[k])) || p.x < B.SURFACE.minX || p.x > B.SURFACE.maxX || p.z < B.SURFACE.minZ || p.z > B.SURFACE.maxZ || p.y < -74 || p.y > 17 || Math.abs(p.pitch) > 1.55) throw new Error('Invalid player position.');
     let field;
     if (input.field instanceof Float32Array) field = input.field.slice();
     else if (typeof input.field === 'string' && input.field.length <= FIELD_LENGTH * 6) {
@@ -38,7 +39,9 @@
     // Additive v2 field: saves made before ore physics omit this array and detach on load.
     const loose = input.loose === undefined ? [] : input.loose, seen = new Set(), collected = new Set(ids);
     if (!Array.isArray(loose) || loose.length > generated.nodes.length) throw new Error('Invalid loose ore list.');
-    const savedWorld = Object.create(B.World.prototype); Object.assign(savedWorld, { nx: 65, ny: 165, nz: 65, field });
+    const savedWorld = Object.create(B.World.prototype); Object.assign(savedWorld, { nx: 65, ny: 165, nz: 65, field, seed: st.seed, generation, caverns: new B.Caverns(st.seed, generation) });
+    const combat = st.expedition?.combat === undefined ? null : B.Combat.validate(st.expedition.combat, savedWorld), cached = combat?.drops.find(n => n.id === 3)?.cargo;
+    if (counts.some((count, i) => count !== st.cargo[i] + st.sold[i] + (freight?.load[i] || 0) + (freight?.stock[i] || 0) + (cached?.[i] || 0))) throw new Error('Inventory does not match the excavated deposits.');
     for (const body of loose) {
       if (!body || !integer(body.id, generated.nodes.length - 1) || seen.has(body.id) || collected.has(body.id)) throw new Error('Invalid loose ore ID.');
       seen.add(body.id);
@@ -89,6 +92,9 @@
       if (e.devices !== undefined) state.expedition.devices = devices.map(d => ({ id: d.id, type: d.type, x: d.x, y: d.y, z: d.z, vx: d.vx, vy: d.vy, vz: d.vz, fuse: d.fuse, ...(d.mode ? { mode: d.mode } : {}), ...(d.direction ? { direction: { ...d.direction } } : {}), ...(d.anchor ? { anchor: { ...d.anchor } } : {}), ...(d.mode === 'sticky' ? { triggered: d.triggered } : {}) }));
       if (e.chargeMode !== undefined) { if (!Object.hasOwn(B.CHARGES, e.chargeMode) || st.deepest < B.CHARGES[e.chargeMode].depth) throw new Error('Selected charge is not unlocked.'); state.expedition.chargeMode = e.chargeMode; }
       if (freight) state.expedition.freight = B.Freight.validate(freight, st, savedWorld);
+      if (e.refuges !== undefined) state.expedition.refuges = B.Refuges.validate(e.refuges, savedWorld);
+      if (combat) state.expedition.combat = combat;
+      if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town);
       if (e.guide !== undefined) state.expedition.guide = B.FieldGuide.validate(e.guide);
       if (e.thunder !== undefined) state.expedition.thunder = B.Thunderstone.validate(e.thunder, savedWorld);
       if (e.mysteries !== undefined) state.expedition.mysteries = B.Mysteries.validate(e.mysteries);
@@ -96,13 +102,13 @@
       if (!B.availableTools(state).includes(e.tool)) throw new Error('Selected tool is not unlocked.');
     }
     const settings = input.settings || {};
-    return { state, player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, field, collected: [...ids], loose: loose.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, vx: n.vx, vy: n.vy, vz: n.vz })), settings: { sound: settings.sound !== false, tips: settings.tips !== false, sensitivity: B.clamp(Number(settings.sensitivity) || 1, .25, 3), quality: B.clamp(Number(settings.quality) || 1.5, .75, 2), motion: settings.motion !== false } };
+    return { generation, state, player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, field, collected: [...ids], loose: loose.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, vx: n.vx, vy: n.vy, vz: n.vz })), settings: { sound: settings.sound !== false, tips: settings.tips !== false, sensitivity: B.clamp(Number(settings.sensitivity) || 1, .25, 3), quality: B.clamp(Number(settings.quality) || 1.5, .75, 2), motion: settings.motion !== false } };
   }
   function snapshot(game, portable = false) {
     const p = game.player;
     if (game.expedition) game.economy.state.expedition.bodies = game.expedition.physics.snapshot();
-    game.gadgets?.save(); game.thunder?.save();
-    return { format: FORMAT, version: VERSION, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
+    game.gadgets?.save(); game.thunder?.save(); game.refuges?.save(); game.combat?.save();
+    return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
   }
   class SaveStore {
     constructor() { this.db = null; this.pending = Promise.resolve(); }

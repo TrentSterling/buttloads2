@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Lantern Leviathan (local 2.18.0)
+
+An enormous supported skeleton near 220 m creates a quiet excavation discovery between lower-mine encounters. Expose three bone regions, illuminate their markings with placed work lights and study them with aimed scans. Its recovered ember brings Nell Wick and her original lantern cart to Ridge Common. A paid, earned lens retrofit improves all existing and future lamps, including their real moth-deterrence radius. The skeleton follows its terrain support; study, recovery, the town arrival and the upgrade persist. Existing saves retain their fields and mineral IDs. LANTERN-LEVIATHAN.md records mechanics and architecture; VERIFICATION.md records the fresh campaign and release checks.
+
 ### Eastcut (local 2.17.0)
 
 Mara sells a neighboring 384 square metre mining parcel after engine recovery. It has three connected natural chambers, 348 appended minerals, persistent terrain, ownership markers and a freight extension. Buying retains the original field and mineral IDs, including live cargo shipments. Both chart panes, lamps, explosives, return anchors and lost-cargo recovery use the wider claim. Surface throws now remain within reachable boundaries and have matching save limits. EASTCUT.md records the architecture and production journey. More resident roles, discoveries and visual/feel review remain in the expansion plan.

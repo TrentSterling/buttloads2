@@ -45,13 +45,13 @@
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state,world); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
-      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat); this.kinetics = new B.Kinetics(world,state,this.orePhysics,this.combat);
+      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat); this.kinetics = new B.Kinetics(world,state,this.orePhysics,this.combat); this.fossil = new B.Fossil(world,state);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
       this.expedition.structureTarget = (head,dir,reach) => this.kinetics.pulseTarget(head,dir,reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer()];
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer(), ...this.fossil.obstacles()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(this); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.makeParcel(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(this); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.makeParcel(this); this.view.makeFossil(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -72,7 +72,7 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.kinetics?.obstaclesForPlayer() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.kinetics?.obstaclesForPlayer() || []), ...(this.fossil?.obstacles() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
       const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
       const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
@@ -90,8 +90,9 @@
       }
       if (this.refuges?.update(dt, this.player)) this.changed();
       if (this.deep?.update(dt, this.player)) this.changed();
+      if (this.fossil) { if(this.fossil.update(dt,this.player))this.changed(); this.expedition.events.push(...this.fossil.events.splice(0)); }
       if (this.kinetics) {
-        const boxes=[...this.view.obstacles,...this.town.residentObstacles(),...this.rescue.obstacles(),...this.foreman.obstacles(),...this.crawlers.nodes.filter(n=>n.hp<=0).map(n=>this.crawlers.box(n)),...this.deep.obstacles(),...this.refuges.obstacles(),...this.freight.obstacles(),...this.kinetics.obstaclesForPlayer(),...this.expedition.bodies.filter(n=>!n.collected).map(n=>[n.x-n.size[0]/2,n.y-n.size[1]/2,n.z-n.size[2]/2,n.x+n.size[0]/2,n.y+n.size[1]/2,n.z+n.size[2]/2])];
+        const boxes=[...this.view.obstacles,...this.town.residentObstacles(),...this.rescue.obstacles(),...this.foreman.obstacles(),...this.crawlers.nodes.filter(n=>n.hp<=0).map(n=>this.crawlers.box(n)),...this.deep.obstacles(),...this.refuges.obstacles(),...this.freight.obstacles(),...this.kinetics.obstaclesForPlayer(),...this.fossil.obstacles(),...this.expedition.bodies.filter(n=>!n.collected).map(n=>[n.x-n.size[0]/2,n.y-n.size[1]/2,n.z-n.size[2]/2,n.x+n.size[0]/2,n.y+n.size[1]/2,n.z+n.size[2]/2])];
         if(this.kinetics.update(dt,this.player,this.input.fire,mode==='sling' && !this.input.aim,this.expedition,boxes))this.changed();
       }
       if (this.orePhysics.update(dt)) this.changed();
@@ -101,7 +102,7 @@
         this.combat.update(dt, this);
         if (this.foreman?.update(dt, this.player)) this.changed();
         if (this.crawlers) {
-          const boxes = [...this.view.obstacles, ...this.rescue.obstacles(), ...this.kinetics.obstaclesForPlayer(), ...this.foreman.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
+          const boxes = [...this.view.obstacles, ...this.rescue.obstacles(), ...this.kinetics.obstaclesForPlayer(), ...this.fossil.obstacles(), ...this.foreman.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
           if (this.crawlers.update(dt, this.player, boxes)) this.changed();
         }
         if (this.combat.revision !== this.combatRevision) { this.combatRevision = this.combat.revision; this.changed(); }
@@ -127,7 +128,7 @@
         if (this.mysteries.update(dt, this.player, this.gadgets)) this.changed();
         this.expedition.events.push(...this.mysteries.events.splice(0));
       }
-      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...this.kinetics.nodes, ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
+      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...this.kinetics.nodes, ...(this.fossil?.nodes || []), ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
       if (this.rescue) {
         const boxes = [...this.view.obstacles, ...this.freight.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
         if (this.rescue.update(dt, this.player, boxes)) this.changed();
@@ -238,6 +239,7 @@
       const resident = this.town?.target(p, this.world, this.view.obstacles);
       if (resident) return { kind: 'resident', id: resident.id, label: 'Talk to ' + resident.name + ' / ' + resident.role };
       const bell = this.rescue?.interaction(p); if (bell) return bell;
+      const fossil = this.fossil?.interaction(p); if(fossil)return fossil;
       const workshop = this.kinetics?.interaction(p); if(workshop)return workshop;
       const crawlerLoot = this.crawlers?.interaction(p); if (crawlerLoot) return crawlerLoot;
       const cache = this.combat?.interaction(p); if (cache) return cache;
@@ -263,6 +265,7 @@
     use() {
       if (!this.running) return;
       const action = this.interaction(); if (!action) return;
+      if (action.kind === 'fossil') { if(this.fossil.recover(this.player)){this.expedition.events.push(...this.fossil.events.splice(0));this.expeditionEvents();this.changed();this.save();}return; }
       if (action.kind === 'stonewright') { if(this.kinetics.recover(this.player)){this.kineticEvents();this.changed();this.save();}return; }
       if (action.kind === 'sell') this.sell();
       if (action.kind === 'shop') { $('receipt').hidden = true; this.updateShop(); this.setScreen('shop'); }
@@ -301,7 +304,7 @@
       const echoes = this.economy.state.deepest >= 59 ? B.VAULTS.filter((v, i) => !this.expedition.state.vaults.includes(i) && Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z) < range) : [];
       const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range), furnace = this.foreman.scan(p, range);
       this.mysteries.scan(p, range); this.survey.scan(p, range, nodes); this.changed();
-      this.view.scan([...nodes, ...echoes, ...this.kinetics.scan(p,range), ...this.rescue.scan(p, range), ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
+      this.view.scan([...nodes, ...echoes, ...(this.fossil?.scan(this.player,range,this.gadgets) || []), ...this.kinetics.scan(p,range), ...this.rescue.scan(p, range), ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
       const target = nodes[0];
       const vein = target && this.deposits.veins[target.vein];
       $('scan-target').textContent = target ? `${vein?.name || B.ORES[target.kind].name} · ${Math.hypot(target.x - p.x, target.y - p.y, target.z - p.z).toFixed(1)} m` : focus < 0 ? 'No deposits in range' : `No ${B.ORES[focus].name.toLowerCase()} within ${range} m`;
@@ -415,7 +418,8 @@
       const rescueNotes = this.rescue.state.known ? `<div class="discovery-entry"><strong>Inez Rook / survey bell</strong><p>${this.rescue.status()} Aim at the front intercom and press E. Mara knows the bell location. Its reinforced shell protects Inez from tools and charges.</p></div>` : '';
       const crawlerNotes = this.crawlers.nodes.some(n => n.known) ? '<div class="discovery-entry"><strong>Shale crawlers</strong><p>A lance or explosion fractures the shell. Their exposed rear takes direct damage. Claws rise before a committed charge; sidestep or lift. Excavate the floor to drop them. Cleared shells stay cleared. E recovers teeth and blasting salts. Take a tooth to Otis for an impact axe head: 52 damage and double rock-cutting power.</p></div>' : '';
       const workshopNotes=this.kinetics.state.known?`<div class="discovery-entry"><strong>Stonewright workshop</strong><p>${this.kinetics.state.unlocked?'7 equips the sling. Hold on an exposed loose mineral to lift and charge it, then release to throw. Impacts hurt creatures and break armor. Minerals remain valuable. Pausing, switching tools or recalling drops a held mineral safely.':'A buried frame holds a pair of field coils. Uncover them and strike each with the resonator. Clear the frame, then use E at the front console to recover its sling.'}</p></div>`:'';
-      $('discovery-list').innerHTML = workshopNotes + crawlerNotes + rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const fossilNotes=this.fossil?.state.known || this.deep.state.open ? `<div class="discovery-entry"><strong>The lantern leviathan / ${this.fossil.state.plates.length}/3 markings</strong><p>${this.fossil.state.recovered?'Nell Wick has arrived west of the common well. Bring the skull ember to her lantern cart. Living lenses improve every work light, including ones already placed.':'Pale ribs lie south of the old foundry chamber near 220 m. Expose each section, place a work light within 3.5 metres of its marking, aim and press F. The tail, rib vault and skull must all be studied before E can recover the ember. The skeleton falls if undermined.'}</p></div>`:'';
+      $('discovery-list').innerHTML = fossilNotes + workshopNotes + crawlerNotes + rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {

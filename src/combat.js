@@ -193,7 +193,7 @@
     update(dt, game) {
       this.obstacles = game.player.obstacles; this.hitFlash = Math.max(0, this.hitFlash - dt); this.hurtFlash = Math.max(0, this.hurtFlash - dt);
       if (this.navRevision !== this.world.revision) { this.navRevision = this.world.revision; this.nav.clear(); }
-      this.lights = [...game.gadgets.nodes.filter(n => n.type === 'lamp').map(n => ({ ...point(n), range: 3 })), ...game.refuges.nodes.filter(n => game.refuges.state.lit.includes(n.id)).map(n => ({ x: n.x, y: n.y + .55, z: n.z, range: 4.2 }))];
+      this.lights = [...game.gadgets.nodes.filter(n => n.type === 'lamp').map(n => ({ ...point(n), range: game.gadgets.lampProfile?.deter || 3 })), ...game.refuges.nodes.filter(n => game.refuges.state.lit.includes(n.id)).map(n => ({ x: n.x, y: n.y + .55, z: n.z, range: 4.2 }))];
       for (const b of game.gadgets.blasts) if (b.serial > this.lastBlast) {
         this.lastBlast = b.serial;
         const struck = new Set();

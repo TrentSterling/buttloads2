@@ -120,12 +120,12 @@
         let m = this.deviceModels.get(n.id);
         if (!m) { const geometry = n.type === 'lamp' ? new T.OctahedronGeometry(.16) : n.mode === 'sticky' ? new T.BoxGeometry(.27, .12, .22) : n.mode === 'bore' ? new T.CylinderGeometry(.06, .1, .28, 8) : new T.SphereGeometry(.16, 10, 8); m = new T.Mesh(geometry, this.palette.red); this.discovery.add(m); this.deviceModels.set(n.id, m); }
         m.position.set(n.x, n.y, n.z);
-        if (n.type === 'lamp') m.material = this.expeditionMaterials.amber;
+        if (n.type === 'lamp') m.material = game.fossil?.state.lenses ? this.expeditionMaterials.cyan : this.expeditionMaterials.amber;
         else if (n.mode === 'bore') { m.material = Math.sin(n.fuse * 18) > 0 ? this.expeditionMaterials.cyan : this.palette.metal; m.quaternion.setFromUnitVectors(new V(0, 1, 0), new V(n.direction.x, n.direction.y, n.direction.z)); }
         else { m.material = n.mode === 'sticky' && !n.triggered ? this.expeditionMaterials.amber : Math.sin(n.fuse * 18) > 0 ? this.expeditionMaterials.amber : this.palette.red; if (n.anchor) { const normal = game.world.normal(n.anchor.x, n.anchor.y, n.anchor.z); m.quaternion.setFromUnitVectors(new V(0, 1, 0), new V(...normal)); } }
       }
       const lights = gadgets.nodes.filter(n => n.type === 'lamp').sort((a, b) => Math.hypot(a.x - this.camera.position.x, a.y - this.camera.position.y, a.z - this.camera.position.z) - Math.hypot(b.x - this.camera.position.x, b.y - this.camera.position.y, b.z - this.camera.position.z));
-      this.workLights.forEach((l, i) => { const n = lights[i]; l.intensity = n ? 2.6 : 0; if (n) l.position.set(n.x, n.y + .23, n.z); });
+      this.workLights.forEach((l, i) => { const n = lights[i],profile=gadgets.lampProfile; l.intensity = n ? profile.intensity : 0; l.distance=profile.reach; l.color.set(profile.color); if (n) l.position.set(n.x, n.y + .23, n.z); });
 
     }
 

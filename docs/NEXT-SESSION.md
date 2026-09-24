@@ -1,6 +1,6 @@
 # Buttloads 2: stopping point and next session
 
-Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.17.0; read README.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
+Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.18.0; read README.md, LANTERN-LEVIATHAN.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
 
 Recorded September 24, 2026. Trent asked to finish a build with the current content, save remaining work here, and consider the current goal complete. This is a handoff, not an instruction to keep adding features unattended.
 

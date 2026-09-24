@@ -1,5 +1,48 @@
 # Remake verification
 
+## Lantern Leviathan, local 2.18.0
+
+Adds a supported giant fossil near 220 m, three excavation/light/scan study sites, one-time ember recovery, Nell Wick's earned arrival and lantern cart, and a permanent paid retrofit of all work lights. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 260 system checks passed
+COMPLETE 12 fossil checks passed
+
+node tools/simulate-journey.mjs --fossil
+Upper campaign complete: 253.3 simulated seconds
+Lower stations restored and return route used: 501.4
+Tail fan study started: 509.6
+Rib vault study started: 512.2
+Lantern skull study started: 514.1
+Ember recovered and reloaded: 515.9
+Nell met, lenses purchased and reloaded: 528.4
+Return to upgraded placed lamps: 528.4
+COMPLETE lantern journey
+COMPLETE fresh-claim journey
+
+node tools/test-depths.mjs
+COMPLETE 22 depth checks passed
+
+node tools/test-ore.mjs
+COMPLETE 15 ore checks passed
+
+node tools/build.mjs
+Standalone build: dist/index.html (1119 KiB)
+PASS standalone: 47 scripts compile; no external scripts or stylesheets.
+```
+
+The complete fresh journey passed against the final gameplay source. It uses production movement, excavation, deployed lamps, aimed F scans, E recovery, town services, recall and anchor travel. No fixture shafts, free money or direct test teleports are used. Saves retain the excavation, recorded study, physical fossil, purchased lenses and Nell's conversation state. The final return checks the existing lamps' actual light parameters. Coordinate knowledge makes this a reachability check, not a human pacing estimate.
+
+The 12 focused cases also cover hidden/unearned state, dark and covered markings, range and aim, duplicate study/reward prevention, insufficient funds, stale shop actions, Nell's supply purchases, terrain occlusion of moth protection, undermining the skeleton, moving scene and survey positions, corrupt saves, motion isolation and older claims. The separate ore/depth suite loaders were brought up to date so those commands also work outside the aggregate runner.
+
+The first pilot stalled by attempting to lift through the solid ribs from below. An audit confirmed rib contact while the head was in open terrain. The revised pilot moves beyond the skeleton before lifting; the fresh run then completes. This corrects the scripted route without removing the fossil's physical boundaries.
+
+Evidence: `tools/out/verification-2.18-final.log`, `tools/out/journey-fossil-final.log`, `tools/out/journey-fossil.json`, `tools/out/verification-depths-2.18.log` and `tools/out/verification-ore-2.18.log`. The portable metadata is 2.18.0.
+
+Actual mesh triangles were projected offline and inspected for the fossil and lantern cart silhouettes. The final skeleton has curved ribs, a spine, jaw and skull; Nell's cart has lantern displays and a striped canopy. The projection uses simple synthetic shading and omits mapped signs. It does not certify WebGL lighting, browser layout, audio, performance or human combat feel. No browser interaction or OS input was used.
+
+
 ## Eastcut, local 2.17.0
 
 Adds a purchasable neighboring claim with separate persistent terrain, three connected caves, 348 appended minerals, ownership boundaries, an extended freight route and wider equipment/chart/save support. Surface throws now stay inside reachable bounds and save correctly above the old coordinate limits. The published site remains 2.8.0.

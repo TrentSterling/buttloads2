@@ -105,6 +105,13 @@
       const cap = this.cylinder(head, 0, .2, 0, .2, .24, .17, hair, 10); cap.rotation.z = -.07;
       this.cylinder(head, 0, .19, -.02, .34, .34, .045, brass, 12);
       this.box(head, 0, -.06, .18, .3, .39, .14, hair); arms[1].rotation.x = -.35;
+    } else if (person.id === 'nell') {
+      this.cylinder(head,0,.12,.045,.27,.29,.45,coat,10);
+      this.box(head,0,.035,-.205,.38,.38,.025,skin);
+      for(const x of [-.078,.078])this.box(head,x,.045,-.224,.035,.028,.018,eye);
+      this.box(body,0,.05,-.185,.56,.56,.045,coat);
+      this.box(body,0,.55,-.19,.55,.18,.07,shirt);
+      this.box(arms[0],0,-.59,-.04,.2,.26,.19,brass);arms[0].rotation.x=-.3;
     } else if (person.id === 'inez') {
       this.cylinder(head, 0, .2, 0, .24, .27, .19, coat, 10);
       this.cylinder(head, 0, .17, -.025, .33, .33, .035, brass, 12);
@@ -126,7 +133,7 @@
     const rescued = game.rescue?.rescued;
     this.officeClosed.visible = !rescued; this.officeOpen.visible = !!rescued; this.officeLight.intensity = rescued ? .75 : 0;
     for (const rig of this.townRigs) {
-      rig.root.visible = !rig.person.unlock || !!rescued;
+      rig.root.visible = game.town.people().some(p=>p.id===rig.person.id);
       const close = surface && Math.hypot(game.player.x - rig.person.x, game.player.z - rig.person.z) < 7, t = motion ? time + (rig.person.id === 'otis' ? 1.7 : 0) : 0;
       rig.body.rotation.z = motion ? Math.sin(t * 1.1) * .017 : 0;
       rig.head.rotation.y = close ? B.clamp(Math.atan2(rig.person.x - game.player.x, rig.person.z - game.player.z), -.65, .65) : Math.sin(t * .3) * .12;

@@ -34,6 +34,7 @@
       armed.forEach((n, i) => { n.triggered = true; n.fuse = .08 + i * .12; });
       if (armed.length) this.save(); return armed.length;
     }
+    get lampProfile() { return this.progress.expedition?.fossil?.lenses ? {reach:24,intensity:3.4,deter:5,color:'#bceacf'} : {reach:16,intensity:2.6,deter:3,color:'#ffdea0'}; }
     static offsets() { return [[0, 0, 0], [.16, 0, 0], [-.16, 0, 0], [0, .16, 0], [0, -.16, 0], [0, 0, .16], [0, 0, -.16]]; }
     placement(type, player) {
       if (!['bomb', 'lamp'].includes(type)) return { reason: 'Unknown field equipment.' };

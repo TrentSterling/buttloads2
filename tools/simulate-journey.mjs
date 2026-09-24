@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { nodeGame } from './node-game.mjs';
 const harness = await nodeGame(), g = harness.game, B = B2, dt = 1 / 60;
 const kinetics = process.argv.includes('--kinetics'), crawlers = kinetics || process.argv.includes('--crawlers');
-const foreman = process.argv.includes('--foreman'), deep = crawlers || foreman || process.argv.includes('--deep');
+const fossil = process.argv.includes('--fossil');
+const foreman = process.argv.includes('--foreman'), deep = fossil || crawlers || foreman || process.argv.includes('--deep');
 const rescue = process.argv.includes('--rescue');
 const parcel = process.argv.includes('--parcel');
 const legacy = process.argv.includes('--legacy'), refuges = process.argv.includes('--refuges');
@@ -20,7 +21,7 @@ g.setScreen(null);
 const thunderstone = process.argv.includes('--thunderstone'), mysteries = process.argv.includes('--mysteries'), freight = process.argv.includes('--freight'), demolition = thunderstone || mysteries || freight || process.argv.includes('--demolition');
 let freightSent = 0, freightDelivered = 0;
 let echoSeal = 0, arrayNode = 0, crawlerID = 200, kineticOreID=null, kineticUsed=false, kineticReloaded=false, kineticHealth=0, kineticShots=0, kineticLiftY=0;
-const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, foreman, rescue, crawlers, kinetics, parcel, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
+const report = { milestones: [], outcome: 'running', endingSeen: false, demolition, mysteries, freight, thunderstone, legacy, refuges, deep, foreman, rescue, crawlers, kinetics, parcel, fossil, charges: [] }; let phase = refuges ? 'survey descent' : 'first haul', phaseStart = 0, lastReport = -1, oreTarget = null, lastBomb = -10;
 function throwCharge(mode) { if(mode) g.selectCharge(mode); const supply=g.expedition.state.supplies.bombs; g.deploy('bomb'); lastBomb=g.clock; if(supply!==g.expedition.state.supplies.bombs) report.charges.push({mode:g.expedition.state.chargeMode,seconds:+g.clock.toFixed(1),depth:+(-g.player.y).toFixed(1)}); }
 function mark(name) { phase = name; phaseStart = g.clock; const m = { name, seconds: +g.clock.toFixed(1), cash: g.economy.state.cash, cargo: g.economy.count, depth: +g.economy.state.deepest.toFixed(1) }; report.milestones.push(m); console.log(JSON.stringify(m)); }
 function steer(target, { cut = true, lift = false, walk = true } = {}) {
@@ -329,6 +330,7 @@ try {
   }
   if(report.outcome!=='complete') throw Error('Journey exceeded simulation limit');
   if(parcel)await (await import('./journey-eastcut.mjs')).journeyEastcut(harness,report);
+  if(fossil)await (await import('./journey-fossil.mjs')).journeyFossil(harness,report);
   assert.deepEqual(g.expedition.state.recovered, [0,1]); assert.equal(g.expedition.state.runes.length,3); assert.ok(g.expedition.state.awakened); assert.equal(g.expedition.state.vaults.length,3); assert.ok(report.endingSeen,'final recovery did not show the ending');
   if(demolition) assert.ok(['sticky','bore'].every(mode=>report.charges.some(c=>c.mode===mode)),'journey did not exercise both new charge types');
   if(thunderstone) { assert.ok(g.thunder.nodes.slice(0,4).every(n=>n.collected)); assert.ok(report.milestones.some(m=>m.name==='thunderstone seam opened')); console.log('COMPLETE thunderstone choice: excavated and recovered one crystal, planted a real remote, opened the remaining seam and finished the campaign.'); }
@@ -342,4 +344,4 @@ try {
   if (refuges) { assert.deepEqual(g.refuges.state.lit, [0]); console.log('COMPLETE survey refuge: excavated cabinet, spent one light, charted passages, reloaded exact terrain and completed the campaign.'); }
   console.log(`COMPLETE ${legacy ? 'legacy-claim' : 'fresh-claim'} journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.`);
 } catch(error) { report.outcome='failed'; report.error=error.message; report.player=g.player.position; report.cutter={contact:g.cutter.contact,target:g.cutter.target}; report.load=g.expedition.bodies.map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,motion:b.motion})); fs.writeFileSync(new URL('./out/journey-stall.json',import.meta.url),JSON.stringify(B.Saves.snapshot(g,true))); console.error(report.error); process.exitCode=1; }
-finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(parcel?'./out/journey-parcel.json':kinetics?'./out/journey-kinetics.json':crawlers?'./out/journey-crawlers.json':rescue?'./out/journey-rescue.json':foreman?'./out/journey-foreman.json':deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }
+finally { report.seconds=+g.clock.toFixed(1); report.terrainEdits=g.world.audit.edits; fs.writeFileSync(new URL(fossil?'./out/journey-fossil.json':parcel?'./out/journey-parcel.json':kinetics?'./out/journey-kinetics.json':crawlers?'./out/journey-crawlers.json':rescue?'./out/journey-rescue.json':foreman?'./out/journey-foreman.json':deep?'./out/journey-deep.json':legacy?'./out/journey-legacy.json':refuges?'./out/journey-refuges.json':thunderstone?'./out/journey-thunderstone.json':freight?'./out/journey-freight.json':mysteries?'./out/journey-mysteries.json':demolition?'./out/journey-demolition.json':'./out/journey.json',import.meta.url),JSON.stringify(report,null,2)); harness.close(); }

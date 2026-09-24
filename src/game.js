@@ -44,12 +44,12 @@
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
-      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state);
+      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles()];
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -58,7 +58,7 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
       const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
       const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
@@ -82,6 +82,10 @@
       if (this.combat) {
         this.combat.update(dt, this);
         if (this.foreman?.update(dt, this.player)) this.changed();
+        if (this.crawlers) {
+          const boxes = [...this.view.obstacles, ...this.rescue.obstacles(), ...this.foreman.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.freight.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
+          if (this.crawlers.update(dt, this.player, boxes)) this.changed();
+        }
         if (this.combat.revision !== this.combatRevision) { this.combatRevision = this.combat.revision; this.changed(); }
         for (const event of this.combat.events.splice(0)) {
           if (event.kind === 'warn') this.audio.note(190, .3, .025);
@@ -98,13 +102,13 @@
           this.setScreen('discovery'); this.save(); return;
         }
       }
-      this.foremanEvents();
+      this.foremanEvents(); this.crawlerEvents();
       if (this.gadgets) { this.gadgets.events.length = 0; for (const b of this.gadgets.blasts) if (b.serial > this.lastSoundBlast) { this.lastSoundBlast = b.serial; this.audio.blast(false, b, this.player, this.world); } }
       if (this.mysteries) {
         if (this.mysteries.update(dt, this.player, this.gadgets)) this.changed();
         this.expedition.events.push(...this.mysteries.events.splice(0));
       }
-      if (this.freight) { if (this.freight.update(dt, this.player, this.expedition.bodies)) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
+      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
       if (this.rescue) {
         const boxes = [...this.view.obstacles, ...this.freight.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
         if (this.rescue.update(dt, this.player, boxes)) this.changed();
@@ -153,6 +157,16 @@
         else if (event.kind === 'jet' || event.kind === 'quake' || event.kind === 'bore') { this.feedback.burst(event.point, event.kind === 'bore' ? 2 : 1); this.audio.blast(event.kind === 'bore' ? 'rift' : false, event.point, this.player, this.world); }
       }
     }
+    crawlerEvents() {
+      if (!this.crawlers) return;
+      for (const e of this.crawlers.events.splice(0)) {
+        this.changed();
+        if (e.kind === 'crawler-warn') this.audio.note(135, .45, .03);
+        else if (e.kind === 'shell-break') { this.feedback.burst(e.point, .8); this.audio.note(260, .25, .04); this.toast('Shale shell broken. The body is exposed.'); }
+        else if (e.kind === 'crawler-dead') { this.feedback.burst(e.point, 1); this.audio.note(370, .25, .03); this.toast('Shale crawler cleared. E recovers its tooth and blasting salts.'); }
+        else if (e.kind === 'tooth') this.toast(e.first ? 'Basalt tooth recovered. Otis can fit an impact axe head for $240.' : 'Crawler supplies recovered. Overflow stays in the shell.');
+      }
+    }
     openRescue() {
       if (!this.rescue.talk(this.player)) return;
       $('rescue-status').textContent = this.rescue.status();
@@ -197,6 +211,7 @@
       const resident = this.town?.target(p, this.world, this.view.obstacles);
       if (resident) return { kind: 'resident', id: resident.id, label: 'Talk to ' + resident.name + ' / ' + resident.role };
       const bell = this.rescue?.interaction(p); if (bell) return bell;
+      const crawlerLoot = this.crawlers?.interaction(p); if (crawlerLoot) return crawlerLoot;
       const cache = this.combat?.interaction(p); if (cache) return cache;
       const lower = this.deep?.interaction(p); if (lower) return lower;
       const exp = this.expedition;
@@ -223,6 +238,7 @@
       if (action.kind === 'sell') this.sell();
       if (action.kind === 'shop') { $('receipt').hidden = true; this.updateShop(); this.setScreen('shop'); }
       if (action.kind === 'refuge') { const result = this.refuges.restore(action.id, this.player, this.survey); if (result) { this.changed(); this.audio.note(640, .4, .04); this.save(); if (result.fresh) this.toast('Survey light restored. Local passages copied to your M survey.', 6000); else this.openSurvey(); } }
+      if (action.kind === 'crawler-loot' && this.crawlers.collect(action.id, this.player)) { this.changed(); this.crawlerEvents(); this.save(); }
       if (action.kind === 'rescue') this.openRescue();
       if (action.kind === 'resident') this.townUI.open(action.id);
       if ((action.kind === 'deep-gate' && this.deep.open(this.player)) || (action.kind === 'deep-station' && this.deep.repair(action.id, this.player))) { this.expedition.events.push(...this.deep.events.splice(0)); this.expeditionEvents(); this.changed(); this.save(); }
@@ -272,14 +288,16 @@
     updateCombatHUD() {
       if (!this.combat) return;
       const c = this.combat, hp = Math.ceil(c.state.health), p = this.player.head;
-      $('vitals').hidden = hp === 100 && !c.enemies.some(n => n.known) && !this.foreman.state.known; $('health').textContent = hp; $('health-bar').style.width = hp + '%';
+      $('vitals').hidden = hp === 100 && !c.enemies.some(n => n.known) && !this.foreman.state.known && !this.crawlers.nodes.some(n => n.known); $('health').textContent = hp; $('health-bar').style.width = hp + '%';
       $('hurt-shade').style.opacity = String(c.hurtFlash * .65); $('crosshair').classList.toggle('hit-confirm', c.hitFlash > 0);
       const near = c.enemies.filter(n => n.hp > 0 && n.phase !== 'buried' && Math.hypot(n.x - p.x, n.y - p.y, n.z - p.z) < 7 && this.world.clearLine(p, n, .05)).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) - Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z))[0];
       const furnace = this.foreman.state.active && Math.hypot(this.player.x - this.foreman.core.x, this.player.y - this.foreman.core.y, this.player.z - this.foreman.core.z) < 26;
       $('foreman-hud').hidden = !furnace; $('foreman-health').style.width = (this.foreman.core?.hp || 0) / 420 * 100 + '%'; $('foreman-hint').textContent = this.foreman.hint(); $('foreman-locks').textContent = `${this.foreman.broken}/3 pressure locks broken`;
-      $('threat').hidden = !near || furnace;
+      const crawler = this.crawlers.nodes.filter(n => n.hp > 0 && n.known && n.phase !== 'buried' && Math.hypot(n.x-p.x,n.y-p.y,n.z-p.z)<9 && this.world.clearLine(p,n,.05)).sort((a,b) => Math.hypot(a.x-p.x,a.y-p.y,a.z-p.z)-Math.hypot(b.x-p.x,b.y-p.y,b.z-p.z))[0];
+      $('threat').hidden = !(near || crawler) || furnace; $('threat-name').textContent = crawler ? 'SHALE CRAWLER' : 'CINDER MOTH'; $('enemy-armor').hidden = !crawler;
+      if (crawler) { $('enemy-armor').textContent = crawler.shell > 0 ? `Shell ${Math.ceil(crawler.shell)} / 90` : 'Shell broken'; $('enemy-health').style.width = crawler.hp / B.CRAWLER_HP * 100 + '%'; $('threat-action').textContent = this.crawlers.hint(crawler); }
       $('touch-foundry').hidden = !this.foreman.state.defeated; $('kit-foundry').hidden = !this.foreman.state.defeated; $('foundry-charge').textContent = this.foreman.state.forgeCooldown > 0 ? `${this.foreman.state.forgeCooldown.toFixed(1)} s` : 'Ready';
-      if (near) { $('enemy-health').style.width = near.hp / 60 * 100 + '%'; $('threat-action').textContent = near.phase === 'windup' ? 'Lunge incoming. Move sideways or lift.' : near.phase === 'stunned' ? 'Staggered. Keep pressure on it.' : c.lightAt({ x: this.player.x, y: this.player.y + 1.1, z: this.player.z }) ? 'Your work light keeps it back.' : 'Drill to fight. 6 equips the axe. V places a light.'; }
+      if (near && !crawler) { $('enemy-health').style.width = near.hp / 60 * 100 + '%'; $('threat-action').textContent = near.phase === 'windup' ? 'Lunge incoming. Move sideways or lift.' : near.phase === 'stunned' ? 'Staggered. Keep pressure on it.' : c.lightAt({ x: this.player.x, y: this.player.y + 1.1, z: this.player.z }) ? 'Your work light keeps it back.' : 'Drill to fight. 6 equips the axe. V places a light.'; }
     }
     updateHUD() {
       if (!this.player) return;
@@ -302,7 +320,7 @@
       if (this.rescue.state.known && !this.rescue.rescued && Math.hypot(this.player.x - B.BELL.x, this.player.y - this.rescue.state.y, this.player.z - B.BELL.z) < 10 && !full) { title = 'BRING INEZ HOME'; objective = this.rescue.status(); }
       $('mission-label').textContent = title; $('mission').textContent = objective;
       $('chapter-banner').hidden = !this.chapterUntil || this.clock > this.chapterUntil;
-      $('tool-name').textContent = t.name; $('tool-hint').textContent = t.hint; $('tool-readout').style.setProperty('--tool-color', t.color);
+      $('tool-name').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Impact axe' : t.name; $('tool-hint').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Basalt edge / 52 damage / double rock cutting' : t.hint; $('tool-readout').style.setProperty('--tool-color', t.color);
       const charge = exp.cooldown > 0 ? 1 - exp.cooldown / (exp.state.tool === 'gravity' ? 2.4 : 1.3) : exp.charge;
       $('tool-charge').style.width = `${B.clamp(charge, 0, 1) * 100}%`;
       const available = exp.tools();
@@ -364,7 +382,8 @@
       const deepNotes = e.awakened ? `<div class="discovery-entry"><strong>The lower workings (${this.deep.state.repaired.length}/3 stations restored)</strong><p>${this.deep.state.open ? 'The old floor opened into a much older mine. Follow F to the next station. Repairs cost two lights and three charges, grant new equipment, and give Otis a return link at Bell Works. E at a restored station resets its arrival point.' : 'The heart answers a ring beneath its pedestal. Aim at the ring and press E to open the rootway.'}</p></div>` : '';
       const furnaceNotes = this.foreman.state.known ? `<div class="discovery-entry"><strong>The Foreman Below</strong><p>${this.foreman.state.defeated ? 'The pressure locks are broken and the common has power again. Z melts a 12 m passage below ground, with a six-second recharge. No supplies consumed. Existing minerals survive.' : 'The furnace draws armor from three buried pressure locks. Expose each on every side, then damage it with a tool or blast. Every broken lock exposes another part of the core. Its cutting jet fixes a line before firing; rock stops it but takes a small crater. Lift above its ground shock.'}</p></div>` : '';
       const rescueNotes = this.rescue.state.known ? `<div class="discovery-entry"><strong>Inez Rook / survey bell</strong><p>${this.rescue.status()} Aim at the front intercom and press E. Mara knows the bell location. Its reinforced shell protects Inez from tools and charges.</p></div>` : '';
-      $('discovery-list').innerHTML = rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const crawlerNotes = this.crawlers.nodes.some(n => n.known) ? '<div class="discovery-entry"><strong>Shale crawlers</strong><p>A lance or explosion fractures the shell. Their exposed rear takes direct damage. Claws rise before a committed charge; sidestep or lift. Excavate the floor to drop them. Cleared shells stay cleared. E recovers teeth and blasting salts. Take a tooth to Otis for an impact axe head: 52 damage and double rock-cutting power.</p></div>' : '';
+      $('discovery-list').innerHTML = crawlerNotes + rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {

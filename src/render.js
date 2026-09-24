@@ -189,7 +189,7 @@
       if (moving) this.rotor.rotation.z += dt * (fire ? 35 : .5); this.tool.position.y = -.30 + Math.sin(time * 8) * (this.settings.motion && Math.hypot(p.vx, p.vz) > .5 ? .006 : 0); this.tool.position.x = .34 + Math.sin(time * 77) * shake;
       this.needle.rotation.z = fire ? -.6 + (moving ? Math.sin(time * 35) * .15 : 0) : .7;
       if (game.expedition) this.renderExpedition(game, dt, time);
-      this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time); this.renderDeep(game, time); this.renderForeman(game, time); this.renderRescue(game, time);
+      this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time); this.renderDeep(game, time); this.renderForeman(game, time); this.renderRescue(game, time); this.renderCrawlers(game, time);
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);

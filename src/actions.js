@@ -44,7 +44,7 @@
           s.weaponCooldown = Math.max(0, s.weaponCooldown - elapsed); s.swing = Math.max(0, s.swing - elapsed); remaining -= elapsed;
           if (winding && s.swing <= 1e-9) {
             s.swing = 0;
-            if (this.target?.kind === 'enemy') this.combat.hit(this.target.node, spec.damage, 'axe', player.direction);
+            if (this.target?.kind === 'enemy') this.combat.hit(this.target.node, progress.expedition.crawlers?.impactHead ? 52 : spec.damage, 'axe', player.direction);
             else { cut = true; cutDt = .24; }
             this.combat.events.push({ kind: 'swing', point: this.target || player.head });
           }

@@ -75,7 +75,7 @@
       const hit = resolved === undefined ? this.trace(player, level, mode) : resolved;
       if (!hit) { this.target = null; return; }
       const layer = B.geology(hit.y), efficiency = mode === 'scoop' && hit.y < -25 ? .22 : mode === 'lance' && hit.y > -9 ? .5 : 1;
-      const amount = B.GEAR.drill.power[level] * tool.power * efficiency * dt / layer.resistance * (hit.y < -80 && this.world.deepUpgrades?.includes(0) ? 2 : 1);
+      const amount = B.GEAR.drill.power[level] * tool.power * (mode === 'axe' && this.world.impactHead ? 2 : 1) * efficiency * dt / layer.resistance * (hit.y < -80 && this.world.deepUpgrades?.includes(0) ? 2 : 1);
       // Project rim contacts onto the center line, keeping the tunnel wide enough for the capsule.
       const distance = hit.distance + radius * .27;
       const target = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance };

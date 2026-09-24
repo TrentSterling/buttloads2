@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Shale Crawlers (local 2.15.0)
+
+The lower workings now contain three persistent armored ground creatures. They navigate supported routes, commit to a visible claw charge and fall when their terrain is removed. Lance and explosives break armor; the rear stays vulnerable. Teeth and blasting salts are recovered from physical shells. Otis fits an earned, paid impact axe head with stronger combat and excavation. CRAWLERS.md records the system and full fresh-start journey through the furnace and powered town. This expands the enemy roster without respawning threats in cleared routes or changing existing terrain.
+
 ### Bring Inez Home (local 2.14.0)
 
 An underground rescue now adds a permanent third resident to Ridge Common. The survey bell uses a cell-powered, terrain-blocked winch; the player excavates its escape shaft. Inez opens the survey office and sells charts of real uncollected deposits, plus leads on optional structures. Rescue movement, office arrival, dialogue, charts and older-world migration persist. RESCUE.md records the implementation and fresh-start journey. Remaining expansion work stays in BEAUTY-DEPTH-COMBAT-PLAN.md.

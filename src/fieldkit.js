@@ -73,7 +73,7 @@
       $('tool-meter').hidden = !['resonance', 'gravity'].includes(e.tool);
       $('hud-charge-name').textContent = spec.short[0] + spec.short.slice(1).toLowerCase();
       $('hud-charge-cycle').hidden = modes.length < 2;
-      $('kit-equipped').textContent = B.TOOLS[e.tool].name; $('kit-bombs').textContent = e.supplies.bombs; $('kit-lights').textContent = e.supplies.lights;
+      $('kit-equipped').textContent = e.tool === 'axe' && e.crawlers?.impactHead ? 'Impact axe / 52 damage / double rock cutting' : B.TOOLS[e.tool].name; $('kit-bombs').textContent = e.supplies.bombs; $('kit-lights').textContent = e.supplies.lights;
       const useLabel = e.tool === 'gravity' ? 'Draw' : e.tool === 'resonance' ? 'Pulse' : e.tool === 'axe' ? 'Swing' : 'Cut'; $('touch-cut').textContent = useLabel; $('primary-use-label').textContent = useLabel;
       $('kit-remote-count').textContent = g.gadgets.remoteCount ? `${g.gadgets.remoteCount} remote ${g.gadgets.remoteCount === 1 ? 'satchel' : 'satchels'} waiting / H detonates` : 'Hold C to aim. Release to throw.';
       for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key), unlocked = modes.includes(key); button.disabled = !unlocked; button.textContent = unlocked ? B.CHARGES[key].short : `${B.CHARGES[key].depth} m`; }

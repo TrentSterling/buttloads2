@@ -1,6 +1,6 @@
 # Cinder moths and mining weapons, local 2.11.0
 
-The first complete creature encounter joins excavation, equipment, lights and recovery. The expanded town and caves from 2.10.0 remain included. This is local work under the broader expansion goal; the published site remains 2.8.0. Greater depth, additional enemies and the boss remain outstanding.
+This document records the 2.11.0 cinder-moth checkpoint. Later local builds add the 297 m continuation (DEEP-WORKINGS.md), furnace boss (FOREMAN.md), and armored ground creatures plus an earned axe modification (CRAWLERS.md). The published site remains 2.8.0.
 
 ## What plays differently
 
@@ -36,4 +36,4 @@ A fresh-start pilot excavated from spawn using the starter drill, switched to th
 
 The first encounter pilot's attempt to dig below its feet also held forward input toward a small offset, walking away from the moth. Its correction aims vertically down with neutral movement. This was a pilot correction; no production teleport or terrain bypass was added.
 
-No browser or OS input was used. Render/DOM adapters are inert. Mesh and state tests do not establish WebGL appearance, sound quality, readability or human combat feel. Real visual and human play review remains outstanding under AGENTS.md. The protected floor remains at 73 m. Enemy variety, thrown-object combat, deeper progression and the Foreman Below are future work in BEAUTY-DEPTH-COMBAT-PLAN.md.
+No browser or OS input was used. Render/DOM adapters are inert. Mesh and state tests do not establish WebGL appearance, sound quality, readability or human combat feel. Real visual and human play review remains outstanding under AGENTS.md. The 73 m floor described by this checkpoint is now an earned passage into the lower workings. Further enemy variety and thrown-object combat remain future work in BEAUTY-DEPTH-COMBAT-PLAN.md.

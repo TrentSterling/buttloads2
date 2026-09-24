@@ -1,5 +1,37 @@
 # Remake verification
 
+## Shale Crawlers, local 2.15.0
+
+Adds three persistent armored ground creatures, terrain-supported navigation, shell/rear damage, a committed claw attack, excavation-induced falls and corpse supplies. A recovered tooth unlocks Otis's paid impact axe head. The previous town, rescue, deeper mine and furnace remain included. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 12 crawler checks passed (inert scene and DOM; no browser or OS input)
+COMPLETE 218 system checks passed
+
+node tools/simulate-journey.mjs --crawlers --foreman
+First basalt tooth recovered: 313.1 simulated seconds
+Impact head installed, reloaded and Otis return used: 326.1 simulated seconds
+Second and third teeth recovered: 387.1 and 428.4 simulated seconds
+Furnace approach restored: 452.6 simulated seconds
+Foreman defeated, foundry bore used and reward reloaded: 492.6 simulated seconds
+Powered Ridge Common reached: 511.3 simulated seconds
+COMPLETE crawler journey: earned the rootway, fought a lower-mine crawler, recovered its tooth, bought/reloaded the impact head and used Otis return travel.
+COMPLETE furnace journey: excavated pressure locks, fought the physical furnace, earned and used foundry bore, reloaded the reward and returned to the powered common.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/test-crawlers.mjs
+COMPLETE 12 crawler checks passed (inert scene and DOM; no browser or OS input)
+
+node tools/build.mjs
+Standalone build: dist/index.html (1067 KiB)
+PASS standalone: 41 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate and journey passed before one final save-validation correction: a crawler's remembered sighting now accepts the player's narrower clearance near the claim boundary. The focused suite passed again with a regression proving x=13.4 survives and an out-of-bounds sighting rejects. Gameplay movement and damage were unchanged. CRAWLERS.md records mechanics, coverage, the landing-damage fix and pilot corrections.
+
+Evidence is in tools/out/verification-2.15.log and tools/out/journey-crawlers.json. An actual-mesh projection was inspected. These use inert rendering/DOM and coordinate-aware navigation; they do not certify human pacing, WebGL pixels, layout or audio. No browser or OS input was used. This is progress toward the broader expansion plan, not its completion.
+
 ## Bring Inez Home, local 2.14.0
 
 Adds a physical survey-bell rescue, a third friendly resident, an occupied survey office and services that mark real uncollected minerals or optional structure leads. Existing mine terrain and inventories are preserved; the published site remains 2.8.0.

@@ -46,6 +46,7 @@
         }
         const f = g.freight, unlocked = s.expedition.recovered.includes(f.state.owned ? 1 : 0), cost = f.state.owned ? B.FREIGHT.upgrade : B.FREIGHT.price;
         add(f.state.owned ? 'Freight cage' : 'Freight rig', f.state.upgraded ? '64 minerals per shipment' : !unlocked ? f.state.owned ? 'Recover the resonance engine' : 'Recover the survey flywheel' : f.state.owned ? 'Increase capacity to 64 minerals' : 'A reusable crane and loading dock', f.state.upgraded ? 'Complete' : money(cost), !unlocked || f.state.upgraded || s.cash < cost, () => g.buyFreight());
+        if (g.crawlers.state.recovered.length) add('Impact axe head', 'Basalt tooth edge: 52 damage and double rock-cutting power.', g.crawlers.state.impactHead ? 'Installed' : '$240', g.crawlers.state.impactHead || s.cash < B.IMPACT_HEAD_PRICE, () => { if (g.crawlers.buy()) { g.changed(); g.save(); g.toast('Impact head fitted. Equip the axe with 6.'); } });
         for (const id of g.deep.state.repaired) {
           const station = B.DEEP_STATIONS[id];
           add('Return to ' + station.name, station.reward + ' installed. E at the station resets your landing.', 'Travel', false, () => {

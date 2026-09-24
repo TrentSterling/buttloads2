@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**Bring Inez Home, local 2.14.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Shale Crawlers, local 2.15.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Armored shale crawlers inhabit three lower-mine chambers. Lance or blast their shells, circle behind to hit the exposed body, dodge their committed claw charge, or excavate their footing to cause a damaging fall. Their bodies follow supported routes around rock and cannot walk across an excavated gap. Cleared encounters stay cleared.
+- E recovers a basalt tooth and up to three charges from each shell. Take a tooth to Otis for a $240 impact axe head: 52 damage per swing and double rock-cutting power, with the same reach and cadence. Armor, injuries, attacks, physical corpses, remaining supplies and the upgrade survive saves. See [docs/CRAWLERS.md](docs/CRAWLERS.md).
 
 - Rescue Inez Rook from a stranded survey bell at 23 m. Mara can mark her location. E at the intercom starts the rescue: excavate the whole housing, fit one work-light cell, then cut a clear shaft for the winch. The capsule stops against real rock, the player and machinery. It saves its height and resumes after reload.
 - Inez reopens the survey office in Ridge Common. Her $40 charts mark untouched mineral seams near your reached depth, and her old survey gives leads on optional discoveries. Her arrival changes the office, conversations and available services without resetting the mine. The empty bell remains at the surface.
@@ -94,10 +97,12 @@ node tools/simulate-journey.mjs --thunderstone
 node tools/simulate-journey.mjs --refuges
 node tools/simulate-journey.mjs --legacy --refuges
 node tools/simulate-combat.mjs
+node tools/simulate-journey.mjs --rescue
+node tools/simulate-journey.mjs --crawlers --foreman
 node tools/build.mjs
 ```
 
-The combat suite checks shared tool targeting, frame-rate-independent damage, full-body navigation, telegraphs and dodging, light/rock occlusion, explosive damage, physical loot, defeat recovery and persistent encounter saves. Its separate pilot digs from spawn, fights with the starter drill and axe, collects a husk, heals and reloads. Details and limits are in COMBAT.md.
+The combat suite checks shared tool targeting, frame-rate-independent damage, full-body navigation, telegraphs and dodging, light/rock occlusion, explosive damage, physical loot, defeat recovery and persistent encounter saves. Its separate pilot digs from spawn, fights with the starter drill and axe, collects a husk, heals and reloads. The crawler suite extends this with supported ground navigation, shell/rear damage, undermining and the earned impact head. The fresh crawler/furnace journey earns equipment, clears all three crawlers, buys and reloads the head, restores all lower stations and returns from the furnace to the powered common. `crawlers.js` owns these encounters and `crawler-view.js` renders the shell, claws, attack cue and axe addition. Details and limits are in COMBAT.md and CRAWLERS.md.
 
 The cavern suite additionally checks connected routes with a full player body across three seeds, concealed exploration, falling cabinets and ore, chart repair, model/collision containment, exact saved terrain and old-generation compatibility. The refuge journey excavates a cabinet, spends a light, charts passages and reloads before completing the campaign; `--legacy` starts from an old-format claim. `caverns.js` owns seeded generation, `refuges.js` owns cabinet state and physics, and `cavern-view.js` renders the structures, formations and lights.
 

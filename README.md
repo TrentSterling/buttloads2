@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**The Foreman Below, local 2.13.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Bring Inez Home, local 2.14.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
-The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Rescue Inez Rook from a stranded survey bell at 23 m. Mara can mark her location. E at the intercom starts the rescue: excavate the whole housing, fit one work-light cell, then cut a clear shaft for the winch. The capsule stops against real rock, the player and machinery. It saves its height and resumes after reload.
+- Inez reopens the survey office in Ridge Common. Her $40 charts mark untouched mineral seams near your reached depth, and her old survey gives leads on optional discoveries. Her arrival changes the office, conversations and available services without resetting the mine. The empty bell remains at the surface.
 
 - The awakened heart opens a rootway through the former floor. Four lower strata, five seeded cave networks and 588 appended minerals extend the mine to 297 m while preserving every upper terrain sample and ore ID from existing claims.
 - Restore three physical stations with two lights and three charges each. Earn double deep drilling torque, a faster deep lift and a longer-range deep scanner. Otis offers free return travel to repaired stations. Their bodies and lights fall when undermined, and return landings recheck collision.

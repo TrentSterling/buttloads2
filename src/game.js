@@ -44,12 +44,12 @@
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
-      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat);
+      this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles()];
+      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles()];
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
-      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.resize();
+      this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.resize();
       this.orePhysics.onMove = node => this.view.updateOre(node);
       this.orePhysics.onContact = node => { this.audio.impact(node, this.player, world); return false; };
       this.clock = state.seconds; this.scanUntil = this.scanCooldown = this.recallTime = this.accumulator = this.lastSoundPulse = this.lastSoundBlast = 0; this.lastSave = this.clock;
@@ -58,7 +58,7 @@
     changed() { this.dirty = true; this.revision++; }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
       this.accumulator += dt;
       const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
       const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
@@ -105,6 +105,11 @@
         this.expedition.events.push(...this.mysteries.events.splice(0));
       }
       if (this.freight) { if (this.freight.update(dt, this.player, this.expedition.bodies)) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
+      if (this.rescue) {
+        const boxes = [...this.view.obstacles, ...this.freight.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
+        if (this.rescue.update(dt, this.player, boxes)) this.changed();
+        this.expedition.events.push(...this.rescue.events.splice(0));
+      }
       if (this.survey?.update(dt, this.player)) this.changed();
       if (this.input.aim === 'bomb' && this.clock - this.previewAt > .08) { this.aimPreview = this.gadgets.preview(this.player); this.previewAt = this.clock; }
       if (this.input.aim === 'freight' && this.clock - this.previewAt > .12) { this.freightPreview = this.freight.placement(this.player); this.previewAt = this.clock; }
@@ -148,6 +153,14 @@
         else if (event.kind === 'jet' || event.kind === 'quake' || event.kind === 'bore') { this.feedback.burst(event.point, event.kind === 'bore' ? 2 : 1); this.audio.blast(event.kind === 'bore' ? 'rift' : false, event.point, this.player, this.world); }
       }
     }
+    openRescue() {
+      if (!this.rescue.talk(this.player)) return;
+      $('rescue-status').textContent = this.rescue.status();
+      const phase = this.rescue.state.phase;
+      $('rescue-control').textContent = phase === 'stranded' ? 'Fit cell & raise bell / 1 light' : phase === 'held' ? 'Resume winch' : 'Hold winch';
+      $('rescue-control').disabled = phase === 'stranded' && (this.rescue.contact().density < -.004 || this.expedition.state.supplies.lights < 1);
+      this.setScreen('rescue'); this.changed(); this.save();
+    }
     foundryBore() { if (!this.running) return; if (this.foreman.forge(this.player)) { this.clearInput(); this.changed(); this.foremanEvents(); } else this.toast(!this.foreman.state.defeated ? 'The furnace still holds this power.' : this.foreman.state.forgeCooldown > 0 ? 'Foundry bore recharging.' : 'Aim into underground rock to melt a passage.'); }
     selectTool(key) { if (!this.expedition.select(key)) { const t = B.TOOLS[key]; this.toast(t.magic ? 'Wake the heart beneath the seal.' : t.recovery !== undefined ? 'Recover the resonance engine to build this tool.' : `Reach ${t.depth} m to unlock ${t.name.toLowerCase()}.`); return; } this.input.fire = false; this.changed(); this.audio.note(440, .1, .025); this.updateHUD(); }
     cycleTool() { const keys = this.expedition.tools(); this.selectTool(keys[(keys.indexOf(this.expedition.state.tool) + 1) % keys.length]); }
@@ -183,6 +196,7 @@
       }
       const resident = this.town?.target(p, this.world, this.view.obstacles);
       if (resident) return { kind: 'resident', id: resident.id, label: 'Talk to ' + resident.name + ' / ' + resident.role };
+      const bell = this.rescue?.interaction(p); if (bell) return bell;
       const cache = this.combat?.interaction(p); if (cache) return cache;
       const lower = this.deep?.interaction(p); if (lower) return lower;
       const exp = this.expedition;
@@ -209,6 +223,7 @@
       if (action.kind === 'sell') this.sell();
       if (action.kind === 'shop') { $('receipt').hidden = true; this.updateShop(); this.setScreen('shop'); }
       if (action.kind === 'refuge') { const result = this.refuges.restore(action.id, this.player, this.survey); if (result) { this.changed(); this.audio.note(640, .4, .04); this.save(); if (result.fresh) this.toast('Survey light restored. Local passages copied to your M survey.', 6000); else this.openSurvey(); } }
+      if (action.kind === 'rescue') this.openRescue();
       if (action.kind === 'resident') this.townUI.open(action.id);
       if ((action.kind === 'deep-gate' && this.deep.open(this.player)) || (action.kind === 'deep-station' && this.deep.repair(action.id, this.player))) { this.expedition.events.push(...this.deep.events.splice(0)); this.expeditionEvents(); this.changed(); this.save(); }
       if (action.kind === 'combat-drop' && this.combat.collect(action.id, this.player)) { this.changed(); this.audio.note(760, .15, .025); this.save(); this.toast(action.id === 3 ? 'Lost cargo recovered. Any overflow stays in the cache.' : 'Cinder husk recovered. Charges added.'); }
@@ -241,7 +256,7 @@
       const echoes = this.economy.state.deepest >= 59 ? B.VAULTS.filter((v, i) => !this.expedition.state.vaults.includes(i) && Math.hypot(v.x - p.x, v.y - p.y, v.z - p.z) < range) : [];
       const thunder = this.thunder.scan(p, range), refuges = this.refuges.scan(p, range), stations = this.deep.scan(p, range), furnace = this.foreman.scan(p, range);
       this.mysteries.scan(p, range); this.survey.scan(p, range, nodes); this.changed();
-      this.view.scan([...nodes, ...echoes, ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
+      this.view.scan([...nodes, ...echoes, ...this.rescue.scan(p, range), ...furnace.map(n => ({ ...n, kind: undefined, scanKey: 'foreman:' + n.id })), ...stations.map(n => ({ ...n, kind: undefined, scanKey: 'station:' + n.id })), ...refuges.map(n => ({ ...n, kind: undefined, scanKey: 'refuge:' + n.id })), ...thunder.map(n => ({ ...n, kind: undefined, scanKey: 'thunder:' + n.id })), ...B.MYSTERIES.filter(m => this.mysteries.state.known.includes(m.id) && !this.mysteries.state.solved.includes(m.id) && Math.hypot(m.x - p.x, m.y - p.y, m.z - p.z) <= range)], relic && Math.hypot(relic.x - p.x, relic.y - p.y, relic.z - p.z) < range ? { x: relic.x, y: relic.y, z: relic.z } : null);
       const target = nodes[0];
       const vein = target && this.deposits.veins[target.vein];
       $('scan-target').textContent = target ? `${vein?.name || B.ORES[target.kind].name} · ${Math.hypot(target.x - p.x, target.y - p.y, target.z - p.z).toFixed(1)} m` : focus < 0 ? 'No deposits in range' : `No ${B.ORES[focus].name.toLowerCase()} within ${range} m`;
@@ -284,6 +299,7 @@
       if (nearby && exp.tether === null && !full) { title = nearby.name.toUpperCase(); objective = nearby.id === 0 ? `${this.mysteries.sealUntil.filter(t => t > this.mysteries.time).length}/3 seals ringing. Ring all three within one second. J for clues.` : `${this.mysteries.connected}/3 light paths connected. Cut the beam's path; E turns prisms.`; }
       if (this.foreman.state.defeated && exp.tether === null && !full) { title = 'THE FURNACE IS YOURS'; objective = 'Z melts a 12 m passage. Ridge Common has power again.'; }
       if (this.thunder?.nodes.some(n => !n.collected && n.fuse >= 0 && Math.hypot(n.x - this.player.x, n.y - this.player.head.y, n.z - this.player.z) < 6)) { title = 'CHAIN REACTION'; objective = 'Thunderstone ignited. Stand clear of the flashing crystals.'; }
+      if (this.rescue.state.known && !this.rescue.rescued && Math.hypot(this.player.x - B.BELL.x, this.player.y - this.rescue.state.y, this.player.z - B.BELL.z) < 10 && !full) { title = 'BRING INEZ HOME'; objective = this.rescue.status(); }
       $('mission-label').textContent = title; $('mission').textContent = objective;
       $('chapter-banner').hidden = !this.chapterUntil || this.clock > this.chapterUntil;
       $('tool-name').textContent = t.name; $('tool-hint').textContent = t.hint; $('tool-readout').style.setProperty('--tool-color', t.color);
@@ -347,7 +363,8 @@
       const creatureNotes = this.combat.enemies.some(n => n.known) ? '<div class="discovery-entry"><strong>Cinder moths</strong><p>Drills cut their shells; the mining axe (6) staggers them. A bright flare warns of a lunge. Dodge sideways or lift. Placed lights and restored refuge lamps keep them back. Cleared moths stay cleared, leaving a husk worth two charges. Surface rest restores health. Lost cargo waits in a marked recovery cache after rescue; E retrieves it, with overflow left safely below.</p></div>' : '';
       const deepNotes = e.awakened ? `<div class="discovery-entry"><strong>The lower workings (${this.deep.state.repaired.length}/3 stations restored)</strong><p>${this.deep.state.open ? 'The old floor opened into a much older mine. Follow F to the next station. Repairs cost two lights and three charges, grant new equipment, and give Otis a return link at Bell Works. E at a restored station resets its arrival point.' : 'The heart answers a ring beneath its pedestal. Aim at the ring and press E to open the rootway.'}</p></div>` : '';
       const furnaceNotes = this.foreman.state.known ? `<div class="discovery-entry"><strong>The Foreman Below</strong><p>${this.foreman.state.defeated ? 'The pressure locks are broken and the common has power again. Z melts a 12 m passage below ground, with a six-second recharge. No supplies consumed. Existing minerals survive.' : 'The furnace draws armor from three buried pressure locks. Expose each on every side, then damage it with a tool or blast. Every broken lock exposes another part of the core. Its cutting jet fixes a line before firing; rock stops it but takes a small crater. Lift above its ground shock.'}</p></div>` : '';
-      $('discovery-list').innerHTML = furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
+      const rescueNotes = this.rescue.state.known ? `<div class="discovery-entry"><strong>Inez Rook / survey bell</strong><p>${this.rescue.status()} Aim at the front intercom and press E. Mara knows the bell location. Its reinforced shell protects Inez from tools and charges.</p></div>` : '';
+      $('discovery-list').innerHTML = rescueNotes + furnaceNotes + deepNotes + recoveryNotes + sealNotes + gardenNotes + thunderNotes + refugeNotes + creatureNotes;
       $('mystery-list').replaceChildren();
       if (!this.mysteries.state.known.length) { const hint = document.createElement('p'); hint.className = 'fine'; hint.textContent = 'Unusual signals appear when you scan or explore near them. Recovered machinery may also contain a lead.'; $('mystery-list').append(hint); }
       for (const id of this.mysteries.state.known) {
@@ -395,6 +412,7 @@
     async newClaim() { this.setScreen('pause'); this.ready = false; try { await this.store.pending.catch(() => {}); await this.install(null); await this.save(); this.play(); } catch (e) { this.ready = true; $('loading').hidden = true; this.toast('Could not create claim: ' + e.message); } }
     syncSettings() { $('tips-setting').checked = this.settings.tips; $('sound-setting').checked = this.settings.sound; $('motion-setting').checked = this.settings.motion; $('sensitivity-setting').value = this.settings.sensitivity; $('quality-setting').value = this.settings.quality; }
     bindUI() {
+      $('rescue-control').onclick = () => { if (this.screen !== 'rescue' || !this.rescue.control(this.player)) return; this.changed(); this.save(); this.play(); this.toast(this.rescue.status()); };
       $('touch-foundry').onclick = () => this.foundryBore();
       $('start-button').onclick = () => this.play();
       for (const key of Object.keys(B.TOOLS)) $('tool-' + key).onclick = () => { if (this.running) this.selectTool(key); };

@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Bring Inez Home (local 2.14.0)
+
+An underground rescue now adds a permanent third resident to Ridge Common. The survey bell uses a cell-powered, terrain-blocked winch; the player excavates its escape shaft. Inez opens the survey office and sells charts of real uncollected deposits, plus leads on optional structures. Rescue movement, office arrival, dialogue, charts and older-world migration persist. RESCUE.md records the implementation and fresh-start journey. Remaining expansion work stays in BEAUTY-DEPTH-COMBAT-PLAN.md.
+
 ### The Foreman Below (local 2.13.0)
 
 The lower chamber now has a persistent boss with buried, damageable pressure locks, a segmented armor gate, telegraphed cutting jets and ground shocks. The machinery uses real support and falls when undermined. Tools, explosives, pulses, health and rescue share the existing systems. Its reward is a reusable foundry bore on Z and a powered well/road in town, with merchant reactions. FOREMAN.md records mechanics, persistence and the successful fresh-claim journey through the encounter. The larger plan remains active for more encounter variety, structures, residents, parcels and human visual review.

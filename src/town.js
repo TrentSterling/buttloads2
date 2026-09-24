@@ -4,13 +4,14 @@
   const SURFACE = Object.freeze({ minX: -58, maxX: 58, minZ: -50, maxZ: 68 });
   const PEOPLE = Object.freeze([
     { id: 'mara', name: 'Mara Vale', role: 'General supplies', shop: 'VALE SUPPLY', x: -9, z: 37.4, color: '#d39269', coat: '#426e65', skin: '#b87750' },
-    { id: 'otis', name: 'Otis Bell', role: 'Machinery & modifications', shop: 'BELL WORKS', x: 19, z: 38.4, color: '#e5b45d', coat: '#b46c40', skin: '#d7ac7e' }
+    { id: 'otis', name: 'Otis Bell', role: 'Machinery & modifications', shop: 'BELL WORKS', x: 19, z: 38.4, color: '#e5b45d', coat: '#b46c40', skin: '#d7ac7e' },
+    { id: 'inez', name: 'Inez Rook', role: 'Prospector & surveyor', shop: 'SURVEY OFFICE', x: -24, z: 54.4, color: '#9bd7e5', coat: '#487782', skin: '#ab7257', unlock: 'rescue' }
   ]);
   // Walls are shared by scene construction, movement and conversation visibility.
   const BUILDINGS = Object.freeze([
     { x: -9, z: 36, w: 9, d: 8, h: 3.8, color: '#477164', roof: '#99553d', name: 'VALE SUPPLY', sub: 'CHARGES / LIGHTS / A FAIR PRICE', person: 'mara' },
     { x: 19, z: 37, w: 11, d: 8, h: 4.3, color: '#bb9a68', roof: '#4c6560', name: 'BELL WORKS', sub: 'MORE TORQUE. LESS EXCUSES.', person: 'otis' },
-    { x: -24, z: 53, w: 8, d: 7, h: 3.5, color: '#c5b48c', roof: '#725c53', name: 'SURVEY OFFICE', sub: 'RIDGE COMMON', closed: true }
+    { x: -24, z: 53, w: 8, d: 7, h: 3.5, color: '#c5b48c', roof: '#725c53', name: 'SURVEY OFFICE', sub: 'MAPS / LEADS / FIELD NOTES', person: 'inez' }
   ]);
   function walls(b) {
     const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2, t = .24;
@@ -34,29 +35,39 @@
   }
   class Town {
     constructor(progress) { this.progress = progress; this.state = progress.expedition.town ||= { version: 1, met: [], heard: [] }; }
-    static validate(s) {
-      if (!s || s.version !== 1 || !Array.isArray(s.met) || !Array.isArray(s.heard) || s.met.length > 2 || s.heard.length > 22 || s.met.some(id => !PEOPLE.some(p => p.id === id)) || new Set(s.met).size !== s.met.length || new Set(s.heard).size !== s.heard.length || s.heard.some(id => !/^(mara|otis):(hello|first|refuge|cinder|flywheel|engine|heart|after|deep|stations|foreman)$/.test(id) || !s.met.includes(id.split(':')[0]))) throw new Error('Invalid town conversations.');
+    static validate(s, rescue) {
+      if (!s || s.version !== 1 || !Array.isArray(s.met) || !Array.isArray(s.heard) || s.met.length > 3 || s.heard.length > 36 || s.met.some(id => !PEOPLE.some(p => p.id === id)) || new Set(s.met).size !== s.met.length || new Set(s.heard).size !== s.heard.length || s.heard.some(id => !/^(mara|otis|inez):(hello|first|refuge|cinder|flywheel|engine|heart|after|deep|stations|foreman|rescue)$/.test(id) || !s.met.includes(id.split(':')[0]))) throw new Error('Invalid town conversations.');
+      if ((s.met.includes('inez') || s.heard.some(id => id.endsWith(':rescue'))) && rescue?.phase !== 'rescued') throw new Error('Surveyor has not returned to town.');
       return { version: 1, met: [...s.met], heard: [...s.heard] };
     }
     static obstacles() {
-      return [...BUILDINGS.flatMap(b => [...walls(b), [b.x - b.w / 2 - .4, b.h, b.z - b.d / 2 - .6, b.x + b.w / 2 + .4, b.h + .28, b.z + b.d / 2 + .5]]), ...PEOPLE.flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], [p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]]), ...FENCES, [3.7, 0, 44.7, 6.3, .95, 47.3]];
+      return [...BUILDINGS.flatMap(b => [...walls(b), [b.x - b.w / 2 - .4, b.h, b.z - b.d / 2 - .6, b.x + b.w / 2 + .4, b.h + .28, b.z + b.d / 2 + .5]]), ...PEOPLE.flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], ...(p.unlock ? [] : [[p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]])]), ...FENCES, [3.7, 0, 44.7, 6.3, .95, 47.3]];
     }
+    people() { return PEOPLE.filter(p => !p.unlock || this.progress.expedition.rescue?.phase === 'rescued'); }
+    residentObstacles() { return this.people().filter(p => p.unlock).map(p => [p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]); }
     static region(p) { return p.y < -1 ? null : Math.abs(p.x) < 14 && Math.abs(p.z) < 14 ? 'Claim 02' : p.z > 27 && p.z < 60 && p.x > -31 && p.x < 30 ? 'Ridge Common' : 'Common land'; }
     target(player, world, obstacles = []) {
       if (player.y < -.5 || player.y > 2) return null;
       const a = player.head, d = player.direction;
-      return PEOPLE.find(p => {
+      return this.people().find(p => {
         const b = { x: p.x, y: 1.55, z: p.z }, delta = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }, range = Math.hypot(delta.x, delta.y, delta.z);
         return range <= 3.25 && range > .1 && (delta.x * d.x + delta.y * d.y + delta.z * d.z) / range > .68 && world.clearLine(a, b, .1) && !blockedLine(a, b, obstacles.filter(box => !(box[0] === p.x - .32 && box[2] === p.z - .28)));
       }) || null;
     }
-    chapter(id) { const s = this.progress, e = s.expedition; return !this.state.met.includes(id) ? 'hello' : e.foreman?.defeated ? 'foreman' : e.deep?.repaired.length ? 'stations' : e.deep?.open ? 'deep' : e.vaults.length === 3 ? 'after' : e.awakened ? 'heart' : e.recovered.includes(1) ? 'engine' : e.recovered.includes(0) ? 'flywheel' : e.combat?.enemies.some(n => n.known) ? 'cinder' : e.refuges?.lit.length ? 'refuge' : s.trips > 0 ? 'first' : 'hello'; }
+    chapter(id) { const s = this.progress, e = s.expedition; return !this.state.met.includes(id) ? 'hello' : e.foreman?.defeated ? 'foreman' : e.rescue?.phase === 'rescued' && !this.state.heard.includes(id + ':rescue') ? 'rescue' : e.deep?.repaired.length ? 'stations' : e.deep?.open ? 'deep' : e.vaults.length === 3 ? 'after' : e.awakened ? 'heart' : e.recovered.includes(1) ? 'engine' : e.recovered.includes(0) ? 'flywheel' : e.combat?.enemies.some(n => n.known) ? 'cinder' : e.refuges?.lit.length ? 'refuge' : id === 'inez' ? 'rescue' : s.trips > 0 ? 'first' : 'hello'; }
     talk(id) {
-      if (!PEOPLE.some(p => p.id === id)) return null;
+      if (!this.people().some(p => p.id === id)) return null;
       const chapter = this.chapter(id), key = id + ':' + chapter;
       if (!this.state.met.includes(id)) this.state.met.push(id);
       const fresh = !this.state.heard.includes(key); if (fresh) this.state.heard.push(key);
-      const lines = id === 'mara' ? {
+      const lines = id === 'inez' ? {
+        hello: "Inez Rook. We met in a tin can under several tons of rock. Thank you for changing the venue. My old charts are yours to read; forty dollars gets you a fresh mineral survey.",
+        rescue: "You made a road out of a cave-in. I can at least make you a map. I mark untouched seams near the depths you have reached. How you get there is the interesting part.",
+        foreman: "The old charts call it a furnace. The older ones call it a landlord. You seem to have settled the lease. I am drawing a new edition.",
+        stations: "Those station connections are on the back of my oldest chart. Otis has made them useful again. A road down is worth more than another bag up.",
+        deep: "My old crew stopped at the rootworks. You have opened their route again. I can chart the new minerals once you reach their layer."
+      } : id === 'mara' ? {
+        rescue: "Inez is back at her desk. I left her a mug. She drew a contour map on it. Go west past the well; she can find you something worth digging for.",
         foreman: "The well lit up. Then the street. Then every dead bulb on my shelves. I suppose that makes you the power company. You still owe me for the charges.",
         deep: "A whole mine under the mine? Take two lights and three charges for each old station. Otis knows the connections. I know what you forgot to pack.",
         stations: "I could hear the pump from my shop. Those old stations still have a use, then. Come back with a proper haul.",
@@ -69,6 +80,7 @@
         heart: "I can hear it from here. Yes, I'll still buy your ore. No, I am not putting that thing in my stockroom.",
         after: "You brought daylight to somewhere that never had it. That's a decent day's work. Your tab's still a tab, though."
       } : {
+        rescue: "Inez brought me a sketch of the winch you fixed. Said you made a proper shaft. The survey office is open again; she knows where the old workings went.",
         foreman: "That furnace belongs to the common now. Press Z underground to melt a whole passage. Twelve metres. Six seconds to cool. Try not to dig under my shop.",
         deep: "The rootworks! Restore the pump house first. Two lights, three charges, a bit of nerve. Bring that circuit back and I can send you down from here.",
         stations: "Your restored stations are on the board. Pick a landing and I will send you back. If you dig away its floor, reset the arrival beside the machine with E.",
@@ -81,10 +93,11 @@
         heart: "The wrench floated off my bench. Put it back, will you? Then tell me how you did that.",
         after: "Three geodes and a machine that runs on impossible. Leave me a sketch of the mine before you find anything else."
       };
-      return { chapter, fresh, text: lines[chapter] };
+      return { chapter, fresh, text: lines[chapter] || lines.rescue };
     }
     advice(id) {
       const s = this.progress;
+      if (id === 'inez') return 'A survey marks real minerals you have not scanned or collected. It reaches twelve metres beyond your deepest descent, but never through the sealed floor. The map remembers the deposits; you make the tunnels. Read the old survey for leads on stranger workings.';
       if (id === 'mara') return s.deepest >= 16 ? 'Pink thunderstone can become a spare charge if you dig it completely free. Or set off one crystal and let its neighbors do the digging. E recovers a crystal; H fires your planted satchels.' : 'Hold C to see where a charge will land, then release. V places a light. Aim at a placed light and press E to bring it home again. The marked ground is yours; the common stays intact.';
       return s.expedition.recovered.includes(0) ? 'Crane docks need open ground below the surface. Hold T to find a spot. The cage needs a clear shaft all the way up. An orange marker shows the rock holding it back.' : 'Expose the survey flywheel on every side before attaching your tether with E. It is wider than you are. Cut a route that fits the machine, then lift it home with Space.';
     }

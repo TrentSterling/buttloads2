@@ -1,10 +1,10 @@
-# Ridge Common, local 2.9.0
+# Ridge Common, local 2.14.0
 
-The first town checkpoint added an expanded surface and two functional residents. Local 2.12.0 also includes cave networks, combat and deeper regions. Otis now offers free return travel to restored lower stations; both residents react to opening the rootway and repairing machinery. See DEEP-WORKINGS.md. Local 2.13.0 adds the furnace victory: a powered well and road, new merchant reactions and the earned foundry bore. More residents and parcels remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md. The deployed site remains 2.8.0 until a later publish.
+The first town checkpoint added an expanded surface and two functional residents. Local 2.12.0 also includes cave networks, combat and deeper regions. Otis now offers free return travel to restored lower stations; both residents react to opening the rootway and repairing machinery. See DEEP-WORKINGS.md. Local 2.13.0 adds the furnace victory: a powered well and road, new merchant reactions and the earned foundry bore. Local 2.14.0 adds Inez Rook: rescue her survey bell to reopen the survey office and gain mineral charts and discovery leads. See RESCUE.md. Further residents and parcels remain outstanding under BEAUTY-DEPTH-COMBAT-PLAN.md. The deployed site remains 2.8.0 until a later publish.
 
 ## Surface and services
 
-The walkable surface spans x -58 to 58 and z -50 to 68 metres. The existing 28 m excavation square remains the owned claim. Gate openings lead through the old yard fences onto common footpaths. A road beyond the headframe reaches two shops, a common with a well and benches, and a closed survey office. Property signs explain where walking is allowed and excavation is not. Other claims are scenery for now; purchases are not implemented.
+The walkable surface spans x -58 to 58 and z -50 to 68 metres. The existing 28 m excavation square remains the owned claim. Gate openings lead through the old yard fences onto common footpaths. A road beyond the headframe reaches two shops, a common with a well and benches, and a survey office staffed by Inez after her rescue. Property signs explain where walking is allowed and excavation is not. Other claims are scenery for now; purchases are not implemented.
 
 Vale Supply stands at (-9, 36), Bell Works at (19, 37). Both have enterable doors, counters, shelves and residents. Mara Vale sells existing charge/light packs and buys carried minerals plus delivered freight through the existing inventory ledger. Otis Bell sells the existing equipment upgrades and gated freight rig/cage. The claim-side workshop and hopper remain usable. No prices, mining unlocks or campaign rewards were changed.
 

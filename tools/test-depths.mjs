@@ -149,7 +149,7 @@ await test('43 m increases real scanner range; 59 m reveals sealed geodes', () =
   game.view.scan = nodes => { captured = nodes; }; game.setScreen(null); game.player.teleport(9, -19 - game.player.eye, -7);
   game.economy.state.deepest = 42; game.scanCooldown = 0; game.scan(); const count = captured.length;
   game.economy.state.deepest = 43; game.scanCooldown = 0; game.scan(); assert.ok(captured.length > count);
-  assert.ok(captured.every(n => n.kind !== undefined || B.MYSTERIES.some(m => m.name === n.name) || n.scanKey?.startsWith('thunder:') || game.refuges.nodes.some(r => n.scanKey === 'refuge:' + r.id))); assert.ok(!captured.some(n => B.VAULTS.some(v => v.name === n.name))); game.economy.state.deepest = 59; game.scanCooldown = 0; game.scan(); assert.ok(captured.some(n => n.name === B.VAULTS[0].name));
+  assert.ok(captured.every(n => n.kind !== undefined || B.MYSTERIES.some(m => m.name === n.name) || n.scanKey === 'rescue' || n.scanKey?.startsWith('thunder:') || game.refuges.nodes.some(r => n.scanKey === 'refuge:' + r.id))); assert.ok(!captured.some(n => B.VAULTS.some(v => v.name === n.name))); game.economy.state.deepest = 59; game.scanCooldown = 0; game.scan(); assert.ok(captured.some(n => n.name === B.VAULTS[0].name));
   game.view.scan = original;
 });
 await test('real Game resolves the seal, heart and final geode into the new ending', () => {

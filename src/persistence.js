@@ -99,11 +99,13 @@
       if (combat) state.expedition.combat = combat;
       if (e.foreman !== undefined) state.expedition.foreman = B.Foreman.validate(e.foreman, savedWorld, st);
       if (e.deep !== undefined) state.expedition.deep = B.DeepExpedition.validate(e.deep, savedWorld, st);
-      if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town);
+      if (e.rescue !== undefined) state.expedition.rescue = B.Rescue.validate(e.rescue, savedWorld, generated.nodes.length);
+      if (e.town !== undefined) state.expedition.town = B.Town.validate(e.town, state.expedition.rescue);
       if (e.guide !== undefined) state.expedition.guide = B.FieldGuide.validate(e.guide);
       if (e.thunder !== undefined) state.expedition.thunder = B.Thunderstone.validate(e.thunder, savedWorld);
       if (e.mysteries !== undefined) state.expedition.mysteries = B.Mysteries.validate(e.mysteries);
       if (e.survey !== undefined) state.expedition.survey = B.Survey.validate(e.survey, generated.nodes.length, savedWorld);
+      if (e.rescue?.lead !== null && e.rescue?.lead !== undefined && !e.survey?.ore?.includes(e.rescue.lead)) throw new Error('Survey rescue chart is missing its deposit.');
       if (!B.availableTools(state).includes(e.tool)) throw new Error('Selected tool is not unlocked.');
     }
     const settings = input.settings || {};

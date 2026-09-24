@@ -18,7 +18,7 @@ const button = name => buttons().find(b => b.children[0].textContent === name);
 g.play = () => g.setScreen(null);
 try {
   await test('fresh Game builds two residents and an additive empty town history', () => {
-    assert.deepEqual(g.town.state, { version: 1, met: [], heard: [] }); assert.equal(g.view.townRigs.length, 2);
+    assert.deepEqual(g.town.state, { version: 1, met: [], heard: [] }); assert.equal(g.view.townRigs.length, 3); assert.equal(g.view.townRigs.filter(r => r.root.visible).length, 2);
     let meshes = 0;
     g.view.townScene.updateMatrixWorld(true);
     g.view.townScene.traverse(n => { if (!n.isMesh) return; meshes++; assert.ok(n.matrixWorld.elements.every(Number.isFinite)); for (const a of Object.values(n.geometry.attributes)) assert.ok(a.array.every(Number.isFinite)); });
@@ -64,7 +64,7 @@ try {
     g.releaseBomb(); assert.equal(g.gadgets.state.supplies.bombs, supplies);
     assert.deepEqual(g.town.state.met, ['mara']); assert.deepEqual(g.town.state.heard, ['mara:hello']);
     atCounter('mara'); g.use(); assert.deepEqual(g.town.state.heard, ['mara:hello']);
-    assert.match(h.elements.get('town-dialogue').textContent, /Mara/); assert.equal(buttons().length, 3);
+    assert.match(h.elements.get('town-dialogue').textContent, /Mara/); assert.equal(buttons().length, 4);
     let prevented = false; h.handlers.get('keydown')({ code: 'Tab', preventDefault() { prevented = true; } }); assert.equal(prevented, false); assert.equal(g.screen, 'town');
   });
   await test('Mara sells real supplies atomically and pays the existing mineral ledger once', () => {

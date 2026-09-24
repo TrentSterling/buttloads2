@@ -1,5 +1,31 @@
 # Remake verification
 
+## Bring Inez Home, local 2.14.0
+
+Adds a physical survey-bell rescue, a third friendly resident, an occupied survey office and services that mark real uncollected minerals or optional structure leads. Existing mine terrain and inventories are preserved; the published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 11 rescue checks passed (inert renderer and DOM; no browser or OS input)
+COMPLETE 206 system checks passed
+
+node tools/simulate-journey.mjs --rescue
+Inez raised to surface: 25.6 simulated seconds
+Inez rescued and survey office chart reloaded: 48.2 simulated seconds
+All original recoveries complete: 326.5 simulated seconds
+COMPLETE rescue journey: excavated the survey bell, powered its winch, cleared its ascent, met Inez at the office, bought a real mineral chart and reloaded it.
+COMPLETE fresh-claim journey: earned upgrades, hauled both machines, opened seal, awakened heart, recovered all geodes, validated save.
+
+node tools/build.mjs
+Standalone build: dist/index.html (1043 KiB)
+PASS standalone: 39 scripts compile; no external scripts or stylesheets.
+```
+
+All 206 checks passed together on the final gameplay source. The 11 focused rescue checks then passed with added model-bound assertions. Generated evidence: tools/out/verification-2.14.log and tools/out/journey-rescue.json. The new signal required extending an older scanner whitelist; town checks now distinguish two present residents from the third, initially hidden rig. No old behavior assertion was removed.
+
+The rescue suite covers actual controls, pausing/input cancellation, supplies, full-body contact, rock/player/equipment obstruction, frame-rate equivalence, mid-lift save, the office's doorway and interactions, chart economy, old-world retention and corrupt-state rejection. RESCUE.md describes the mechanics and pilot navigation fixes. Simulation uses coordinate knowledge and does not certify human pacing. An actual-mesh projection was inspected, but WebGL appearance, sound, layout and human feel remain unreviewed. No browser, OS input or live sound device was used.
+
+
 ## The Foreman Below, local 2.13.0
 
 Adds a physical furnace boss at the lower chamber, three partly buried damageable pressure locks, segmented core armor, cutting-jet and ground-shock attacks, persistent damage/rescue, an earned 12 m foundry bore and a powered-town transformation. Mining tools and real blast records use the shared target system. The published site remains 2.8.0.

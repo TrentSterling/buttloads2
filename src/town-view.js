@@ -9,10 +9,6 @@
     const box = (x, y, z, w, h, d, m, r = 0) => this.box(g, x, y, z, w, h, d, m, r);
     const cyl = (x, y, z, a, b, h, m, sides = 10) => this.cylinder(g, x, y, z, a, b, h, m, sides);
     this.obstacles.push(...B.Town.obstacles());
-    // Raised, separate surfaces prevent road/grass coplanar flicker.
-    box(10, .018, 43, 6, .036, 44, road); box(5, .024, 29.5, 46, .048, 5, road);
-    box(-14, .021, 49, 29, .042, 3, road); box(5, .028, 46, 13, .056, 11, paving);
-    box(33, .02, 4, 24, .04, 4, road); box(-35, .02, -4, 28, .04, 4, road); box(0, .02, -34, 4, .04, 26, road);
     for (const b of B.TOWN.buildings) {
       const paint = mat(b.color), roof = mat(b.roof, .25, .65), front = b.z - b.d / 2;
       for (const w of B.TOWN.walls(b)) box((w[0] + w[3]) / 2, (w[1] + w[4]) / 2, (w[2] + w[5]) / 2, w[3] - w[0], w[4] - w[1], w[5] - w[2], paint);
@@ -61,24 +57,11 @@
     const post = (x, z, title, sub, yaw = Math.PI) => { cyl(x, 1.4, z, .07, .1, 2.8, timber); this.sign(g, title, sub, x, 2.2, z - .08, 3.5, .85, yaw); this.obstacles.push([x - .12, 0, z - .12, x + .12, 2.8, z + .12]); };
     post(14, 25, 'RIDGE COMMON', 'SUPPLIES / WORKSHOP / SURVEY'); post(6, 26, 'CLAIM 02', 'YOUR YARD / 12 m NORTH', 0);
     post(31, 12, 'CLAIM 03', 'PRIVATE LAND / NO EXCAVATION'); post(-29, -9, 'COMMON LAND', 'FOOTPATH OPEN / NO EXCAVATION');
-    post(45, 3, 'RIDGE TRAIL', 'THE COMMON ENDS AT THE STONE WALL', Math.PI / 2);
+    post(45, 3, 'RIDGE TRAIL', 'RESERVOIR / FOLLOW THE WINDING PATH', Math.PI / 2);
     for (const [x, z] of [[2, 30], [28, 30], [-17, 30], [12, 47]]) {
       cyl(x, 1.8, z, .06, .12, 3.6, p.dark); box(x, 3.6, z, .48, .12, .48, p.dark); box(x, 3.36, z, .27, .38, .27, warm);
       this.obstacles.push([x - .14, 0, z - .14, x + .14, 3.7, z + .14]);
     }
-    const rng = B.random(9142), green = mat('#73844e'), flower = mat('#d4b578');
-    for (let i = 0; i < 130; i++) {
-      const x = -54 + rng() * 108, z = -46 + rng() * 110;
-      if (Math.abs(x) < 24 && z < 24 && z > -24 || z > 23 && x > -31 && x < 30 || Math.abs(z - 4) < 3 || Math.abs(z + 4) < 3 || Math.abs(x) < 3) continue;
-      const size = .2 + rng() * .6;
-      if (i % 4) { const rock = new T.Mesh(new T.DodecahedronGeometry(size, 0), i % 3 ? green : flower); rock.position.set(x, size * .42, z); rock.scale.set(1, .7, .85); g.add(rock); }
-      else { cyl(x, .4, z, .02, .04, .8, green, 4); const bush = new T.Mesh(new T.IcosahedronGeometry(.5, 0), green); bush.position.set(x, .65, z); bush.scale.set(1.5, .7, 1); g.add(bush); }
-    }
-    // The traversal edge is represented by a continuous stone boundary.
-    const s = B.SURFACE;
-    box(s.minX - .3, .65, (s.minZ + s.maxZ) / 2, .6, 1.3, s.maxZ - s.minZ + 1, p.concrete);
-    box(s.maxX + .3, .65, (s.minZ + s.maxZ) / 2, .6, 1.3, s.maxZ - s.minZ + 1, p.concrete);
-    for (const z of [s.minZ - .3, s.maxZ + .3]) box(0, .65, z, s.maxX - s.minX + 1, 1.3, .6, p.concrete);
     this.shopKey = new T.PointLight('#ffe5ba',0,4.5,1.5);g.add(this.shopKey);
     this.merge(g); this.townRigs = B.TOWN.people.map(person => this.makeTownPerson(person));
     this.officeClosed = new T.Group(); g.add(this.officeClosed); this.sign(this.officeClosed, 'OUT SURVEYING', 'ASK MARA / VALE SUPPLY', -26.1, 1.6, 49.25, 1.7, .65, Math.PI);

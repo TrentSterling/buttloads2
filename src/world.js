@@ -57,6 +57,7 @@
       return this.field[this.index(x, y, z)];
     }
     density(x, y, z) {
+      if (B.COMMON.outside(x,z)) return clamp(y-B.COMMON.height(x,z),-2,2);
       if (y > W.top) return 2;
       const fx = (x - W.min) * 2, fy = (y - this.bottom) * 2, fz = (z - W.min) * 2;
       const ix = Math.floor(fx), iy = Math.floor(fy), iz = Math.floor(fz), u = fx - ix, v = fy - iy, w = fz - iz;

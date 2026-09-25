@@ -56,17 +56,7 @@
     #include <encodings_fragment>
     }`});
   this.skyDome=new T.Mesh(new T.SphereGeometry(190,24,12),mat);this.skyDome.userData.beautySky=true;this.skyDome.frustumCulled=false;this.skyDome.renderOrder=-100;this.scene.add(this.skyDome);
-  const verge=this.verge=new T.Group();this.scene.add(verge);const rng=B.random(92715),materials=[this.palette.leaf,this.palette.leafLight,this.palette.leafShade];
-  for(let i=0;i<720;i++){
-   const x=-55+rng()*110,z=-47+rng()*110;
-   // Permanent common land only: leave both editable claims, roads and shops clear.
-   if(x>-17&&x<49&&z>-17&&z<17||x>-21&&x<22&&z>14&&z<24||z>22&&x>-33&&x<32||Math.abs(x)<3.5||Math.abs(z-4)<3||Math.abs(z+4)<3)continue;
-   const height=.16+rng()*.24,vertices=[];
-   for(let j=0;j<4;j++){const a=rng()*Math.PI*2,dx=Math.cos(a),dz=Math.sin(a),w=.035+rng()*.025,bend=.07+rng()*.09;vertices.push(x-dz*w,0,z+dx*w,x+dz*w,0,z-dx*w,x+dx*bend,height,z+dz*bend);}
-   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geometry.computeVertexNormals();const tuft=new T.Mesh(geometry,materials[i%3]);verge.add(tuft);
-   if(i%11===0){const bloom=new T.Mesh(new T.IcosahedronGeometry(.055,0),this.palette.pale);bloom.position.set(x,height*.8,z);verge.add(bloom);}
-  }
-  this.merge(verge);
+
  };
  B.View.prototype.renderLook=function(game,daylight){
   this.skyDome.position.copy(this.camera.position);this.skyDome.visible=daylight>.01;

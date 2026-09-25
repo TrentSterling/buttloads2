@@ -2,7 +2,7 @@
 
 Requested by Trent, September 2026. This replaces the first playable's implementation. HANDOFF.md remains historical context; the current user request overrides its old prohibition on rewriting systems.
 
-Current local checkpoint: **2.22.0 / faces in the common**. Four rebuilt resident models and three staged workplaces address the weak conversation close-ups. The oriented cutting response and game-rendered interface remain included. Read RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md and VERIFICATION.md. The wider surface, landscape and underground art remain unfinished.
+Current local checkpoint: **2.23.0 / Ridge Common landscape**. Walkable hills, a reservoir trail, planted gardens, clustered trees and revised paths replace the flat surface presentation. Shared mesh/contact geometry and old-position recovery preserve existing mines. Read RIDGE-COMMON-ART.md, RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md and VERIFICATION.md. Underground landmarks and normal-play review remain outstanding.
 
 ## Research and design decisions
 

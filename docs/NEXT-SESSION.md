@@ -1,12 +1,12 @@
 # Buttloads 2: stopping point and next session
 
-Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.22.0; read README.md, RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md, BEAUTY-PASS.md, LANTERN-LEVIATHAN.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
+Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.23.0; read README.md, RIDGE-COMMON-ART.md, RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md, BEAUTY-PASS.md, LANTERN-LEVIATHAN.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
 
 Recorded September 24, 2026. Trent asked to finish a build with the current content, save remaining work here, and consider the current goal complete. This is a handoff, not an instruction to keep adding features unattended.
 
-## Current next work after 2.22
+## Current next work after 2.23
 
-The resident and shop pass is packaged. The broader beauty pass stays active. Prioritize the flat, empty common and its paths, planting, landscape and views at walking height. Keep shop approaches and the claim border readable. Then strengthen underground landmarks and lighting. Preserve old excavations, ownership boundaries and the in-game UI. Further enemy variety remains deferred. No browser/OS input automation; the latest full earned campaign is the 2.21 fossil route. Review RESIDENT-ART.md for actual geometry studies and their limits.
+The common landscape is packaged: hills, a walkable reservoir trail, clustered trees, gardens, paths and well paving. Shared ground/contact checks and older-position migration preserve existing claims. The broader beauty pass stays active. Prioritize underground landmarks and lighting next, particularly the first cave and major discoveries. Keep excavation readable and placed lights useful. Further enemy variety remains deferred. No browser/OS input automation; the latest full earned campaign is the 2.21 fossil route. Review RIDGE-COMMON-ART.md for the actual geometry comparisons and their limits. The current interface renders in-game, and the resident and cutting passes remain included.
 
 ## Ready for the next playthrough
 

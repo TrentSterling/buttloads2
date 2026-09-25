@@ -47,6 +47,12 @@ try{
    g.view.camera.fov=36;g.view.camera.updateProjectionMatrix();
    capture(p.id+'-portrait',[p.x+.35,.06,p.z-1.38],[p.x,1.58,p.z]);
   }
+ } else if(process.argv.includes('--common')){
+  capture('overview',[43,23,65],[0,1,29]);
+  capture('arrival',[9,.06,26],[-4,1.7,41]);
+  capture('well',[9,.06,53],[2,1.2,40]);
+  capture('ridge',[43,.06,16],[42,7,46]);
+  capture('west',[-31,(B2.COMMON?.height(-31,12)||0)+.06,12],[-43,5,25]);
  } else if(process.argv.includes('--mining')){
   for(const [i,mode] of ['cutter','scoop','lance'].entries()){
    g.expedition.state.tool=mode;

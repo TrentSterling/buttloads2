@@ -23,7 +23,7 @@ try{
   }
  });
  await test('verge plants stay off both editable claims and the town roads',()=>{
-  const v=g.view.verge;assert.ok(v.children.length);v.traverse(n=>{if(!n.isMesh)return;const a=n.geometry.attributes.position;for(let i=0;i<a.count;i++){const x=a.getX(i),z=a.getZ(i);assert.ok(!(x>-16&&x<48&&z>-16&&z<16));assert.ok(!(z>23&&x>-32&&x<31));assert.ok(!(x>-20&&x<21&&z>16&&z<23));}});
+  const v=g.view.verge;assert.ok(v.children.length);v.traverse(n=>{if(!n.isMesh)return;const a=n.geometry.attributes.position;for(let i=0;i<a.count;i++){const x=a.getX(i),z=a.getZ(i);assert.ok(!(x>-16&&x<48&&z>-16&&z<16));assert.ok(!(z>23&&z<60&&x>-32&&x<31));assert.ok(!(x>-20&&x<21&&z>16&&z<23));assert.ok(B.COMMON.pathDistance(x,z)>1,'plant overlaps a route shoulder');}});
  });
  await test('distinct cave formations disappear when their terrain support is excavated',()=>{
   const types=new Set(g.view.caveGrowth.map(n=>n.root.userData.formation));assert.ok(types.has('lantern-cap'));assert.ok(types.has('chalk-roots'));assert.ok(types.has('mineral-cluster'));

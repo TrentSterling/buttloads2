@@ -2,6 +2,33 @@
 'use strict';
 (function (B) {
   const SURFACE = Object.freeze({ minX: -58, maxX: 58, minZ: -50, maxZ: 68, maxY: 48 });
+  // Common land is independent of the saved excavation. Rendering and contact use
+  // the same triangulated two-metre grid; protected roads and field joins stay level.
+  const smooth=(a,b,v)=>{const t=B.clamp((v-a)/(b-a),0,1);return t*t*(3-2*t);};
+  const rectDistance=(x,z,a,b,c,d)=>Math.hypot(Math.max(a-x,0,x-c),Math.max(b-z,0,z-d));
+  const paths=[
+    {points:[[10,22],[10,64]],width:4.4}, {points:[[-18,29.5],[28,29.5]],width:3.8},
+    {points:[[-28,49],[10,49]],width:2.5}, {points:[[21,4],[48,4]],width:3},
+    {points:[[-52,-4],[-21,-4]],width:3}, {points:[[0,-48],[0,-21]],width:3},
+    {points:[[-9,29.5],[-9,31.6]],width:2.3}, {points:[[19,29.5],[19,32.6]],width:2.3},
+    {points:[[48,4],[52,13],[48,24],[45,33],[42,42],[42,48]],width:1.8,trail:true}
+  ];
+  function segmentDistance(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],t=B.clamp(((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz),0,1);return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);}
+  function pathDistance(x,z){let d=Infinity;for(const p of paths)for(let i=1;i<p.points.length;i++)d=Math.min(d,segmentDistance(x,z,p.points[i-1],p.points[i])-p.width/2);return d;}
+  function rawHeight(x,z){
+    const protectedFade=smooth(0,8,Math.min(rectDistance(x,z,-23,-23,51,24),rectDistance(x,z,-33,23,31,59)));
+    if(!protectedFade)return 0;
+    let h=0;for(const [cx,cz,rise,spread] of [[-43,23,5.7,17],[45,47,6.5,17],[-37,-39,4.8,20],[27,-41,4.2,18],[-9,76,4,20]])h+=rise*Math.exp(-((x-cx)**2+(z-cz)**2)/(spread*spread));
+    const radius=Math.hypot(x,z-8),far=smooth(62,102,radius);
+    h+=far*(10+5*Math.sin(x*.058+z*.033)+3*Math.cos(z*.092-x*.036));
+    let roadFade=1;for(const p of paths)if(!p.trail)for(let i=1;i<p.points.length;i++)roadFade=Math.min(roadFade,smooth(p.width/2+1,p.width/2+7,segmentDistance(x,z,p.points[i-1],p.points[i])));
+    return h*protectedFade*roadFade;
+  }
+  const commonHeights=new Map();
+  function grid(x,z){const key=x+','+z;if(!commonHeights.has(key))commonHeights.set(key,rawHeight(x*2,z*2));return commonHeights.get(key);}
+  function height(x,z){const ix=Math.floor(x/2),iz=Math.floor(z/2),u=x/2-ix,v=z/2-iz,a=grid(ix,iz),d=grid(ix+1,iz+1);return u>v?a*(1-u)+grid(ix+1,iz)*(u-v)+d*v:a*(1-v)+grid(ix,iz+1)*(v-u)+d*u;}
+  const COMMON={paths,height,pathDistance,outside:(x,z)=>x< -16.25||x>47.75||z< -16.25||z>15.75,
+    planting:(x,z,r=0)=>rectDistance(x,z,-24-r,-24-r,50+r,24+r)>0&&pathDistance(x,z)>1.3+r&&!(x>-34-r&&x<32+r&&z>22-r&&z<60+r)};
   const PEOPLE = Object.freeze([
     { id: 'mara', name: 'Mara Vale', role: 'General supplies', shop: 'VALE SUPPLY', x: -9, z: 37.4, color: '#d39269', coat: '#426e65', skin: '#b87750' },
     { id: 'otis', name: 'Otis Bell', role: 'Machinery & modifications', shop: 'BELL WORKS', x: 19, z: 38.4, color: '#e5b45d', coat: '#b46c40', skin: '#d7ac7e' },
@@ -111,5 +138,5 @@
       return s.expedition.recovered.includes(0) ? 'Crane docks need open ground below the surface. Hold T to find a spot. The cage needs a clear shaft all the way up. An orange marker shows the rock holding it back.' : 'Expose the survey flywheel on every side before attaching your tether with E. It is wider than you are. Cut a route that fits the machine, then lift it home with Space.';
     }
   }
-  Object.assign(B, { SURFACE, Town, TOWN: { people: PEOPLE, buildings: BUILDINGS, walls, fences: FENCES, blockedLine } });
+  Object.assign(B, { SURFACE, COMMON, Town, TOWN: { people: PEOPLE, buildings: BUILDINGS, walls, fences: FENCES, blockedLine } });
 })(B2);

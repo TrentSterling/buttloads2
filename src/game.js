@@ -49,6 +49,12 @@
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
       this.expedition.structureTarget = (head,dir,reach) => this.kinetics.pulseTarget(head,dir,reach);
       this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer(), ...this.fossil.obstacles()];
+      // Older common-land saves stood on a flat plane. Raise those positions to
+      // the new shared surface when the capsule fits, preserving their location.
+      if (data && B.COMMON.outside(this.player.x,this.player.z) && this.player.y>=-.1 && this.player.y<B.COMMON.height(this.player.x,this.player.z)) {
+        const y=B.COMMON.height(this.player.x,this.player.z)+.16;
+        if(!this.player.blocked(this.player.x,y,this.player.z))this.player.teleport(this.player.x,y,this.player.z);
+      }
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
       this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(this); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.makeParcel(this); this.view.makeFossil(this); this.view.resize();

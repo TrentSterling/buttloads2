@@ -17,7 +17,7 @@
       this.terrainMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
       this.terrain = new T.Group(); this.resources = new T.Group(); this.discovery = new T.Group(); this.scene.add(this.terrain, this.resources, this.discovery);
       this.palette = { dirt: material('#aa8c60'), grass: material('#919c59'), dark: material('#263434'), metal: material('#70817f', .5), steel: material('#b5bcb3', .65), yellow: material('#efb645'), red: material('#a85638'), wood: material('#726344'), leaf: material('#697e48'), black: material('#182321'), concrete: material('#b9b3a0'), pale: material('#d9d1ac') };
-      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.gameUI = new B.GameUI(this,canvas); this.resize();
+      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeCommon(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.gameUI = new B.GameUI(this,canvas); this.resize();
     }
     box(group, x, y, z, sx, sy, sz, mat, rotation = 0) {
       const m = new T.Mesh(new T.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.rotation.y = rotation; m.castShadow = m.receiveShadow = true; group.add(m); return m;
@@ -38,9 +38,7 @@
       const box = (...args) => this.box(g, ...args), cylinder = (...args) => this.cylinder(g, ...args);
       // Four strips; there is deliberately no uneditable floor under the claim.
       // Surface Nets averages flat cells at sample + .25. Join the actual mesh border.
-      this.surfaceGround = [];
-      const ground=(x0,z0,x1,z1)=>this.surfaceGround.push(box((x0+x1)/2,-.2,(z0+z1)/2,x1-x0,.4,z1-z0,p.grass));
-      ground(-134,15.75,134,134); ground(-134,-134,134,-16.25); ground(-134,-16.25,-16.25,15.75); ground(47.75,-16.25,134,15.75);
+      this.makeCommonGround();
       // Raised apron: its top no longer shares the grass plane at y=0.
       box(0, -.045, 18.8, 40, .16, 5.6, p.concrete);
       for (let i = -14; i <= 14; i += 2) for (const z of [-14.1, 14.1]) { const b = box(i, .045, z, .9, .08, .16, i % 4 === 0 ? p.yellow : p.black); }
@@ -72,17 +70,6 @@
       this.sign(g, 'CLAIM 02', 'KEEP GOING DOWN', 10.25, 3.1, 15.28, 3.2, .9);
       for (const x of [-17, 17]) { cylinder(x, 4.7, -18, .15, .2, 9.4, p.wood); box(x, 8.5, -18, 2.5, .16, .15, p.wood); }
       for (const dx of [-.8, .8]) { const curve = new T.CatmullRomCurve3([new V(-17 + dx, 8.6, -18), new V(dx, 6.6, -18), new V(17 + dx, 8.6, -18)]); g.add(new T.Mesh(new T.TubeGeometry(curve, 20, .028, 4, false), p.black)); }
-      const rng = B.random(663);
-      for (let i = 0; i < 48; i++) {
-        const a = rng() * Math.PI * 2, r = 28 + rng() * 48, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 3 + rng() * 5;
-        if (z > 23 && x > -32 && x < 31 || Math.abs(z - 4) < 3 || Math.abs(z + 4) < 3 || Math.abs(x) < 3) continue;
-        if(x>16 && x<48 && z>-16 && z< -2){for(let j=0;j<15;j++)rng();continue;}
-        if (x > B.SURFACE.minX && x < B.SURFACE.maxX && z > B.SURFACE.minZ && z < B.SURFACE.maxZ) this.obstacles.push([x - .24, 0, z - .24, x + .24, h * .9, z + .24]);
-        cylinder(x, h * .45, z, .13, .27, h * .9, p.wood, 7);
-        for (let j = 0; j < 3; j++) { const m = new T.Mesh(new T.IcosahedronGeometry(1, 0), [p.leafLight,p.leaf,p.leafShade][j]); m.scale.set(2.2 + rng(), 2 + rng(), 2 + rng()); m.position.set(x + (rng() - .5) * 2, h - j * .5, z + (rng() - .5) * 2); m.castShadow = true; g.add(m); }
-      }
-      const mountain = material('#8b9d90');
-      for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2, h = 12 + rng() * 17; const m = new T.Mesh(new T.ConeGeometry(22 + rng() * 14, h, 5), mountain); m.position.set(Math.cos(a) * 110, h * .5 - 3, Math.sin(a) * 110); m.rotation.y = rng() * 6; g.add(m); }
       this.merge(g); this.renderer.shadowMap.needsUpdate = true;
     }
     merge(group) {

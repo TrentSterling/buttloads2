@@ -1,12 +1,14 @@
 # BUTTLOADS 2: The Deepening
 
-**Faces in the common, local 2.22.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Ridge Common landscape, local 2.23.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), the lantern discovery in [docs/LANTERN-LEVIATHAN.md](docs/LANTERN-LEVIATHAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Ridge Common now sits between walkable rises. Follow the winding eastern path to a timber reservoir, pass clustered trees and gardens, and return through a stone-paved well square. Shared ground geometry and collision preserve both excavations; older saves on raised common land relocate safely. See [docs/RIDGE-COMMON-ART.md](docs/RIDGE-COMMON-ART.md) for before/after views and verification.
 
 - Rebuilt Mara, Otis, Inez and Nell with shaped faces, articulated arms and hands, tailored clothing and distinct accessories. Otis's goggles now rest on his cap. Shops have dark backboards, cupboards, recognizable stock, working-bench props and warm counter lighting. Saved mines, roles and unlocks remain intact. See [docs/RESIDENT-ART.md](docs/RESIDENT-ART.md) for comparisons and verification. All 294 system checks pass.
 

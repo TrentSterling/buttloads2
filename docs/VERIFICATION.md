@@ -1,5 +1,29 @@
 # Remake verification
 
+## Ridge Common landscape, local 2.23.0
+
+```text
+node tools/test.mjs
+COMPLETE 301 system checks passed
+
+node tools/test-common.mjs
+COMPLETE 7 common checks passed
+
+python tools/verify-beauty-shaders.py
+PASS actual expanded Three.js terrain vertex + fragment stages compile and link
+
+node tools/build.mjs
+Standalone build: dist/index.html (1168 KiB)
+PASS standalone: 54 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate receipt is `tools/out/verification-2.23.log`. The seven added cases compare 450 rendered mesh hits with production density, preserve level mine/parcel joins and shop foundations, walk from the claim gate up the complete reservoir trail and back without lift, verify protected ground and scenery collision, relocate an older flat-ground save at the same X/Z position, and retain exact field/economy/ore state. The production walking capsule reaches 6.28 m above the old plane. Existing door, transaction, save and 80-ray mine seam checks remain in the aggregate suite.
+
+Five before/after camera views were exported with `node tools/export-beauty.mjs common-223 --common` and rendered using `python tools/render-beauty.py common-223` on the RTX 5070 Ti. These use actual geometry and the normal 72-degree field of view. The adapter has approximate lighting and omits mapped sign text. Its results do not certify final browser appearance, performance or enjoyment. RIDGE-COMMON-ART.md records the implementation, images and limits.
+
+The portable file is 1,196,384 bytes. No browser interaction, pointer capture or OS input was used. The latest earned campaign is still the 2.21 fossil journey; this surface checkpoint did not rerun it. The published site remains 2.8.0.
+
+
 ## Faces in the common, local 2.22.0
 
 ```text

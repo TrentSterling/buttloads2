@@ -17,7 +17,7 @@
       this.terrainMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
       this.terrain = new T.Group(); this.resources = new T.Group(); this.discovery = new T.Group(); this.scene.add(this.terrain, this.resources, this.discovery);
       this.palette = { dirt: material('#aa8c60'), grass: material('#919c59'), dark: material('#263434'), metal: material('#70817f', .5), steel: material('#b5bcb3', .65), yellow: material('#efb645'), red: material('#a85638'), wood: material('#726344'), leaf: material('#697e48'), black: material('#182321'), concrete: material('#b9b3a0'), pale: material('#d9d1ac') };
-      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.resize();
+      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.gameUI = new B.GameUI(this,canvas); this.resize();
     }
     box(group, x, y, z, sx, sy, sz, mat, rotation = 0) {
       const m = new T.Mesh(new T.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.rotation.y = rotation; m.castShadow = m.receiveShadow = true; group.add(m); return m;
@@ -37,7 +37,10 @@
       const g = new T.Group(), p = this.palette; this.scene.add(g);
       const box = (...args) => this.box(g, ...args), cylinder = (...args) => this.cylinder(g, ...args);
       // Four strips; there is deliberately no uneditable floor under the claim.
-      box(0, -.2, 75, 200, .4, 118, p.grass); box(0, -.2, -75, 200, .4, 118, p.grass); box(-75, -.2, 0, 118, .4, 32, p.grass); box(91, -.2, 0, 86, .4, 32, p.grass);
+      // Surface Nets averages flat cells at sample + .25. Join the actual mesh border.
+      this.surfaceGround = [];
+      const ground=(x0,z0,x1,z1)=>this.surfaceGround.push(box((x0+x1)/2,-.2,(z0+z1)/2,x1-x0,.4,z1-z0,p.grass));
+      ground(-134,15.75,134,134); ground(-134,-134,134,-16.25); ground(-134,-16.25,-16.25,15.75); ground(47.75,-16.25,134,15.75);
       // Raised apron: its top no longer shares the grass plane at y=0.
       box(0, -.045, 18.8, 40, .16, 5.6, p.concrete);
       for (let i = -14; i <= 14; i += 2) for (const z of [-14.1, 14.1]) { const b = box(i, .045, z, .9, .08, .16, i % 4 === 0 ? p.yellow : p.black); }
@@ -170,7 +173,7 @@
       const cable = new T.CatmullRomCurve3([new V(-.11, -.08, .13), new V(-.2, -.27, .08), new V(-.17, -.3, -.16), new V(-.06, -.09, -.2)]); this.tool.add(new T.Mesh(new T.TubeGeometry(cable, 12, .014, 5), p.black));
     }
     makeParticles() { this.makeFeedback(); }
-    resize() { this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.settings.quality)); this.renderer.setSize(innerWidth, innerHeight); this.camera.aspect = this.toolCamera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.toolCamera.updateProjectionMatrix(); }
+    resize() { this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.settings.quality)); this.renderer.setSize(innerWidth, innerHeight); this.camera.aspect = this.toolCamera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.toolCamera.updateProjectionMatrix(); this.gameUI?.resize(); }
     render(game, dt, time) {
       const p = game.player, title = game.screen === 'title';
       if (title) { this.camera.position.set(25 + Math.sin(time * .04) * 2, 19, 29); this.camera.lookAt(-1, -1, 0); }
@@ -190,7 +193,8 @@
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);
-      if (!title && game.ready) { this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.toolScene, this.toolCamera); }
+      if (!title && game.ready && game.screen !== 'town') { this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.toolScene, this.toolCamera); }
+      this.gameUI.render(game,dt);
     }
   }
   B.View = View;

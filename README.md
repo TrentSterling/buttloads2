@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**Bell Works finish, local 2.19.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Field instruments, local 2.20.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), the lantern discovery in [docs/LANTERN-LEVIATHAN.md](docs/LANTERN-LEVIATHAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- Visible UI now renders inside the game through Three.js: analog depth/cargo instruments, an illustrated tool case, ruled merchant ledgers, field notes, survey plan/profile and every menu. Mouse, keyboard and touch controls use the game canvas. See [docs/GAME-INTERFACE.md](docs/GAME-INTERFACE.md) for the implementation, actual paint studies and limits.
+- Fixed the quarter-metre opening between the mine mesh and common land. Full-depth save exports now pass the import button's size limit. All 276 system checks pass. The wider visual and digging-feel pass remains unfinished; this is a local UI checkpoint.
 
 - A visual pass replaces the coarse terrain checker grain with mineral variation, sediment bands and surface relief. A warm horizon, broader town shadows, varied tree canopies and common-land plants give the surface more character. Shops have full weatherboards, corner trim and side windows.
 - The cutter has a beveled casing, helical bit, gauge ticks and worn paint. Cave formations vary between lantern caps, chalk roots and mineral clusters, with the existing support-removal behavior. The pass preserves terrain, ore and progression. See [docs/BEAUTY-PASS.md](docs/BEAUTY-PASS.md) for changes and labeled offline visual studies.

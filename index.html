@@ -5,17 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#172523">
   <meta name="author" content="Trent Sterling (Tront)">
-  <meta name="application-version" content="2.19.0">
+  <meta name="application-version" content="2.20.0">
   <meta name="description" content="Dig a fortune out of your backyard. A first-person mining game with editable terrain, mineral veins, equipment upgrades and something buried far below. By Tront.">
   <meta property="og:type" content="website"><meta property="og:title" content="BUTTLOADS 2: The Deepening">
   <meta property="og:description" content="Start with a drill. End with a god complex. Dig, sell, upgrade, and find what is listening below.">
   <meta property="og:url" content="https://tront.xyz/buttloads2/"><meta property="og:image" content="https://tront.xyz/buttloads2/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <title>BUTTLOADS 2: The Deepening / Tront</title>
-  <link rel="stylesheet" href="src/style.css"><link rel="stylesheet" href="src/fieldkit.css"><link rel="stylesheet" href="src/town.css"><link rel="stylesheet" href="src/combat.css">
+  <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0e1b21}#view{display:block;width:100%;height:100%;outline:none;touch-action:none}#ui-model{display:none!important}</style>
 </head>
 <body class="in-menu">
   <canvas id="view" tabindex="0" aria-label="First-person mining game. WASD move, mouse look, hold left mouse to dig, Space lift, E interact, F scan, hold R recall."></canvas>
+  <!-- Transaction/control model only. The game canvas renders every visible interface. -->
+  <div id="ui-model" hidden inert aria-hidden="true">
   <div id="hud" hidden>
     <header class="hud topbar"><div class="brand">BUTTLOADS <b>2</b><span id="layer">TOPSOIL</span></div><div class="top-actions"><button id="survey-button">Survey <kbd>M</kbd></button><button id="journal-button">Field notes <kbd>J</kbd></button><button id="menu-button">Menu <kbd>Esc</kbd></button></div></header>
     <div class="hud mission"><span id="mission-label">FIRST HAUL</span><strong id="mission">Cut into the copper seam ahead</strong></div>
@@ -52,8 +54,6 @@
   <section class="screen modal-screen" id="foreman-screen" hidden aria-label="Foreman defeated"><div class="panel discovery-panel"><span class="eyebrow">POWER TO THE COMMON</span><h2>The furnace belongs to you.</h2><p>The pressure locks fall silent. A current runs up through the old stations, under the road and into Ridge Common. For the first time in years, the well shines.</p><div id="foreman-stats" class="journal-stats"></div><p><strong>Foundry bore unlocked.</strong> Press Z underground to melt a 12 m passage. Six seconds to cool. No charges spent, no minerals destroyed.</p><p>The town pays $5,000 for bringing its power home. Your mine, equipment and discoveries stay yours.</p><button class="primary" data-resume>Keep shaping the mine</button></div></section>
   <div id="touch-controls" hidden><div id="joystick"><span></span></div><div class="touch-actions"><button id="touch-tool">Tool</button><button id="touch-bomb">Charge</button><button id="touch-charge-mode" hidden>Charge type</button><button id="touch-detonate" hidden>Detonate</button><button id="touch-freight" hidden>Crane</button><button id="touch-light">Light</button><button id="touch-anchor">Anchor</button><button id="touch-foundry" hidden>Foundry bore</button><button id="touch-rift">Rift</button><button id="touch-scan">Scan</button><button id="touch-use">Use</button><button id="touch-lift">Lift</button><button class="primary" id="touch-cut">Cut</button></div><button id="touch-recall">Hold to recall</button></div>
   <div id="loading" class="loading"><strong>BUTTLOADS 2</strong><span id="loading-message">Building the ground beneath you…</span><progress id="loading-progress" max="1" value="0"></progress></div>
-  <input type="file" id="import-file" accept=".json,application/json" hidden>
-  <noscript>Enable JavaScript to play Buttloads 2.</noscript>
   <section class="screen modal-screen" id="rescue-screen" hidden aria-labelledby="rescue-title"><div class="panel discovery-panel"><span class="eyebrow">SURVEY BELL / INTERCOM</span><h2 id="rescue-title">Inez Rook. Still here.</h2><p>"The roof came down. The safety brake held. Then the battery died. Your work-light cell will run the winch, if you can clear a shaft above me. Please leave the brake where it is."</p><p id="rescue-status" aria-live="polite"></p><button class="primary" id="rescue-control">Fit cell &amp; raise bell</button><button data-resume>Back to digging</button><p>One work light powers the rescue. The bell stops against rock and equipment. Stand beside it, then cut at the orange obstruction marker.</p></div></section>
   <section class="screen" id="town-screen" hidden aria-labelledby="town-name"><div class="town-panel" id="town-panel">
     <header class="town-heading"><div class="resident-mark" id="town-initial" aria-hidden="true">MV</div><div><p class="eyebrow" id="town-role">General supplies</p><h2 id="town-name">Mara Vale</h2></div><button id="town-close">Back <kbd>Esc</kbd></button></header>
@@ -61,10 +61,13 @@
     <nav class="town-topics" aria-label="Conversation"><button id="town-news">About the mine</button><button id="town-advice">Any advice?</button></nav>
     <div class="town-ledger"><strong id="town-money">$0</strong><span id="town-stock"></span></div><div class="town-services" id="town-services"></div>
   </div></section>
+  </div>
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+  <noscript>Enable JavaScript to play Buttloads 2.</noscript>
   <script src="vendor/three.min.js"></script>
   <script src="src/core.js"></script><script src="src/town.js"></script><script src="src/caverns.js"></script><script src="src/deep-terrain.js"></script>
   <script src="src/parcels.js"></script><script src="src/mesher.js"></script><script src="src/world.js"></script><script src="src/player.js"></script><script src="src/ore.js"></script><script src="src/expedition.js"></script><script src="src/refuges.js"></script><script src="src/deep.js"></script><script src="src/combat.js"></script><script src="src/foreman.js"></script><script src="src/rescue.js"></script><script src="src/crawlers.js"></script><script src="src/kinetics.js"></script><script src="src/fossil.js"></script><script src="src/actions.js"></script><script src="src/gadgets.js"></script><script src="src/thunderstone.js"></script><script src="src/freight.js"></script><script src="src/mysteries.js"></script><script src="src/survey.js"></script><script src="src/persistence.js"></script><script src="src/feedback.js"></script><script src="src/audio.js"></script><script src="src/fieldkit.js"></script><script src="src/town-ui.js"></script><script src="src/render.js"></script><script src="src/beauty.js"></script><script src="src/scenery.js"></script><script src="src/ruins.js"></script><script src="src/crane.js"></script><script src="src/feedback-view.js"></script><script src="src/thunderstone-view.js"></script><script src="src/town-view.js"></script><script src="src/cavern-view.js"></script><script src="src/combat-view.js"></script><script src="src/deep-view.js"></script><script src="src/foreman-view.js"></script><script src="src/rescue-view.js"></script><script src="src/crawler-view.js"></script><script src="src/kinetic-view.js"></script>
-  <script src="src/parcel-view.js"></script><script src="src/fossil-view.js"></script><script src="src/game.js"></script>
+  <script src="src/parcel-view.js"></script><script src="src/fossil-view.js"></script><script src="src/game-ui.js"></script><script src="src/game.js"></script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"BUTTLOADS 2: The Deepening","url":"https://tront.xyz/buttloads2/","description":"A first-person mining game: excavate mineral veins, sell your haul, upgrade equipment, and follow a buried signal.","author":{"@type":"Person","name":"Trent Sterling","alternateName":"Tront","url":"https://tront.xyz/"},"isAccessibleForFree":true,"genre":"Mining","playMode":"SinglePlayer","gamePlatform":"Web browser","image":"https://tront.xyz/buttloads2/og-image.png"}</script>
 </body>
 </html>

@@ -6,7 +6,7 @@
     if(this.parcelScene){const mats=new Set();this.parcelScene.traverse(n=>{n.geometry?.dispose();if(n.material&&!Object.values(p).includes(n.material))mats.add(n.material);});for(const m of mats){m.map?.dispose();m.dispose();}this.scene.remove(this.parcelScene);}
     const root=this.parcelScene=new T.Group();this.scene.add(root);
     const owned=!!game.world.parcelVersion,box=(...a)=>this.box(root,...a);
-    this.parcelCap=box(32,-.2,0,32,.4,32,p.grass);this.parcelCap.visible=!owned;
+    this.parcelCap=box(31.75,-.2,-.25,32,.4,32,p.grass);this.parcelCap.visible=!owned;
     for(let z=-14;z<=14;z+=2)if(!owned || z>=-2)box(14.1,.045,z,.16,.08,.9,z%4===0?p.yellow:p.black);
     for(let x=16;x<=46;x+=2)for(const z of [-14.1,-1.9])box(x,.05,z,.9,.08,.16,owned?(x%4===0?p.yellow:p.black):p.pale);
     for(let z=-14;z<=-2;z+=2)box(46.1,.05,z,.16,.08,.9,owned?p.yellow:p.pale);

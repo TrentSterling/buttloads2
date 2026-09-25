@@ -12,7 +12,7 @@
     }
     async boot() {
       try {
-        this.view = new B.View($('view'), this.settings);
+        this.view = new B.View($('view'), this.settings); this.view.gameUI.attach(this);
         let data;
         try { const saved = await this.store.read(); if (saved) data = B.Saves.validate(saved); }
         catch (error) { this.toast('Local save unavailable: ' + error.message, 6500); $('save-status').textContent = 'Use Export save to keep your claim.'; }
@@ -28,7 +28,7 @@
           if (this.player) this.view.render(this, dt, visualTime);
         };
         requestAnimationFrame(frame);
-      } catch (error) { console.error(error); $('loading').hidden = false; $('loading-message').textContent = 'Could not start: ' + error.message; }
+      } catch (error) { console.error(error); $('loading').hidden = false; $('loading-message').textContent = 'Could not start: ' + error.message; this.view?.gameUI?.present(); }
     }
     async install(data) {
       $('loading').hidden = false; $('loading-progress').value = 0;
@@ -36,7 +36,7 @@
       world.deepOpen = !!state.expedition.deep?.open;
       if (data) world.installField(data.field, data.depthVersion);
       if(data?.parcelVersion)world.installParcelField(data.parcelField);
-      await world.build(progress => { $('loading-progress').value = progress; });
+      await world.build(progress => { $('loading-progress').value = progress; if(this.view.gameUI && (!this.uiLoadAt || performance.now()-this.uiLoadAt>100)){this.uiLoadAt=performance.now();this.view.gameUI.present();} });
       if (!data) world.carve({ x: 0, y: -.12, z: 7 }, 1.35);
       const deposits = B.generateDeposits(state.seed, world.depthVersion, world.parcelVersion), collected = new Set(data?.collected || []);
       for (const node of deposits.nodes) node.collected = collected.has(node.id);
@@ -438,7 +438,7 @@
       if (name) $('field-tip').hidden = true;
       $('hud').hidden = name === 'title'; $('touch-controls').hidden = !this.running || !matchMedia('(pointer:coarse)').matches;
       if (name && document.pointerLockElement) document.exitPointerLock();
-      if (name) { const screen = $(name + '-screen'); requestAnimationFrame(() => screen?.querySelector('button:not([disabled])')?.focus({ preventScroll: true })); }
+      if (this.view?.gameUI) { this.view.gameUI.dirty=true; this.view.gameUI.releaseHolds(); } else if (name) { const screen = $(name + '-screen'); requestAnimationFrame(() => screen?.querySelector('button:not([disabled])')?.focus({ preventScroll: true })); }
     }
     play() {
       if (!this.ready) return;
@@ -488,7 +488,7 @@
       $('new-button').onclick = () => this.setScreen('confirm'); $('confirm-cancel').onclick = () => this.setScreen('pause'); $('confirm-new').onclick = () => this.newClaim();
       for (const id of ['export-button', 'ending-export', 'confirm-export']) $(id).onclick = () => this.export();
       $('import-button').onclick = () => $('import-file').click();
-      $('import-file').onchange = async () => { const file = $('import-file').files[0]; if (!file) return; try { if (file.size > 6000000) throw new Error('Save exceeds 6 MB.'); await this.import(JSON.parse(await file.text())); } catch (e) { this.toast('Could not import: ' + e.message, 6500); } finally { $('import-file').value = ''; } };
+      $('import-file').onchange = async () => { const file = $('import-file').files[0]; if (!file) return; try { if (file.size > 32 * 1024 * 1024) throw new Error('Save exceeds 32 MB.'); await this.import(JSON.parse(await file.text())); } catch (e) { this.toast('Could not import: ' + e.message, 6500); } finally { $('import-file').value = ''; } };
       for (const key of ['sound', 'tips', 'motion', 'sensitivity', 'quality']) $(key + '-setting').oninput = e => { this.settings[key] = e.target.type === 'checkbox' ? e.target.checked : +e.target.value; this.changed(); if (key === 'quality') this.view.resize(); if (key === 'sound') this.audio.start(); this.fieldKit.sync(); };
       window.addEventListener('resize', () => this.view?.resize());
       $('view').addEventListener('webglcontextlost', e => { e.preventDefault(); this.setScreen('pause'); this.save(); this.toast('Graphics context lost. Your claim was saved; reload to continue.', 15000); });

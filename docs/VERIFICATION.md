@@ -1,5 +1,26 @@
 # Remake verification
 
+## Field instruments, local 2.20.0
+
+```text
+node tools/test.mjs
+COMPLETE 276 system checks passed
+
+node tools/test-interface.mjs
+COMPLETE 10 interface checks passed
+
+node tools/export-interface.mjs
+Actual canvas painting exported for desktop, laptop, touch and late-game notes
+
+node tools/build.mjs
+PASS standalone: 49 scripts compile; no external scripts or stylesheets.
+```
+
+The full log is `tools/out/verification-2.20-final.log`. Focused post-review checks are in `tools/out/interface-checks-2.20.log`. The suite exercises real canvas control actions through inert input, guarded shop transactions, equipment selection, map projections, settings, touch cancellation, all menu/page bounds, 80 terrain-border rays and a greater-than-6-MB exported save through the import-file handler. The latter reproduces and fixes the prior import-size bug. Save schema and terrain fields are unchanged.
+
+Actual canvas paints were inspected at desktop and phone sizes, including a populated late-game journal. The HUD and case studies use an approximate offline 3D backdrop; they are not browser screenshots. Human input, final WebGL compositing, browser file pickers, frame rate and enjoyment remain unverified. The previous 2.18 earned campaign remains the latest full campaign receipt; this UI checkpoint did not rerun that campaign. No browser or OS input automation was used. GAME-INTERFACE.md records architecture, coverage and continued priorities.
+
+
 ## Bell Works finish, local 2.19.0
 
 The visual pass changes terrain shading and grass vertex color, the sky and sunlight coverage, foliage, building detail, the held cutter and cave formations. It does not change generation, density, mineral identity, rewards, combat values or save schema. The published site remains 2.8.0.

@@ -61,6 +61,11 @@
       for (let z = 0; z < N; z++) for (let x = 0; x < this.columns; x++) {if(x>=32 && d>=LEVELS)continue; const id = cell(x, d, z); if (!this.cells.has(id)) continue; const p = point(id); out[x + z * this.columns] = this.world.density(p.x, p.y, p.z) >= 0 ? 2 : 1; }
       return out;
     }
+    profileColumns() {
+      const columns=new Set();
+      for(const id of this.cells){const q=point(id);if(this.world.density(q.x,q.y,q.z)>=0)columns.add(Math.floor(q.x+16)+Math.floor(-q.y)*this.columns);}
+      return [...columns];
+    }
     markers(game) {
       const markers = this.sites().filter(s => this.knownSites.has(s.key));
       for (const id of this.state.expedition.mysteries?.known || []) { const m = B.MYSTERIES[id]; if (!this.state.expedition.mysteries.solved.includes(id)) markers.push({ ...m, type: 'mystery' }); }
@@ -99,8 +104,7 @@
       const p = xy(game.player), visible = Math.abs(-game.player.head.y - d) < 3;
       map += `<g transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(-game.player.yaw * 180 / Math.PI).toFixed(2)})" opacity="${visible ? 1 : .4}"><path d="M0 -13L9 10L0 6L-9 10Z" fill="#ffffff" stroke="#142620" stroke-width="2"/></g></svg>`;
       // Vertical profile projects only surveyed air, so it cannot reveal untouched caves.
-      const columns = new Set();
-      for (const id of this.cells) { const q = point(id); if (this.world.density(q.x, q.y, q.z) >= 0) columns.add(Math.floor(q.x+16)+Math.floor(-q.y)*cols); }
+      const columns = this.profileColumns();
       const scale = 370 / (this.maxDepth + 1);
       let profile = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 328 424" role="img" aria-label="East to west profile of explored passages"><rect width="328" height="424" fill="#101b1b"/>';
       for (const c of B.STRATA.filter(c => c.depth <= this.maxDepth)) { const y = 22 + c.depth * scale; profile += `<path d="M34 ${y}H310" stroke="${c.color}" opacity=".22"/><text x="3" y="${y + 4}" fill="#9cafa5" font-family="Consolas,monospace" font-size="10">${c.depth}m</text>`; }

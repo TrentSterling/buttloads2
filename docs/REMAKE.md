@@ -2,6 +2,8 @@
 
 Requested by Trent, September 2026. This replaces the first playable's implementation. HANDOFF.md remains historical context; the current user request overrides its old prohibition on rewriting systems.
 
+Current local checkpoint: **2.20.0 / field instruments**. Visible UI is game-rendered; terrain-border and full-depth import fixes ship alongside it. Read GAME-INTERFACE.md and VERIFICATION.md. Trent's 2.19 play review makes character/environment art and ordinary digging feel the next priorities.
+
 ## Research and design decisions
 
 ### Bell Works finish (local 2.19.0)

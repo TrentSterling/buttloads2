@@ -65,7 +65,7 @@ try {
     assert.deepEqual(g.town.state.met, ['mara']); assert.deepEqual(g.town.state.heard, ['mara:hello']);
     atCounter('mara'); g.use(); assert.deepEqual(g.town.state.heard, ['mara:hello']);
     assert.match(h.elements.get('town-dialogue').textContent, /Mara/); assert.equal(buttons().length, 5); assert.ok(button('Eastcut deed').disabled);
-    let prevented = false; h.handlers.get('keydown')({ code: 'Tab', preventDefault() { prevented = true; } }); assert.equal(prevented, false); assert.equal(g.screen, 'town');
+    let prevented = false; h.handlers.get('keydown')({ code: 'Tab', preventDefault() { prevented = true; } }); assert.equal(prevented, true); assert.equal(g.screen, 'town'); // Canvas menus own Tab navigation.
   });
   await test('Mara sells real supplies atomically and pays the existing mineral ledger once', () => {
     g.economy.state.cash = 56; g.townUI.refresh(); const s = g.gadgets.state.supplies, before = { ...s };

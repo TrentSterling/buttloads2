@@ -78,9 +78,12 @@ for file in ROOT.glob('*.json'):
  vao.render()
  world_image=Image.frombytes('RGBA',(W,H),fbo.read(components=4)).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
  tool_fbo=ctx.simple_framebuffer((W,H),components=4);tool_fbo.use();tool_fbo.clear(0,0,0,0,depth=1)
- tbuf=ctx.buffer((ROOT/(data['name']+'-tool.bin')).read_bytes());tvao=ctx.vertex_array(program,[(tbuf,'3f 3f 3f 3f 3f','in_pos','in_normal','in_color','in_emit','in_meta')]);uniform(program,'tool',True);uniform(program,'eye',[0,0,0]);uniform(program,'camera',matrix(data['toolCamera']));tvao.render()
+ tbuf=tvao=None
+ if data['toolVertices']:
+  tbuf=ctx.buffer((ROOT/(data['name']+'-tool.bin')).read_bytes());tvao=ctx.vertex_array(program,[(tbuf,'3f 3f 3f 3f 3f','in_pos','in_normal','in_color','in_emit','in_meta')]);uniform(program,'tool',True);uniform(program,'eye',[0,0,0]);uniform(program,'camera',matrix(data['toolCamera']));tvao.render()
  tool_image=Image.frombytes('RGBA',(W,H),tool_fbo.read(components=4)).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
  Image.alpha_composite(world_image,tool_image).save(ROOT/(data['name']+'.png'));tool_fbo.release()
  print(data['name']+': '+str(data['vertices']//3)+' triangles rendered on '+ctx.info['GL_RENDERER'])
- for obj in [tvao,tbuf,vao,svao,buf,sp,program,fbo,color,sfbo,depth]:obj.release()
+ for obj in [tvao,tbuf,vao,svao,buf,sp,program,fbo,color,sfbo,depth]:
+  if obj is not None:obj.release()
 ctx.release()

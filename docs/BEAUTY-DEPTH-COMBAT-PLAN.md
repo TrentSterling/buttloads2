@@ -10,6 +10,8 @@ Motherload's Mr. Natas reveals himself as Satan in its final fight. The relevant
 
 ## Ten packages, revised with Trent's cave and NPC requests
 
+Local 2.22.0 rebuilds all four residents and stages the three permanent shops. Shaped faces, clothing, articulated arms/hands and personal equipment replace the old block figures; cabinets, stock, workbench props and conditional lighting replace the repeated shelves. Save/economy isolation, access and unlock gates remain checked. RESIDENT-ART.md records same-camera comparisons and limits. The next visual priority is the empty common and landscape, followed by underground landmarks. The larger beauty and gameplay goal remains open.
+
 Local 2.21.0 changes ordinary excavation: broad shallow scoop cuts, long lance bores, corrected sloping edge probes, distinct mechanical attachments, read-only contact ticks, tool loading and percussion. Existing fields and all progression remain intact. DIGGING-RESPONSE.md records this checkpoint. Character proportions, faces, hands, shops and the empty common remain the next art priorities; ore mimics stay deferred. Tests and an earned journey validate behavior, not human enjoyment.
 
 **Current direction after the 2.19 play review:** Trent says the game still feels like the same prototype and explicitly rejects its HTML interface. Local 2.20 replaces visible UI with a Three.js canvas-texture compositor, fixes the terrain border and full-depth import limit, and passes 276 checks. GAME-INTERFACE.md records the boundary between verified mechanics and unverified human feel. Ordinary digging response, character art and the empty surface now come before the planned ore mimic. Preserve the full ten-package scope; the new UI does not complete the broader beauty pass.

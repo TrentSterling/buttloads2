@@ -1,5 +1,28 @@
 # Remake verification
 
+## Faces in the common, local 2.22.0
+
+```text
+node tools/test.mjs
+COMPLETE 294 system checks passed
+
+node tools/test-residents.mjs
+COMPLETE 7 resident checks passed
+
+node tools/test-town.mjs
+COMPLETE 12 town checks passed
+
+node tools/build.mjs
+Standalone build: dist/index.html (1158 KiB)
+PASS standalone: 53 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate receipt is `tools/out/verification-2.22.log`; the final focused resident run is `tools/out/residents-2.22-final.log`. Seven new cases cover geometry bounds and finite attributes, arrival gates, read-only animation, motion settings, cabinet collisions and counter approaches, conditional fill lighting, and safe recovery from an older saved position inside a cabinet. Existing town checks walk real doorways and exercise guarded transactions, conversation sight lines and save preservation. The final focused run follows the small scarf/brooch refinement made during the aggregate run.
+
+Actual resident and shop geometry was exported with `node tools/export-beauty.mjs residents-222 --residents` and rendered on the RTX 5070 Ti with `python tools/render-beauty.py residents-222`. Eight counter/portrait views were inspected, including a same-camera Otis comparison exported before the rebuild. The offline adapter now includes back faces for double-sided cloth and supports scenes without a held tool. Lighting is approximate and mapped signs are omitted. Portrait inspection uses a narrower camera than normal gameplay; neither these views nor the inert renderer certify final WebGL appearance, frame rate or human response.
+
+The portable file is 1,185,425 bytes. No browser interaction, pointer capture, OS input or real audio device was used. The latest earned full campaign remains the 2.21 fossil journey; this art checkpoint did not rerun it. RESIDENT-ART.md records models, workplaces, images and continued priorities. The published site remains 2.8.0.
+
 ## Cutting response, local 2.21.0
 
 ```text

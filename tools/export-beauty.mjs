@@ -17,11 +17,13 @@ function flatten(scene,camera){
    if(m.isInstancedMesh){const im=new T.Matrix4();m.getMatrixAt(instance,im);matrix.multiply(im);if(m.instanceColor)m.getColorAt(instance,ic);}
    const normal=new T.Matrix3().getNormalMatrix(matrix),base=(material.color||new T.Color(1,1,1)).clone().multiply(ic),emission=(material.emissive||new T.Color(0,0,0)).clone().multiplyScalar(material.emissiveIntensity||0);
    const count=Math.min(geo.drawRange.count,(indices?.count||a.position.count)-geo.drawRange.start),kind=material===g.view.terrainMaterial||material===g.view.palette.grass&&B2.TERRAIN_LOOK?1:material.isMeshBasicMaterial?-1:0;
+   const begin=data.length;
    for(let j=geo.drawRange.start;j<geo.drawRange.start+count;j++){
     const k=indices?indices.getX(j):j,p=new T.Vector3().fromBufferAttribute(a.position,k).applyMatrix4(matrix),n=new T.Vector3().fromBufferAttribute(a.normal,k).applyMatrix3(normal).normalize(),c=base.clone();
     if(material.vertexColors&&a.color)c.multiply(new T.Color().fromBufferAttribute(a.color,k));
     data.push(p.x,p.y,p.z,n.x,n.y,n.z,c.r,c.g,c.b,emission.r,emission.g,emission.b,material.roughness??1,material.metalness??0,kind);
    }
+   if(material.side===T.DoubleSide)for(let j=begin,end=data.length;j+44<end;j+=45)for(const off of [0,30,15]){const v=data.slice(j+off,j+off+15);v[3]*=-1;v[4]*=-1;v[5]*=-1;data.push(...v);}
   }
  });
  return new Float32Array(data);
@@ -30,13 +32,22 @@ function capture(name,position,target){
  g.player.teleport(...position);const dx=target[0]-position[0],dz=target[2]-position[2];g.player.yaw=Math.atan2(-dx,-dz);g.player.pitch=Math.atan2(target[1]-g.player.head.y,Math.hypot(dx,dz));g.view.render(g,0,0);
  const v=g.view,lights=[];v.scene.traverseVisible(n=>{if(n.isPointLight&&n.intensity>0){const p=new T.Vector3();n.getWorldPosition(p);if(p.distanceTo(v.camera.position)<n.distance+10)lights.push({position:p.toArray(),color:n.color.toArray(),intensity:n.intensity,distance:n.distance,decay:n.decay});}});
  lights.sort((a,b)=>new T.Vector3(...a.position).distanceTo(v.camera.position)-new T.Vector3(...b.position).distanceTo(v.camera.position));
- const world=flatten(v.scene,v.camera),tool=flatten(v.toolScene,v.toolCamera);fs.writeFileSync(path.join(root,name+'.bin'),Buffer.from(world.buffer));fs.writeFileSync(path.join(root,name+'-tool.bin'),Buffer.from(tool.buffer));
+ const world=flatten(v.scene,v.camera),tool=g.screen==='town'?new Float32Array():flatten(v.toolScene,v.toolCamera);fs.writeFileSync(path.join(root,name+'.bin'),Buffer.from(world.buffer));fs.writeFileSync(path.join(root,name+'-tool.bin'),Buffer.from(tool.buffer));
  const data={name,label,vertices:world.length/15,toolVertices:tool.length/15,camera:v.camera.projectionMatrix.clone().multiply(v.camera.matrixWorldInverse).elements,toolCamera:v.toolCamera.projectionMatrix.clone().multiply(v.toolCamera.matrixWorldInverse).elements,eye:v.camera.position.toArray(),fog:{color:v.scene.fog.color.toArray(),near:v.scene.fog.near,far:v.scene.fog.far},sun:{position:v.sun.position.toArray(),target:v.sun.target.position.toArray(),color:v.sun.color.toArray(),intensity:v.sun.intensity},hemi:{sky:v.hemi.color.toArray(),ground:v.hemi.groundColor.toArray(),intensity:v.hemi.intensity},lights:lights.slice(0,12),terrainGLSL:B2.TERRAIN_LOOK?.glsl||null,sky:B2.SKY_LOOK||null,skyShader:v.skyDome?.material.fragmentShader,skyValues:v.skyDome?Object.fromEntries(Object.entries(v.skyDome.material.uniforms).map(([k,u])=>[k,u.value.toArray?u.value.toArray():u.value])):null};
  fs.writeFileSync(path.join(root,name+'.json'),JSON.stringify(data));console.log(`${name}: ${data.vertices/3} world triangles, ${data.toolVertices/3} tool triangles`);
 }
 try{
  g.settings.motion=false;g.setScreen(null);g.view.camera.aspect=g.view.toolCamera.aspect=16/9;g.view.camera.updateProjectionMatrix();g.view.toolCamera.updateProjectionMatrix();
- if(process.argv.includes('--mining')){
+ if(process.argv.includes('--residents')){
+  // Art fixtures expose all four residents, not evidence of earned unlocks.
+  g.rescue.state.phase='rescued';g.fossil.state.recovered=true;g.setScreen('town');
+  for(const p of B2.TOWN.people){
+   g.view.camera.fov=52;g.view.camera.updateProjectionMatrix();
+   capture(p.id+'-counter',[p.x+.45,.06,p.z-1.75],[p.x,1.48,p.z]);
+   g.view.camera.fov=36;g.view.camera.updateProjectionMatrix();
+   capture(p.id+'-portrait',[p.x+.35,.06,p.z-1.38],[p.x,1.58,p.z]);
+  }
+ } else if(process.argv.includes('--mining')){
   for(const [i,mode] of ['cutter','scoop','lance'].entries()){
    g.expedition.state.tool=mode;
    capture(mode+'-head',[2,.06,5],[-4,2.3,21]);

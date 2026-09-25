@@ -50,17 +50,7 @@
         const n = B.TOWN.people.find(n => n.id === b.person);
         box(n.x, .5, n.z - .75, 4.8, 1, .8, paint); box(n.x, 1.045, n.z - .75, 5, .09, 1, timber);
         this.sign(g, b.person === 'mara' ? 'SUPPLIES & ORE' : b.person === 'inez' ? 'MAPS & LEADS' : 'TOOLS & FREIGHT', 'E / TALK', n.x, .6, n.z - 1.161, 2.5, .45);
-        box(b.x, 1.8, b.z + b.d / 2 - .5, b.w - 1, .09, .6, timber);
-        box(b.x, .9, b.z + b.d / 2 - .5, b.w - 1, .09, .6, timber);
-        const rng = B.random(b.person === 'mara' ? 221 : 883);
-        for (let i = 0; i < 14; i++) {
-          const x = b.x - b.w / 2 + .75 + (i % 7) * (b.w - 1.5) / 7, y = i < 7 ? 1.18 : 2.08, z = b.z + b.d / 2 - .55;
-          if (b.person === 'mara') { cyl(x, y, z, .13, .16, .4, i % 3 ? p.yellow : p.red, 8); box(x, y + .2, z, .2, .07, .2, p.black); }
-          else if (b.person === 'inez') { box(x, y, z, .16, .38, .3, i % 2 ? trim : paint); }
-          else { cyl(x, y, z, .2 + rng() * .09, .2, .2, p.metal, 8).rotation.x = Math.PI / 2; box(x, y + .23, z, .12, .23, .1, p.dark); }
-        }
-        cyl(n.x + 1.65, 1.19, n.z - .72, .13, .1, .23, trim); // a mug, safely on the counter
-        box(b.x, b.h - .35, b.z, 1.25, .09, .2, warm);
+        this.makeShopInterior(g,b,n);
         const light = new T.PointLight('#ffd7a1', .75, 9, 1.7); light.position.set(b.x, b.h - .55, b.z); g.add(light); if (b.person === 'inez') { this.officeLight = light; light.intensity = 0; }
       } else { box(b.x, 1.25, front - .05, 1.5, 2.5, .13, timber); box(b.x + .5, 1.2, front - .15, .09, .09, .09, p.yellow); }
       box(b.x + b.w / 2 - 1, b.h + .8, b.z + 1, .6, 1.35, .7, p.dark);
@@ -89,6 +79,7 @@
     box(s.minX - .3, .65, (s.minZ + s.maxZ) / 2, .6, 1.3, s.maxZ - s.minZ + 1, p.concrete);
     box(s.maxX + .3, .65, (s.minZ + s.maxZ) / 2, .6, 1.3, s.maxZ - s.minZ + 1, p.concrete);
     for (const z of [s.minZ - .3, s.maxZ + .3]) box(0, .65, z, s.maxX - s.minX + 1, 1.3, .6, p.concrete);
+    this.shopKey = new T.PointLight('#ffe5ba',0,4.5,1.5);g.add(this.shopKey);
     this.merge(g); this.townRigs = B.TOWN.people.map(person => this.makeTownPerson(person));
     this.officeClosed = new T.Group(); g.add(this.officeClosed); this.sign(this.officeClosed, 'OUT SURVEYING', 'ASK MARA / VALE SUPPLY', -26.1, 1.6, 49.25, 1.7, .65, Math.PI);
     this.officeOpen = new T.Group(); g.add(this.officeOpen); this.officeOpen.visible = false;
@@ -97,64 +88,18 @@
     for (let i = 0; i < 6; i++) this.box(this.officeOpen, -24.8 + i * .3, 1.115, 53.65, .015, .007, .52, glass);
     this.renderer.shadowMap.needsUpdate = true;
   };
-  B.View.prototype.makeTownPerson = function (person, parent = this.townScene) {
-    const root = new T.Group(); root.position.set(person.x, 0, person.z); parent.add(root); root.visible = !person.unlock;
-    const skin = mat(person.skin), coat = mat(person.coat), dark = mat('#263834'), hair = mat(person.id === 'mara' ? '#392e26' : '#817c69'), shirt = mat('#d8c3a0'), brass = mat('#cdae6a', .4), eye = mat('#142525');
-    const box = (...args) => this.box(root, ...args);
-    for (const x of [-.13, .13]) { box(x, .31, 0, .18, .57, .22, dark); box(x, .06, -.05, .22, .12, .37, dark); }
-    const body = new T.Group(); body.position.y = .68; root.add(body);
-    this.box(body, 0, .34, 0, .5, .72, .3, coat); this.box(body, 0, .37, -.162, .16, .63, .04, shirt);
-    for (const x of [-.14, .14]) this.box(body, x, .26, -.185, .1, .16, .03, dark);
-    const arms = [];
-    for (const side of [-1, 1]) {
-      const arm = new T.Group(); arm.position.set(side * .32, .6, 0); body.add(arm); arm.rotation.z = side * .08;
-      this.box(arm, 0, -.22, 0, .16, .44, .19, coat); this.box(arm, 0, -.48, -.025, .14, .18, .15, skin); arms.push(arm);
-    }
-    const head = new T.Group(); head.position.y = 1.57; root.add(head);
-    const face = new T.Mesh(new T.SphereGeometry(.23, 10, 8), skin); face.scale.set(.88, 1.1, .87); head.add(face);
-    this.box(head, 0, -.04, -.205, .09, .09, .075, skin);
-    const eyes = [];
-    for (const x of [-.078, .078]) eyes.push(this.box(head, x, .04, -.186, .035, .031, .026, eye));
-    this.box(head, 0, -.13, -.17, .1, .015, .035, hair);
-    if (person.id === 'mara') {
-      const cap = this.cylinder(head, 0, .2, 0, .2, .24, .17, hair, 10); cap.rotation.z = -.07;
-      this.cylinder(head, 0, .19, -.02, .34, .34, .045, brass, 12);
-      this.box(head, 0, -.06, .18, .3, .39, .14, hair); arms[1].rotation.x = -.35;
-    } else if (person.id === 'nell') {
-      this.cylinder(head,0,.12,.045,.27,.29,.45,coat,10);
-      this.box(head,0,.035,-.205,.38,.38,.025,skin);
-      for(const x of [-.078,.078])this.box(head,x,.045,-.224,.035,.028,.018,eye);
-      this.box(body,0,.05,-.185,.56,.56,.045,coat);
-      this.box(body,0,.55,-.19,.55,.18,.07,shirt);
-      this.box(arms[0],0,-.59,-.04,.2,.26,.19,brass);arms[0].rotation.x=-.3;
-    } else if (person.id === 'inez') {
-      this.cylinder(head, 0, .2, 0, .24, .27, .19, coat, 10);
-      this.cylinder(head, 0, .17, -.025, .33, .33, .035, brass, 12);
-      this.box(head, 0, .23, -.25, .13, .095, .09, shirt);
-      this.box(head, 0, -.1, .19, .32, .33, .12, hair);
-      this.box(body, .12, .4, -.19, .06, .6, .035, brass);
-      this.box(arms[0], 0, -.48, -.14, .24, .31, .045, shirt); arms[0].rotation.x = -.6;
-    } else {
-      this.box(head, 0, -.15, -.11, .3, .19, .22, hair);
-      this.cylinder(head, 0, .21, 0, .23, .25, .12, dark, 10);
-      for (const x of [-.09, .09]) { const lens = new T.Mesh(new T.TorusGeometry(.064, .012, 5, 12), brass); lens.position.set(x, .07, -.207); head.add(lens); }
-      this.box(arms[0], 0, -.65, -.04, .055, .25, .055, brass); arms[0].rotation.x = -.6;
-    }
-    return { person, root, body, head, arms, eyes };
-  };
   B.View.prototype.renderTown = function (game, dt, time) {
     if (!this.townRigs) return;
-    const surface = game.player.y > -2, motion = this.settings.motion && (game.running || game.screen === 'title');
+    const surface = game.player.y > -2, motion = this.settings.motion && (game.running || game.screen === 'title' || game.screen === 'town');
     const rescued = game.rescue?.rescued;
     this.officeClosed.visible = !rescued; this.officeOpen.visible = !!rescued; this.officeLight.intensity = rescued ? .75 : 0;
+    this.shopKey.intensity=0;
     for (const rig of this.townRigs) {
       rig.root.visible = game.town.people().some(p=>p.id===rig.person.id);
-      const close = surface && Math.hypot(game.player.x - rig.person.x, game.player.z - rig.person.z) < 7, t = motion ? time + (rig.person.id === 'otis' ? 1.7 : 0) : 0;
-      rig.body.rotation.z = motion ? Math.sin(t * 1.1) * .017 : 0;
-      rig.head.rotation.y = close ? B.clamp(Math.atan2(rig.person.x - game.player.x, rig.person.z - game.player.z), -.65, .65) : Math.sin(t * .3) * .12;
-      rig.head.rotation.z = motion ? Math.sin(t * .7) * .035 : 0;
-      rig.arms[1].rotation.x = motion ? -.12 + Math.sin(t * 1.6) * .09 : 0;
-      const blink = motion && t % 4.7 > 4.55; for (const eye of rig.eyes) eye.scale.y = blink ? .15 : 1;
+      this.animateResident(rig,game,time,motion);
+      const n=rig.person;
+      if(rig.root.visible&&surface&&n.id!=='nell'&&Math.hypot(game.player.x-n.x,game.player.z-n.z)<5.5&&!B.TOWN.blockedLine(game.player.head,{x:n.x,y:1.6,z:n.z},B.TOWN.buildings.flatMap(B.TOWN.walls))){this.shopKey.position.set(n.x-.75,2.35,n.z-1.25);this.shopKey.intensity=1.05;}
+
     }
     if (surface && motion && time - (this.townShadowAt || 0) > .2) { this.townShadowAt = time; this.renderer.shadowMap.needsUpdate = true; }
   };

@@ -113,4 +113,5 @@ passed += (await import('./test-interface.mjs')).interfaceChecks;
 passed += (await import('./test-mining.mjs')).miningChecks;
 passed += (await import('./test-residents.mjs')).residentChecks;
 passed += (await import('./test-common.mjs')).commonChecks;
+passed += (await import('./test-underground-art.mjs')).undergroundArtChecks;
 console.log(`COMPLETE ${passed} system checks passed`);

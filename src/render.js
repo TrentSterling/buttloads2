@@ -17,7 +17,7 @@
       this.terrainMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
       this.terrain = new T.Group(); this.resources = new T.Group(); this.discovery = new T.Group(); this.scene.add(this.terrain, this.resources, this.discovery);
       this.palette = { dirt: material('#aa8c60'), grass: material('#919c59'), dark: material('#263434'), metal: material('#70817f', .5), steel: material('#b5bcb3', .65), yellow: material('#efb645'), red: material('#a85638'), wood: material('#726344'), leaf: material('#697e48'), black: material('#182321'), concrete: material('#b9b3a0'), pale: material('#d9d1ac') };
-      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeCommon(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.gameUI = new B.GameUI(this,canvas); this.resize();
+      this.obstacles = []; this.makeLook(); this.makeHeadlamp(); this.makeYard(); this.makeTown(); this.makeCommon(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.gameUI = new B.GameUI(this,canvas); this.resize();
     }
     box(group, x, y, z, sx, sy, sz, mat, rotation = 0) {
       const m = new T.Mesh(new T.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.rotation.y = rotation; m.castShadow = m.receiveShadow = true; group.add(m); return m;
@@ -90,7 +90,7 @@
         for (const [key, data] of [['position', s.positions], ['normal', s.normals], ['color', s.colors]]) geo.setAttribute(key, new T.BufferAttribute(data, 3).setUsage(T.DynamicDrawUsage));
         geo.setIndex(new T.BufferAttribute(s.indices, 1).setUsage(T.DynamicDrawUsage)); geo.setDrawRange(0, s.count * 6);
         geo.boundingBox = new T.Box3(new V(rec.cx * 8 - .5, rec.cy * 8 - .5, rec.cz * 8 - .5), new V(rec.cx * 8 + 8, rec.cy * 8 + 8, rec.cz * 8 + 8)); geo.boundingSphere = new T.Sphere(geo.boundingBox.getCenter(new V()), 7.5);
-        const mesh = new T.Mesh(geo, this.terrainMaterial); mesh.castShadow = rec.cy === -1; mesh.receiveShadow = true; this.terrain.add(mesh); rec.view = mesh;
+        const mesh = new T.Mesh(geo, this.terrainMaterial); mesh.castShadow = true; mesh.receiveShadow = true; this.terrain.add(mesh); rec.view = mesh;
         this.renderer.shadowMap.needsUpdate = true;
       };
       world.onChange = rec => {
@@ -170,7 +170,7 @@
       this.lamp.position.copy(this.camera.position); this.lamp.intensity = title ? 0 : .2 + 1.6 * (1 - daylight); this.lamp.distance = 22 + game.economy.state.gear.scanner * 3;
       this.scene.fog.near = 35 - Math.min(25, depth); this.scene.fog.far = 145 - Math.min(95, depth * 4);
       const atmosphere = this.atmosphere(depth); this.lamp.color.copy(atmosphere.lamp);
-      this.scene.fog.color.copy(this.skyDome.material.uniforms.horizon.value).lerp(atmosphere.fog, 1 - daylight); this.scene.background.copy(this.scene.fog.color); this.renderLook(game,daylight);
+      this.scene.fog.color.copy(this.skyDome.material.uniforms.horizon.value).lerp(atmosphere.fog, 1 - daylight); this.scene.background.copy(this.scene.fog.color); this.renderHeadlamp(game,daylight); this.renderLook(game,daylight);
       const fire = game.running && game.input.fire && !game.input.aim, moving = this.settings.motion, shake = moving && fire ? .002 : 0;
       this.tool.position.z = -.78 + (moving ? (game.feedback?.kick || 0) * .045 : 0);
       this.tool.position.y = -.30 + Math.sin(time * 8) * (this.settings.motion && Math.hypot(p.vx, p.vz) > .5 ? .006 : 0); this.tool.position.x = .34 + Math.sin(time * 77) * shake;
@@ -179,6 +179,7 @@
       this.renderMining(game, dt); this.renderFeedback(game); this.renderTown(game, dt, time); this.renderCaverns(game); this.renderCombat(game, time); this.renderDeep(game, time); this.renderForeman(game, time); this.renderRescue(game, time); this.renderCrawlers(game, time); this.renderKinetics(game, time); this.renderParcel(game); this.renderFossil(game,time);
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
+      if(this.renderer.shadowMap.needsUpdate)this.sun.shadow.needsUpdate=true;
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);
       if (!title && game.ready && game.screen !== 'town') { this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.toolScene, this.toolCamera); }
       this.gameUI.render(game,dt);

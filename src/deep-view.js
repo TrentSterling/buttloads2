@@ -15,18 +15,7 @@
     for (const radius of [.7, 1.12]) { const ring = new T.Mesh(new T.TorusGeometry(radius, .045, 6, 32), brass); ring.rotation.x = Math.PI / 2; gate.add(ring); }
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, tooth = this.box(gate, Math.cos(a) * .9, .015, Math.sin(a) * .9, .16, .05, .25, rune); tooth.rotation.y = -a; }
     for (const n of game.deep.nodes) {
-      const root = new T.Group(); root.position.set(n.x, n.y, n.z); group.add(root);
-      this.box(root, 0, -.9, 0, 2.2, .3, 1.8, iron);
-      this.box(root, 0, -.02, .22, 1.94, 1.46, 1.26, steel);
-      for (const x of [-.82, .82]) this.box(root, x, .15, .81, .1, 1.68, .12, brass);
-      this.box(root, 0, .91, .2, 2.1, .28, 1.4, iron);
-      const lens = this.box(root, 0, .64, -.449, 1.16, .16, .08, mat(n.color, .1));
-      const wheel = new T.Group(); wheel.position.set(-.45, -.15, -.5); root.add(wheel);
-      wheel.add(new T.Mesh(new T.TorusGeometry(.3, .055, 6, 16), brass));
-      for (let i = 0; i < 4; i++) { const spoke = this.box(wheel, 0, 0, 0, .045, .56, .055, brass); spoke.rotation.z = i * Math.PI / 4; }
-      this.box(root, .54, -.04, -.46, .49, .71, .08, rubber);
-      for (let i = 0; i < 3; i++) this.box(root, .54, .16 - i * .16, -.515, .32, .04, .03, i === n.id ? brass : steel);
-      this.deepModels.push({ root, lens, wheel, node: n });
+      const model=this.makeStationMachine(n);model.root.position.set(n.x,n.y,n.z);group.add(model.root);this.deepModels.push(model);
     }
     const baseline = Object.create(B.World.prototype); baseline.density = (x, y, z) => game.world.base(x, y, z);
     const rng = B.random(game.world.seed ^ 0x318614);

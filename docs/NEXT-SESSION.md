@@ -1,12 +1,12 @@
 # Buttloads 2: stopping point and next session
 
-Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.23.0; read README.md, RIDGE-COMMON-ART.md, RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md, BEAUTY-PASS.md, LANTERN-LEVIATHAN.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
+Historical 2.8.0 closeout. Trent subsequently reopened expansion work. The current local build is 2.24.0; read README.md, UNDERGROUND-ART.md, RIDGE-COMMON-ART.md, RESIDENT-ART.md, DIGGING-RESPONSE.md, GAME-INTERFACE.md, BEAUTY-PASS.md, LANTERN-LEVIATHAN.md, EASTCUT.md, STONEWRIGHT.md, VERIFICATION.md and BEAUTY-DEPTH-COMBAT-PLAN.md for its features, evidence and outstanding work. The published build remains 2.8.0. The old closeout below does not cancel the newer expansion request.
 
 Recorded September 24, 2026. Trent asked to finish a build with the current content, save remaining work here, and consider the current goal complete. This is a handoff, not an instruction to keep adding features unattended.
 
-## Current next work after 2.23
+## Current next work after 2.24
 
-The common landscape is packaged: hills, a walkable reservoir trail, clustered trees, gardens, paths and well paving. Shared ground/contact checks and older-position migration preserve existing claims. The broader beauty pass stays active. Prioritize underground landmarks and lighting next, particularly the first cave and major discoveries. Keep excavation readable and placed lights useful. Further enemy variety remains deferred. No browser/OS input automation; the latest full earned campaign is the 2.21 fossil route. Review RIDGE-COMMON-ART.md for the actual geometry comparisons and their limits. The current interface renders in-game, and the resident and cutting passes remain included.
+The underground art checkpoint is packaged: attached wall formations in three natural caves, a focused headlamp with shadows, rebuilt survey cabinets, and distinct lower station machinery. Physical bounds, repair behavior and persistent support removal are checked. The larger beauty and gameplay goal remains active. Next inspect the major authored discovery spaces and encounter presentation, including whether their silhouettes, clues and feedback are readable under the new light. Preserve the excavations, useful placed lights and earned progression. Further enemy variety remains deferred until this presentation work is stronger. The latest earned full campaign is the 2.21 fossil route. No browser/OS input automation; normal-play appearance, frame rate and enjoyment are unverified. UNDERGROUND-ART.md records implementation and offline image limits.
 
 ## Ready for the next playthrough
 

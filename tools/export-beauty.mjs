@@ -33,7 +33,9 @@ function capture(name,position,target){
  const v=g.view,lights=[];v.scene.traverseVisible(n=>{if(n.isPointLight&&n.intensity>0){const p=new T.Vector3();n.getWorldPosition(p);if(p.distanceTo(v.camera.position)<n.distance+10)lights.push({position:p.toArray(),color:n.color.toArray(),intensity:n.intensity,distance:n.distance,decay:n.decay});}});
  lights.sort((a,b)=>new T.Vector3(...a.position).distanceTo(v.camera.position)-new T.Vector3(...b.position).distanceTo(v.camera.position));
  const world=flatten(v.scene,v.camera),tool=g.screen==='town'?new Float32Array():flatten(v.toolScene,v.toolCamera);fs.writeFileSync(path.join(root,name+'.bin'),Buffer.from(world.buffer));fs.writeFileSync(path.join(root,name+'-tool.bin'),Buffer.from(tool.buffer));
- const data={name,label,vertices:world.length/15,toolVertices:tool.length/15,camera:v.camera.projectionMatrix.clone().multiply(v.camera.matrixWorldInverse).elements,toolCamera:v.toolCamera.projectionMatrix.clone().multiply(v.toolCamera.matrixWorldInverse).elements,eye:v.camera.position.toArray(),fog:{color:v.scene.fog.color.toArray(),near:v.scene.fog.near,far:v.scene.fog.far},sun:{position:v.sun.position.toArray(),target:v.sun.target.position.toArray(),color:v.sun.color.toArray(),intensity:v.sun.intensity},hemi:{sky:v.hemi.color.toArray(),ground:v.hemi.groundColor.toArray(),intensity:v.hemi.intensity},lights:lights.slice(0,12),terrainGLSL:B2.TERRAIN_LOOK?.glsl||null,sky:B2.SKY_LOOK||null,skyShader:v.skyDome?.material.fragmentShader,skyValues:v.skyDome?Object.fromEntries(Object.entries(v.skyDome.material.uniforms).map(([k,u])=>[k,u.value.toArray?u.value.toArray():u.value])):null};
+ const spot=v.headlamp;spot?.shadow.updateMatrices(spot);
+ const headlamp=spot?{position:spot.position.toArray(),target:spot.target.position.toArray(),color:spot.color.toArray(),intensity:spot.intensity,distance:spot.distance,angle:spot.angle,penumbra:spot.penumbra,camera:spot.shadow.camera.projectionMatrix.clone().multiply(spot.shadow.camera.matrixWorldInverse).elements}:null;
+ const data={name,label,vertices:world.length/15,toolVertices:tool.length/15,camera:v.camera.projectionMatrix.clone().multiply(v.camera.matrixWorldInverse).elements,toolCamera:v.toolCamera.projectionMatrix.clone().multiply(v.toolCamera.matrixWorldInverse).elements,eye:v.camera.position.toArray(),fog:{color:v.scene.fog.color.toArray(),near:v.scene.fog.near,far:v.scene.fog.far},sun:{position:v.sun.position.toArray(),target:v.sun.target.position.toArray(),color:v.sun.color.toArray(),intensity:v.sun.intensity},hemi:{sky:v.hemi.color.toArray(),ground:v.hemi.groundColor.toArray(),intensity:v.hemi.intensity},lights:lights.slice(0,12),headlamp,terrainGLSL:B2.TERRAIN_LOOK?.glsl||null,sky:B2.SKY_LOOK||null,skyShader:v.skyDome?.material.fragmentShader,skyValues:v.skyDome?Object.fromEntries(Object.entries(v.skyDome.material.uniforms).map(([k,u])=>[k,u.value.toArray?u.value.toArray():u.value])):null};
  fs.writeFileSync(path.join(root,name+'.json'),JSON.stringify(data));console.log(`${name}: ${data.vertices/3} world triangles, ${data.toolVertices/3} tool triangles`);
 }
 try{
@@ -46,6 +48,16 @@ try{
    capture(p.id+'-counter',[p.x+.45,.06,p.z-1.75],[p.x,1.48,p.z]);
    g.view.camera.fov=36;g.view.camera.updateProjectionMatrix();
    capture(p.id+'-portrait',[p.x+.35,.06,p.z-1.38],[p.x,1.58,p.z]);
+  }
+ } else if(process.argv.includes('--underground')){
+  for(const n of g.world.caverns.networks){
+   const c=n.chamber;
+   capture('cave-'+n.id,[c.x,c.y-g.player.eye,c.z],[c.x+2.4,c.y+.25,c.z-1.7]);
+   const cabinet=g.refuges.nodes[n.id];
+   capture('cabinet-'+n.id,[cabinet.x+.5,cabinet.y-.35,cabinet.z-1.65],[cabinet.x,cabinet.y+.05,cabinet.z]);
+  }
+  for(const n of g.deep.nodes){
+   capture('station-'+n.id,[n.x+.5,n.y-.35,n.z-2.3],[n.x,n.y+.1,n.z]);
   }
  } else if(process.argv.includes('--common')){
   capture('overview',[43,23,65],[0,1,29]);

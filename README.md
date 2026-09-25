@@ -1,12 +1,14 @@
 # BUTTLOADS 2: The Deepening
 
-**Ridge Common landscape, local 2.23.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Light and old workings, local 2.24.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), the lantern discovery in [docs/LANTERN-LEVIATHAN.md](docs/LANTERN-LEVIATHAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- A focused headlamp casts shadows through actual underground terrain. Amber shelves, chalk folds and violet crystal fans distinguish the three natural caves. Survey cabinets and the pump, exchange and receiver have rebuilt machinery models that fit their existing physical bodies. Excavated supports remain gone after reload. See [docs/UNDERGROUND-ART.md](docs/UNDERGROUND-ART.md) for views and verification. All 308 system checks pass.
 
 - Ridge Common now sits between walkable rises. Follow the winding eastern path to a timber reservoir, pass clustered trees and gardens, and return through a stone-paved well square. Shared ground geometry and collision preserve both excavations; older saves on raised common land relocate safely. See [docs/RIDGE-COMMON-ART.md](docs/RIDGE-COMMON-ART.md) for before/after views and verification.
 

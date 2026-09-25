@@ -38,6 +38,8 @@ uniform vec3 eye,sunDir,sunColor,hemiSky,hemiGround,fogColor;
 uniform float sunPower,hemiPower,fogNear,fogFar;uniform bool tool;
 uniform vec3 lampPos[12],lampColor[12];uniform float lampPower[12],lampReach[12];uniform int lightCount;
 uniform sampler2D shadowMap;
+uniform sampler2D spotShadow;uniform mat4 spotCamera;
+uniform vec3 spotPos,spotAim,spotColor;uniform float spotPower,spotReach,spotCone,spotPenumbra;
 vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
 void main(){
  vec3 normal=normalize(n),base=color,view=normalize(eye-p);
@@ -46,7 +48,8 @@ void main(){
  vec3 sp=shadowPosition.xyz/shadowPosition.w*.5+.5;float shadow=0.;
  for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++){float d=texture(shadowMap,sp.xy+vec2(x,y)/2048.).r;shadow+=sp.z-.001>d?.25:1.;}shadow/=9.;if(any(lessThan(sp,vec3(0)))||any(greaterThan(sp,vec3(1))))shadow=1.;
  if(tool){shade=vec3(.30)+vec3(.8,.74,.61)*max(0.,dot(normal,normalize(vec3(-2,4,3))));}
- else{shade+=sunColor*sunPower*max(0.,dot(normal,sunDir))*shadow;for(int i=0;i<lightCount;i++){vec3 d=lampPos[i]-p;float fall=pow(max(0.,1.-length(d)/lampReach[i]),2.);shade+=lampColor[i]*lampPower[i]*fall*max(0.,dot(normal,normalize(d)));}}
+ else{shade+=sunColor*sunPower*max(0.,dot(normal,sunDir))*shadow;for(int i=0;i<lightCount;i++){vec3 d=lampPos[i]-p;float fall=pow(max(0.,1.-length(d)/lampReach[i]),2.);shade+=lampColor[i]*lampPower[i]*fall*max(0.,dot(normal,normalize(d)));}
+ if(spotPower>0.){vec3 d=spotPos-p;float cone=smoothstep(spotCone,spotPenumbra,dot(normalize(-d),normalize(spotAim-spotPos)));float fall=pow(max(0.,1.-length(d)/spotReach),2.);vec4 q=spotCamera*vec4(p,1.);vec3 s=q.xyz/q.w*.5+.5;float cover=0.;for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)cover+=s.z-.0003>texture(spotShadow,s.xy+vec2(x,y)/768.).r?.06:1.;cover/=9.;if(any(lessThan(s,vec3(0)))||any(greaterThan(s,vec3(1))))cover=1.;shade+=spotColor*spotPower*cone*fall*max(0.,dot(normal,normalize(d)))*cover;}}
  vec3 halfVector=normalize(view+sunDir);float spec=pow(max(0.,dot(normal,halfVector)),mix(80.,8.,meta.x))*.25*(.2+meta.y)*sunPower;
  vec3 lit=meta.z<-.5?base:base*shade+vec3(spec)+emission;
  if(!tool)lit=mix(lit,fogColor,smoothstep(fogNear,fogFar,length(eye-p)));
@@ -64,6 +67,10 @@ for file in ROOT.glob('*.json'):
  sfbo=ctx.framebuffer(depth_attachment=depth);sfbo.use();sfbo.clear(depth=1);ctx.enable(moderngl.DEPTH_TEST|moderngl.CULL_FACE)
  sp=ctx.program(vertex_shader='#version 330\nin vec3 in_pos;uniform mat4 camera;void main(){gl_Position=camera*vec4(in_pos,1);}',fragment_shader='#version 330\nvoid main(){}')
  uniform(sp,'camera',shadow_camera);svao=ctx.vertex_array(sp,[(buf,'3f 48x','in_pos')]);svao.render()
+ headlamp=data.get('headlamp');spot_depth=ctx.depth_texture((768,768));spot_depth.compare_func='';spot_depth.repeat_x=spot_depth.repeat_y=False
+ spot_fbo=ctx.framebuffer(depth_attachment=spot_depth);spot_fbo.use();spot_fbo.clear(depth=1)
+ if headlamp and headlamp['intensity']>0:
+  uniform(sp,'camera',matrix(headlamp['camera']));svao.render()
  color=ctx.texture((W,H),4);fbo=ctx.framebuffer(color_attachments=[color],depth_attachment=ctx.depth_renderbuffer((W,H)));fbo.use();fbo.clear(*data['fog']['color'],1,depth=1)
  if data.get('skyShader'):
   fs=data['skyShader'].replace('varying vec3 skyDirection;','in vec3 skyDirection;out vec4 frag;').replace('gl_FragColor','frag').replace('#include <tonemapping_fragment>','frag.rgb=clamp((frag.rgb*.95*(2.51*frag.rgb*.95+.03))/(frag.rgb*.95*(2.43*frag.rgb*.95+.59)+.14),0.,1.);').replace('#include <encodings_fragment>','frag.rgb=pow(frag.rgb,vec3(1./2.2));')
@@ -72,6 +79,10 @@ for file in ROOT.glob('*.json'):
   for key,value in data['skyValues'].items():uniform(sky,key,value)
   qvao.render(moderngl.TRIANGLE_STRIP);qvao.release();quad.release();sky.release()
  depth.use(0);uniform(program,'shadowMap',0);uniform(program,'shadowCamera',shadow_camera);uniform(program,'camera',matrix(data['camera']));uniform(program,'tool',False)
+ spot_depth.use(1);uniform(program,'spotShadow',1);uniform(program,'spotPower',headlamp['intensity'] if headlamp else 0)
+ if headlamp:
+  uniform(program,'spotCamera',matrix(headlamp['camera']))
+  for key,value in {'spotPos':headlamp['position'],'spotAim':headlamp['target'],'spotColor':headlamp['color'],'spotReach':headlamp['distance'],'spotCone':float(np.cos(headlamp['angle'])),'spotPenumbra':float(np.cos(headlamp['angle']*(1-headlamp['penumbra'])))}.items():uniform(program,key,value)
  for key,value in {'eye':data['eye'],'sunDir':direction.tolist(),'sunColor':sun['color'],'sunPower':sun['intensity'],'hemiSky':data['hemi']['sky'],'hemiGround':data['hemi']['ground'],'hemiPower':data['hemi']['intensity'],'fogColor':data['fog']['color'],'fogNear':data['fog']['near'],'fogFar':data['fog']['far'],'lightCount':len(data['lights'])}.items():uniform(program,key,value)
  for key,source,size in [('lampPos','position',3),('lampColor','color',3),('lampPower','intensity',1),('lampReach','distance',1)]:
   values=[l[source] for l in data['lights']]+([[0]*size] if size>1 else [0])*(12-len(data['lights']));program[key].write(np.array(values,dtype='f4').tobytes())
@@ -84,6 +95,6 @@ for file in ROOT.glob('*.json'):
  tool_image=Image.frombytes('RGBA',(W,H),tool_fbo.read(components=4)).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
  Image.alpha_composite(world_image,tool_image).save(ROOT/(data['name']+'.png'));tool_fbo.release()
  print(data['name']+': '+str(data['vertices']//3)+' triangles rendered on '+ctx.info['GL_RENDERER'])
- for obj in [tvao,tbuf,vao,svao,buf,sp,program,fbo,color,sfbo,depth]:
+ for obj in [tvao,tbuf,vao,svao,buf,sp,program,fbo,color,sfbo,depth,spot_fbo,spot_depth]:
   if obj is not None:obj.release()
 ctx.release()

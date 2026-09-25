@@ -10,6 +10,8 @@ Motherload's Mr. Natas reveals himself as Satan in its final fight. The relevant
 
 ## Ten packages, revised with Trent's cave and NPC requests
 
+Local 2.24.0 gives the upper caves distinct attached wall formations, adds a focused shadow-casting headlamp, rebuilds survey cabinets and distinguishes the three lower stations as pump, exchange and receiver machinery. Model bounds, repair state, support removal and saved terrain are preserved. UNDERGROUND-ART.md records evidence and limits. Major authored discoveries and encounter presentation are next; final human review and the broader goal remain open.
+
 Local 2.23.0 replaces the flat common with shared render/collision terrain, a walkable reservoir trail, clustered trees, gardens, rough-edged paths and well paving. Both saved fields and ownership are preserved. Older positions rise safely to the new common surface. RIDGE-COMMON-ART.md records the before/after views, seven focused checks and inspection limits. Underground landmarks and lighting are next; this does not complete the broader beauty or gameplay goal.
 
 Local 2.22.0 rebuilds all four residents and stages the three permanent shops. Shaped faces, clothing, articulated arms/hands and personal equipment replace the old block figures; cabinets, stock, workbench props and conditional lighting replace the repeated shelves. Save/economy isolation, access and unlock gates remain checked. RESIDENT-ART.md records same-camera comparisons and limits. The next visual priority is the empty common and landscape, followed by underground landmarks. The larger beauty and gameplay goal remains open.

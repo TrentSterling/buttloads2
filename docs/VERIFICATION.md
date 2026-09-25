@@ -1,5 +1,30 @@
 # Remake verification
 
+## Light and old workings, local 2.24.0
+
+```text
+node tools/test.mjs
+COMPLETE 308 system checks passed
+
+node tools/test-underground-art.mjs
+COMPLETE 7 underground art checks passed
+
+python tools/verify-beauty-shaders.py
+PASS actual expanded Three.js terrain stages compile and link
+PASS actual expanded Three.js terrain stages compile and link with directional + spot shadows
+
+node tools/build.mjs
+Standalone build: dist/index.html (1180 KiB)
+PASS standalone: 55 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate receipt is `tools/out/verification-2.24.log`. Seven added checks cover model extents inside the existing physics bodies, distinct attached formations and central route clearance, headlamp aim without control mutation, shadow quality settings and terrain casters, dim light occlusion, support removal and exact reload, production-node movement and repair lenses, and preserved terrain/economy/ore state. Existing cabinet/station falling, repair, return-route and save checks remain in the aggregate suite.
+
+Nine views were exported with `node tools/export-beauty.mjs underground-224 --underground` and rendered with `python tools/render-beauty.py underground-224`. Before views were exported from 2.23 using the same cameras. The adapter now supports the production spotlight cone and shadow camera. These are actual geometry studies using approximate offline lighting, with mapped sign text omitted. They do not certify browser appearance, frame rate, shadow quality or combat visibility. UNDERGROUND-ART.md records the models, support behavior and image comparisons.
+
+The standalone file is 1,208,247 bytes. No browser interaction, pointer capture or OS input automation was used. The latest earned full campaign remains the 2.21 fossil journey; this presentation pass did not rerun it. The larger goal remains active, and the published site is still 2.8.0.
+
+
 ## Ridge Common landscape, local 2.23.0
 
 ```text

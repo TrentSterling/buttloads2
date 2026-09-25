@@ -2,7 +2,7 @@
 
 Requested by Trent, September 2026. This replaces the first playable's implementation. HANDOFF.md remains historical context; the current user request overrides its old prohibition on rewriting systems.
 
-Current local checkpoint: **2.24.0 / light and old workings**. A focused shadow-casting headlamp, three distinct wall formation families, rebuilt survey cabinets and different pump/exchange/receiver models strengthen underground presentation. Physical bounds, repairs and saved excavations remain intact. Read UNDERGROUND-ART.md and VERIFICATION.md. Major discovery spaces, encounter presentation and normal-play review remain open.
+Current release checkpoint: **2.25.0 / under pressure**. See [RELEASE-2.25.md](RELEASE-2.25.md) for verified scope, the stopping point and deferred work.
 
 ## Research and design decisions
 

@@ -1,0 +1,344 @@
+PASS deterministic veins, stable IDs and valuable deeper strata
+PASS capacity is atomic; first haul buys meaningful equipment
+PASS discovery rewards and ending delivery cannot pay twice
+PASS cold construction yields a surface and buried chambers
+  shared cells checked: 1701
+PASS seams are exactly equal before and after crossing chunk corners
+PASS incremental topology matches a cold remesh of current density
+PASS surface winding points out of rock
+PASS protected rim and bottom cannot be excavated
+PASS fixed-step collision: ground, freefall shaft, lift, ceiling
+PASS held cut edits every contact frame and survives looking through air
+PASS portable save round-trip preserves exact density and economy
+PASS foreign, corrupt, overflowing and inconsistent saves are rejected before mutation
+PASS ore: embedded ore stays attached; carving its support releases it immediately
+PASS ore: released ore falls down a shaft, contacts actual terrain and sleeps
+PASS ore: sleeping ore falls again when its landing surface is excavated
+PASS ore: pickup and scanner spatial queries track new positions across cell boundaries
+PASS ore: fast falling minerals cannot tunnel through a thin rock shelf
+PASS ore: lateral motion collides with shaft walls
+PASS ore: physics agrees at 30, 60 and 120 rendered frames per second
+PASS ore: full cargo leaves loose ore in the world; collecting it later pays once
+PASS ore: falling ore cannot be collected through intervening rock
+PASS ore: save round-trip restores falling positions, velocities and continued motion
+PASS ore: saves from before this fix release already-floating ore on load
+PASS ore: malformed loose-body data cannot inject duplicates, invalid motion or buried bodies
+PASS ore: collision support points match rendered ore geometry, including elongated prisms
+PASS ore: ore and scanner instance buffers follow falling ore and hide collected ore
+  actual update: 8 minerals sold; first cutter upgrade purchased
+PASS ore: actual game update still mines a first haul with ore gravity enabled
+COMPLETE 15 ore checks passed (no browser or input automation)
+PASS depths: strata unlock distinct tools; recoveries and the heart gate powers
+PASS depths: scoop cuts a broader path and lance removes hard rock faster
+PASS depths: a wider attachment can ream an existing shaft while aimed along its open center
+PASS depths: long seams lead downward, fork into richer ore, and keep old IDs intact
+PASS depths: a narrow player shaft blocks a bulky load until widened
+PASS depths: physical flywheel delivery unlocks a collision-checked return anchor
+PASS depths: resonance awakens exposed stones, opens the heart, then magic opens geodes
+PASS depths: pulses cannot awaken a stone through an intervening wall
+PASS depths: gravity draws loose ore along clear paths and cannot pull through rock
+PASS depths: thrown bombs wait for the fuse, excavate rock, and apply impulses once
+PASS depths: lamps settle, persist and fall when their supporting floor is cut away
+PASS depths: charges and lamps retain sparse IDs, remaining fuse and motion across a save
+PASS depths: supply spending is atomic and rejected placement consumes nothing
+PASS depths: malformed progression and physical equipment saves fail before mutation
+PASS depths: real Game boots every new system, builds finite geometry and binds every UI action
+PASS depths: actual update integrates bombs, lamps, rendered tool changes and chapter announcements
+PASS depths: recall releases the tether without smuggling heavy salvage to the yard
+PASS depths: actual Game lift paces a tethered load and delivers it without player overlap
+PASS depths: device, salvage and progression snapshots survive actual Game install
+PASS depths: 43 m increases real scanner range; 59 m reveals sealed geodes
+PASS depths: real Game resolves the seal, heart and final geode into the new ending
+PASS depths: concrete apron has no top triangles coplanar with the ground
+COMPLETE 22 depth checks passed (no browser or input automation)
+PASS fieldwork: holding C previews without consuming a charge or editing terrain; release throws once
+PASS fieldwork: pause, blur and cancelled touch aim never throw a held charge
+PASS fieldwork: trajectory contacts walls and shelves using the live collision solver
+PASS fieldwork: retrieving an aimed light refunds it exactly once and removes its body and rendered light
+PASS fieldwork: lamps cannot be retrieved through rock and bombs cannot be recovered as lights
+PASS fieldwork: blast impulses are blocked by unexcavated rock
+PASS fieldwork: the survey hides untouched caves and discovers passages through movement or excavation
+PASS fieldwork: old claims reconstruct edited passages without revealing virgin chambers
+PASS fieldwork: scanning records moving deposits and depth-gated signals without duplicates
+PASS fieldwork: map depth controls render the real plan/profile, markers and geometry without invalid coordinates
+PASS fieldwork: survey data survives saves; duplicates, unknown signals and huge maps are rejected
+PASS fieldwork: actual preview geometry follows the prediction and disappears when aiming stops
+COMPLETE 12 fieldwork checks passed (no browser or input automation)
+PASS explosives: charge unlocks follow depth and bore costs two charges atomically
+PASS explosives: remote satchels stick to a ceiling and remain armed until commanded
+PASS explosives: excavating an attachment releases a satchel instead of leaving it floating
+PASS explosives: one trigger fires multiple remotes once; committed charges cannot be refunded
+PASS explosives: bore charge opens a narrow walkable tunnel and leaves adjacent rock intact
+PASS explosives: bore follows its stored aim and cannot cut the protected claim boundary
+PASS explosives: bore excavation releases embedded ore along the tunnel without destroying it
+PASS explosives: charges, orientation and planted attachment survive portable save and install
+PASS explosives: actual E disarms the aimed satchel once and the survey records armed locations
+PASS explosives: charge cycling and the real preview geometry show a directed bore
+PASS explosives: malformed direction, attachment, fuse, trigger and locked selection are rejected
+PASS explosives: bore fuse and final crater agree at 30, 60 and 120 Hz
+PASS explosives: charges can be dropped from a lift hover above the claim
+PASS explosives: older timed-charge saves keep their remaining fuse without new mode fields
+COMPLETE 14 explosive checks passed (no browser or input automation)
+PASS mysteries: scans and visible exploration reveal optional sites without exposing untouched caves
+PASS mysteries: one blast cannot solve all seals, and slow separate blasts do not accumulate
+PASS mysteries: three physically planted remotes open the vault once and upgrade real excavation
+PASS mysteries: buried seals reject blast records through intervening rock
+PASS mysteries: array needs correct turns, excavated light paths and continuous connection
+PASS mysteries: real E rotates only an exposed aimed prism; distant and occluded use fails
+PASS mysteries: fresh notes hide later reveals and tracking changes the real scanner bearing
+PASS mysteries: unlocked mineral focus affects actual scan range, markers and survey controls
+PASS mysteries: real scene beams stop at rock; upgraded preview has the same nine-meter extent
+PASS mysteries: portable claims retain rewards, rotations and focus; old claims migrate without altering terrain
+PASS mysteries: corrupt discoveries, locked filters and invalid tracked targets are rejected
+COMPLETE 11 mystery checks passed (no browser or input automation)
+PASS freight: purchase and larger cage require their recoveries and spend cash only once
+PASS freight: placement requires an open underground bay and preview never mutates the mine
+PASS freight: the cage stops against real rock, then resumes after excavation
+PASS freight: a center-line hole is too narrow for the cage and an orange marker identifies its edge
+PASS freight: goods cannot be sold in transit; delivery and hopper sale pay exactly once
+PASS freight: recalling a blocked load returns it safely and taking it back cannot duplicate it
+PASS freight: cage capacity retains overflow in the pack and prioritizes valuable minerals
+PASS freight: the returned cage accepts another haul and packing preserves unsold yard stock
+PASS freight: moving cage waits for the player or salvage instead of crossing them
+PASS freight: freight motion and shipment outcomes agree at 30, 60 and 120 Hz
+PASS freight: real T aim, release, E dock actions, scene geometry and survey markers are connected
+PASS freight: mid-shipment save/load conserves every mineral and continues from the saved cage position
+PASS freight: corrupt freight fields and cross-inventory duplication are rejected before install
+PASS freight: old claims initialize an unowned rig and cancelled placement spends nothing
+COMPLETE 14 freight checks passed (no browser or input automation)
+PASS feedback: fragments stay finite, obey terrain contact and expire at different update rates
+PASS feedback: one blast emits once, overload is bounded, and effects do not write gameplay state
+PASS feedback: cutter feedback requires edited terrain; geological debris and pickups retain their colors
+PASS feedback: rendering effects never advances them and builds finite faded instances with unobstructed light
+PASS feedback: tool motion toggle freezes tool animation without altering player look or camera orientation
+PASS feedback: underground palettes are distinct and continuous at each layer boundary
+PASS feedback: procedural audio is finite, bounded and fades at common device rates
+PASS feedback: sound attenuation, rock occlusion and left-right placement follow the listener
+PASS feedback: audio starts lazily, caps voices, disconnects completed events and mutes existing loops
+PASS feedback: actual Game events produce cutter, pickup, blast and ambient audio through the inert device
+PASS feedback: unavailable audio devices degrade without stopping the game
+COMPLETE 11 feedback checks passed (inert renderer and audio; no browser or input automation)
+PASS thunderstone: new rich pockets append ore IDs and scanning does not reveal untouched caves
+PASS thunderstone: digging alone releases physical crystals without ignition; removal of their new support wakes them
+PASS thunderstone: one charge opens a delayed chain across a buried seam and preserves every valuable
+PASS thunderstone: buried and out-of-range crystals reject pressure through remaining rock
+PASS thunderstone: harvesting a link gives one charge and interrupts propagation beyond the gap
+PASS thunderstone: harvest requires exposure, aim, reach, capacity and a dormant crystal
+PASS thunderstone: bore reaches crystals along its full excavation line; resonance also ignites exposed crystals
+PASS thunderstone: chain timing, consumed links and craters agree at 30, 60 and 120 Hz
+PASS thunderstone: actual throw, scan, E harvest, warnings and finite scene models are integrated
+PASS thunderstone: portable mid-chain save and install preserve fuses, bodies, consumed links and eventual blasts
+PASS thunderstone: older claims initialize dormant seams without changing terrain, mineral inventory or old IDs
+PASS thunderstone: malformed crystal state is rejected before modifying the live mine
+PASS thunderstone: rift reams a narrow cleft when the center ray is clear but the player cannot descend
+COMPLETE 13 thunderstone checks passed (no browser or input automation)
+PASS field kit: a fresh claim shows only the cutter and keeps unavailable actions out of the HUD
+PASS field kit: depth and recovery unlocks reveal real selections without exposing magical tools early
+PASS field kit: opening I cancels a held throw, fire and movement; releasing keys in the kit spends nothing
+PASS field kit: kit selection changes real equipment while remaining paused and respects locked tools
+PASS field kit: opening the kit cancels freight placement and consumes no equipment or terrain
+PASS field kit: tips follow useful context and yield to scans, interactions, full cargo and ignition
+PASS field kit: successful deployments retire tips, while a refused bore throw never counts as learned
+PASS field kit: tip dismissal and the opt-out setting survive portable saves and older claims migrate
+PASS field kit: malformed tip history is rejected before installation and does not alter progression
+PASS field kit: touch copy names visible actions and unavailable anchor controls remain hidden
+COMPLETE 10 field kit checks passed (inert DOM; no browser or input automation)
+PASS town: fresh Game builds two residents and an additive empty town history
+PASS town: walk from the claim through town and both real doorways, then return
+PASS town: walls, counters, people and roof block movement while doors are open
+PASS town: surface travel extends past the old fence through gates; unowned soil is protected
+PASS town: E conversation requires aim, reach and an unobstructed physical line
+PASS town: opening a conversation cancels a held throw and records one introduction
+PASS town: Mara sells real supplies atomically and pays the existing mineral ledger once
+PASS town: Otis respects upgrade and freight gates; stale buttons cannot buy after leaving
+PASS town: discovery dialogue progresses without paying duplicate rewards or revealing the ending early
+PASS town: portable save keeps town history, expanded position, excavations and inventory on install
+PASS town: old claims gain town state without a terrain reset and invalid dialogue fails before install
+PASS town: town animation leaves simulation state untouched and respects motion preference
+COMPLETE 12 town checks passed (inert renderer and DOM; no browser or OS input)
+PASS caverns: fresh Game creates three seeded cave networks and physical survey cabinets
+PASS caverns: generation is repeatable, differs by seed and preserves the yard, rim and objective shells
+PASS caverns: each network has player-sized routes to its loop nodes and branch across three seeds
+PASS caverns: new caves and cabinets remain off the survey until explored, scanned or charted
+PASS caverns: minerals in generated air detach, settle on real support and keep their IDs
+PASS caverns: exposed E repair spends one light, lights the refuge and charts its local workings once
+PASS caverns: buried, distant, misaimed and supply-less cabinets cannot be restored
+PASS caverns: unsupported cabinets fall with their light, scanner marker and collision box
+PASS caverns: cave growth loses visibility when its terrain support is removed
+PASS caverns: portable mid-fall saves preserve generation, charts, lit state and physical cabinets
+PASS caverns: legacy claims retain exact terrain and receive cabinets in existing authored chambers
+PASS caverns: malformed generation, duplicate repairs and invalid refuge bodies fail before mutation
+COMPLETE 12 cavern checks passed (inert renderer; no browser or OS input)
+PASS combat: real Game exposes axe at 9 m, builds finite creatures and binds health and tool UI
+PASS combat: one shared tool target damages a reachable moth without excavating behind it
+PASS combat: rock occlusion, reach and aim reject weapon damage; residents are not targets
+PASS combat: drill contact and timed axe damage agree at 30, 60 and 120 Hz
+PASS combat: axe has a windup, rechecks aim at impact, and pause cancels its pending strike
+PASS combat: full-body flight finds a route around rock and never crosses the wall
+PASS combat: telegraphed lunges damage once and can be dodged; no attacks through rock
+PASS combat: placed lights deter attacks only along clear sight lines
+PASS combat: blast and pulse records damage once, with bore reach and terrain shielding
+PASS combat: defeated moths stay cleared; physical husks fall and refund supplies once
+PASS combat: real defeat moves minerals to a cache, preserves money and reloads the exact ledger
+PASS combat: repeat rescues retain earlier cargo; partial recovery respects capacity and surface rest heals
+PASS combat: portable encounter saves preserve windup and reject invalid damage, duplicate loot and cargo
+PASS combat: older saves gain encounters without a terrain reset and rendering does not advance combat
+COMPLETE 14 combat checks passed (inert renderer and DOM; no browser or OS input)
+PASS deep: old terrain copies bit for bit while lower caves and ore append deterministically
+PASS deep: old floor resists all carving until the awakened heart opens the real rootway interaction
+PASS deep: deep incremental meshes match cold reconstruction across former floor and chunk corners
+PASS deep: station exposure, resource spending, rewards and repeat repairs are atomic
+PASS deep: restored machines fall with their light, physical boundary and map marker
+PASS deep: station travel rejects blocked landings and attached salvage; Otis uses the earned route
+PASS deep: deep survey stores new cells, keeps old IDs, renders bounded profiles and scanner ghosts
+PASS deep: station gearing doubles actual deep excavation without changing upper cuts
+PASS deep: later station repairs change actual scanner range and lift speed, with distinct saved town news
+PASS deep: deep minerals, deployed light, return anchor and freight dock survive validation at their real depth
+PASS deep: portable deep saves retain exact terrain, stations, arrivals and charts; invalid depth/state reject
+COMPLETE 11 lower mine checks passed (no browser or input automation)
+PASS foreman: fresh encounters are dormant, hidden on the map and cannot grant powers through the sealed floor
+PASS foreman: the full furnace settles on terrain and all original model geometry stays within physical bodies
+PASS foreman: buried locks reject damage, then real drill targeting breaks an exposed lock and opens one core segment
+PASS foreman: axe windup and real explosive records damage exposed locks without repeat blast damage
+PASS foreman: cutting jet locks its aim, allows a sidestep and collides with cover before carving its impact
+PASS foreman: shockwave damages grounded targets once through a clear route and lifting avoids it
+PASS foreman: fixed-step attack phases agree at 30/60/120 Hz and mid-windup save restores the same shot
+PASS foreman: real furnace defeat rescues the player with a conserved cache while retaining broken locks and core damage
+PASS foreman: undermining a wide machine releases it and its model/obstacle follow the saved body
+PASS foreman: victory pays once, cancels attacks, changes town and survives portable reload
+PASS foreman: earned Z bore carves a full-body passage, preserves ore and ownership, and persists its cooldown
+PASS foreman: corrupt furnace snapshots reject phase/health/lock/body exploits; old claims gain no terrain edits
+COMPLETE 12 furnace checks passed (inert scene and DOM; no browser or OS input)
+PASS rescue: stranded surveyor is absent from town, protected and saved without modifying terrain
+PASS rescue: Mara marks the real bell; scanner and survey retain its moving signal
+PASS rescue: real E intercom cancels held input; buried bell and missing cell cannot start the winch
+PASS rescue: one cell starts a terrain-blocked lift; its exact obstruction is shown without free excavation
+PASS rescue: bell sweep stops for player and machinery; holding and resuming never costs a second cell
+PASS rescue: 30/60/120 Hz winch advance agrees; narrow shaft walls block the full bell, not just its center
+PASS rescue: mid-lift portable save reload keeps height, supplies, terrain and the active machinery
+PASS rescue: a completed rescue opens the office once, preserves the empty bell and allows a real walk to Inez
+PASS rescue: survey fees buy uncollected, unscanned deposits within earned depth; stale buttons cannot transact
+PASS rescue: reward, conversation and charts persist; corrupt and contradictory rescues are rejected
+PASS rescue: old claims gain the stranded bell without rerolling terrain or inventories; rendering cannot advance rescue
+COMPLETE 11 rescue checks passed (inert renderer and DOM; no browser or OS input)
+PASS crawlers: fresh lower creatures are gated, supported after settling and compatible with untouched saves
+PASS crawlers: front shell resists drill, lance breaks it faster and the exposed rear takes direct damage
+PASS crawlers: shared production lance targeting breaks armor without excavating behind the creature
+PASS crawlers: claw windup commits its direction, deals one hit and can be dodged sideways or upward
+PASS crawlers: ground navigation finds a supported detour and never clips a slab or walks across an excavated gap
+PASS crawlers: undermining causes a swept fall and landing damage; dead shells continue obeying gravity
+PASS crawlers: fixed-step movement and mid-windup saves preserve the same attack at 30/60/120 Hz
+PASS crawlers: actual blast records break shell once and leave rock-occluded targets untouched
+PASS crawlers: tooth collection, partial supplies and the paid impact head cannot duplicate rewards
+PASS crawlers: earned impact head changes actual axe damage and terrain removal without changing swing cadence
+PASS crawlers: real Game collection, Otis purchase, HUD, models and portable reload agree
+PASS crawlers: corrupt armor, loot and upgrades reject; older claims gain creatures without terrain changes
+COMPLETE 12 crawler checks passed (inert scene and DOM; no browser or OS input)
+PASS kinetics: fresh workshop preserves terrain and stays locked behind exposed, resonated coils
+PASS kinetics: production resonance targets exposed coils in air, charges each once and unlocks the real tool
+PASS kinetics: buried coils and terrain-occluded pulses cannot charge the workshop
+PASS kinetics: only detached visible ore can be held, charged and released with its identity intact
+PASS kinetics: held minerals stop at thin rock and equipment, and an interrupted sight line drops them
+PASS kinetics: fast impacts damage a creature once and leave the same mineral collectible
+PASS kinetics: terrain and machinery stop projectiles before creatures on the other side
+PASS kinetics: kinetic hits fracture crawler armor and use the exposed rear instead when aimed behind it
+PASS kinetics: fixed-step holding and flight match at 30, 60 and 120 Hz
+PASS kinetics: a real blast breaks the grip and leaves a valid physical mineral instead of a corrupt held save
+PASS kinetics: furnace collision receives kinetic damage at the exposed lock rather than swallowing it
+PASS kinetics: a saved projectile continues to its impact without repeating damage on subsequent steps
+PASS kinetics: real pause, tool change and touch cancellation release without firing; touch release does fire
+PASS kinetics: midflight portable saves preserve one projectile and held saves restore as loose ore
+PASS kinetics: workshop falls with its coils, models stay in collision bounds and rendering changes no state
+PASS kinetics: invalid unlocks, duplicate projectiles and bad held minerals reject; older terrain stays exact
+COMPLETE 16 kinetic checks passed (inert scene and DOM; no browser or OS input)
+PASS parcels: unowned land is walkable but excavation and equipment cannot cross the deed boundary
+PASS parcels: deed eligibility, payment and purchase preserve every original terrain sample and ore ID
+PASS parcels: parcel caves are deterministic and the added ore stays within purchased ground
+PASS parcels: both fields join with equal mesh cells and match a cold remesh after excavation
+PASS parcels: all excavation stays inside the parcel and leaves the road, outer rim and shallow bedrock intact
+PASS parcels: an Eastcut mineral detaches, falls, collects once and enters the same sale ledger
+PASS parcels: lamps, a return anchor and both chart panes work in the eastern excavation after a portable reload
+PASS parcels: corrupt neighboring fields and unearned or inconsistent deeds reject before installation
+PASS parcels: the freight crane ships real Eastcut cargo through a saved route to its extended depot
+PASS parcels: lost cargo in Eastcut remains a physical recovery cache after saving
+PASS parcels: an old claim installs without a deed, added ore, terrain or a covering floor in the original yard
+PASS parcels: failed construction rolls the purchase back without charging money or replacing the original mine
+PASS parcels: buying the adjoining claim mid-shipment preserves the cage position and every mineral
+PASS parcels: surface throws remain reachable and save above the old loose-ore height and width limits
+COMPLETE 14 parcel checks passed (inert scene and DOM; no browser or OS input)
+PASS fossil: old terrain is unchanged and the keeper is absent before a physical discovery
+PASS fossil: a scan reveals the buried skeleton but cannot study its covered sections
+PASS fossil: exposed markings require placed light, aim and reach rather than a remote scanner ping
+PASS fossil: real F records each lit section and E recovers the ember once
+PASS fossil: Nell sells a single earned retrofit through the physical town counter
+PASS fossil: Nell restocks usable work lights without repeating the lens payment
+PASS fossil: existing lamps gain real rendering reach and moth deterrence while rock still shields light
+PASS fossil: the supported skeleton falls as a whole when its remaining floor is removed
+PASS fossil: portable reload keeps excavation, fossil support, study, lenses and the new resident
+PASS fossil: corrupt study, unearned lenses and impossible keeper histories reject before installation
+PASS fossil: rendering and motion preferences leave the discovery and economy unchanged
+PASS fossil: older claims gain the buried discovery without a terrain reset or a free lighting reward
+COMPLETE 12 fossil checks passed (inert renderer and DOM; no browser or OS input)
+PASS beauty: surface and underground presentation never change the saved mine or economy
+PASS beauty: the sky follows the camera, disappears underground and leaves look controls unchanged
+PASS beauty: the sun shadow volume covers all three town buildings
+PASS beauty: verge plants stay off both editable claims and the town roads
+PASS beauty: distinct cave formations disappear when their terrain support is excavated
+PASS beauty: terrain hooks expand against the bundled Three.js shaders and export complete GPU compile fixtures
+COMPLETE 6 beauty checks passed (inert scene and DOM; no browser or OS input)
+PASS interface: the game has a WebGL interface scene and the HTML control model is hidden and inert
+PASS interface: canvas pointer input starts and pauses play without firing the cutter
+PASS interface: keyboard menu navigation selects actual controls and Escape still reaches game input
+PASS interface: canvas field kit selection uses unlock rules and preserves inventory
+PASS interface: merchant ledger clicks perform guarded purchases at the actual counter
+PASS interface: survey depth and settings work through canvas controls
+PASS interface: all screens and pages keep active hit regions inside desktop and phone viewports
+PASS interface: touch holds and cancellation stop tools; interface changes never throw a cancelled charge
+PASS interface: the actual surface mesh and surrounding land meet without a slit on all four sides
+PASS interface: full-depth exported saves are accepted by the import-file route and retain UI preferences
+COMPLETE 10 interface checks passed (inert input and renderer; no browser or OS input)
+PASS mining: pitched and rotated brush cross sections remain orthonormal
+PASS mining: scoop makes a broad shallow cut while lance makes a long narrow bore
+PASS mining: ordinary sphere cuts preserve their exact previous scalar results
+PASS mining: oriented cuts retain claim boundaries and the protected floor
+PASS mining: wide tool support notifications release ore outside the old spherical cut
+PASS mining: oriented edits across chunk corners match a cold mesher rebuild
+PASS mining: real tool actions cut sloping ground, idle preview is read-only and support normals are captured
+PASS mining: air and protected terrain never create impact beats, mode changes cancel stale previews
+PASS mining: motor ramp and cadence are consistent at 30, 60 and 120 Hz
+PASS mining: viewmodel attachments animate independently; motion off preserves player aim
+PASS mining: cut percussion is bounded and distinct at standard audio device rates
+COMPLETE 11 mining checks passed (no browser or OS input)
+PASS residents: resident geometry is finite and remains within the existing human height and station
+PASS residents: visible residents still follow rescue and fossil progression gates
+PASS residents: idle and conversation motion cannot mutate the mine, inventory, progression or aim
+PASS residents: motion preference fixes all limb poses and blinking without accumulating transformations
+PASS residents: back cabinets block passage while customer approaches and conversations remain clear
+PASS residents: counter fill follows a nearby visible merchant and switches off outside, underground and before unlocks
+PASS residents: an old save inside a newly solid cabinet recovers safely without losing its mine or purchases
+COMPLETE 7 resident checks passed (inert renderer; no browser or OS input)
+PASS common: raised common leaves both excavation fields, their joins and all shop approaches unchanged
+PASS common: rendered slopes and production collision share the same surface on 450 scattered rays
+  climbed to 6.28 m using the production walking capsule
+PASS common: walk from the mine gate along the winding trail to the reservoir and return without lift
+PASS common: common land remains protected against digging even on raised slopes
+PASS common: trees and landmarks stand on the shared surface and their solid bodies stop the capsule
+PASS common: old flat-ground save positions rise safely at the same location with the entire mine and ledger intact
+PASS common: surface presentation leaves saved terrain, ore and economy unchanged across views and reload
+COMPLETE 7 common checks passed (inert renderer; no browser or OS input)
+PASS underground art: rebuilt cabinets and three distinct machines fit their existing physical bodies
+PASS underground art: each cave has its own attached formations while the central walking space remains clear
+PASS underground art: headlamp follows actual aim, preserves player controls and uses shadow-casting terrain
+PASS underground art: dim cave accents require exposed supported geometry and clear rock sight lines
+PASS underground art: excavating a formation support removes its whole visual and light, including after reload
+PASS underground art: machine repair lenses and moving bodies remain tied to the production nodes
+PASS underground art: lighting, formations and station rendering do not change terrain, ore, money or progress
+COMPLETE 7 underground art checks passed (inert renderer; no browser or OS input)
+PASS furnace art: all moving machinery fits its saved physical body at every tested aiming elevation
+PASS furnace art: real lock damage drains gauges and retracts armor only while the core can take damage
+PASS furnace art: the cutting head and impact marker follow the committed terrain-limited shot
+PASS furnace art: shock warnings leave gaps at cover, unsupported holes and out-of-height ledges
+PASS furnace art: portable reload reconstructs damaged pressure gauges and the armor gate from gameplay state
+PASS furnace art: rendering attacks, travel and damage states does not mutate progression or controls
+COMPLETE 6 furnace art checks passed (no browser or OS input)
+COMPLETE 314 system checks passed

@@ -1,6 +1,7 @@
 // Offline scene export only. The DOM/renderer are inert; no browser or OS input.
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import {nodeGame} from './node-game.mjs';
 const h=await nodeGame(),g=h.game,T=THREE,label=process.argv[2]||'current';
 const root=path.join(import.meta.dirname,'out','beauty-'+label);fs.mkdirSync(root,{recursive:true});
@@ -49,6 +50,25 @@ try{
    g.view.camera.fov=36;g.view.camera.updateProjectionMatrix();
    capture(p.id+'-portrait',[p.x+.35,.06,p.z-1.38],[p.x,1.58,p.z]);
   }
+ } else if(process.argv.includes('--foreman')){
+  // Art fixtures only: expose the machinery and set encounter states directly.
+  if(process.argv.includes('--foreman-baseline')){vm.runInThisContext(fs.readFileSync(path.join(import.meta.dirname,'out','foreman-224-view.js'),'utf8'));g.view.makeForeman(g);}
+  const f=g.foreman;g.deep.state.open=g.world.deepOpen=true;f.state.known=f.state.active=true;
+  for(const n of f.nodes.slice(1))g.world.carve(n,2.8);
+  for(let i=0;i<360;i++){f.physics.update(1/120);g.orePhysics.update(1/120);}
+  const c=f.core,floor=c.y-c.size[1]/2;
+  f.state.phase='rest';f.state.timer=1;
+  capture('foreman-guarded',[c.x+4,floor+.07,c.z+7],[c.x,c.y+.1,c.z]);
+  f.nodes[1].hp=f.state.parts[1].hp=0;
+  capture('foreman-open',[c.x+4,floor+.07,c.z+7],[c.x,c.y+.1,c.z]);
+  f.state.phase='aim';f.state.timer=.6;f.state.aim={x:c.x+7,y:floor+1,z:c.z+4};
+  capture('foreman-aim',[c.x+4,floor+.07,c.z+7],[c.x,c.y+.1,c.z]);
+  f.state.phase='quake';f.state.timer=1.55;
+  capture('foreman-quake',[c.x+4,floor+.07,c.z+7],[c.x,c.y-1.3,c.z]);
+  const lock=f.nodes[2];lock.hp=f.state.parts[2].hp=40;f.state.phase='rest';
+  capture('pressure-lock',[lock.x-1,lock.y-1.23,lock.z+2.6],[lock.x,lock.y+.1,lock.z]);
+  f.state.defeated=true;f.state.active=false;f.state.phase='defeated';for(const n of f.nodes)n.hp=0;
+  capture('foreman-wreck',[c.x+4,floor+.07,c.z+7],[c.x,c.y+.1,c.z]);
  } else if(process.argv.includes('--underground')){
   for(const n of g.world.caverns.networks){
    const c=n.chamber;

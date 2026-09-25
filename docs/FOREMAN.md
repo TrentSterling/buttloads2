@@ -1,5 +1,7 @@
 # The Foreman Below, local 2.13.0
 
+Local 2.25 adds rebuilt furnace machinery and terrain-aware attack warnings. See [FOREMAN-ART.md](FOREMAN-ART.md). The gameplay rules below remain applicable.
+
 The chamber beneath Furnace approach now contains a complete encounter. Three partly buried pressure locks feed an armored furnace. Expose a lock on every side, then break it with a mining tool, resonance, rift or explosives. Each broken lock allows another 140 points of damage to the 420-health core. Locks have 80 health; the precision lance deals 40% extra damage to them. Locks may be broken in any order, including all three before attacking the core.
 
 The encounter wakes when the player sees the furnace at close range below 264 m or damages an exposed part after opening the rootway. F can discover it through rock and records the remaining parts on M without starting attacks. Its HUD distinguishes pressure-lock armor from an exposed core and gives attack-specific instructions.

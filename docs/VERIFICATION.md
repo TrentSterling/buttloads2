@@ -1,5 +1,28 @@
 # Remake verification
 
+## Under pressure, local 2.25.0
+
+```text
+node tools/test.mjs
+COMPLETE 314 system checks passed
+
+node tools/test-foreman.mjs
+COMPLETE 12 furnace checks passed (inert scene and DOM; no browser or OS input)
+
+node tools/test-foreman-art.mjs
+COMPLETE 6 furnace art checks passed (no browser or OS input)
+
+node tools/build.mjs
+Standalone build: dist/index.html (1189 KiB)
+PASS standalone: 56 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate receipt is `tools/out/verification-2.25.log`. Six added art checks cover 56 aiming poses inside the original physical bodies, actual lock damage and core armor gates, committed nozzle aim and terrain impact position, shock warning gaps at cover/holes/high ledges, portable reconstruction and rendering without gameplay-state mutation. The aggregate also retains all original furnace checks for attacks, shielding, lift avoidance, fixed-step timing, saved shots, physical undermining and rewards.
+
+Six art states were exported and rendered for each version. The baseline uses `14fa2b2:src/foreman-view.js` with the same cameras and settled exposed machinery. FOREMAN-ART.md includes six selected comparisons. The offline GPU adapter uses actual production geometry and approximate lighting/transparency, with mapped sign text omitted. It does not certify browser appearance, compositing, fight visibility or performance. A separate 50-sample inert CPU measurement of the Foreman render function measured 1.28 ms median and 1.52 ms at the 95th percentile in this chamber; that excludes WebGL rendering and the rest of the game.
+
+The portable file is 1,217,463 bytes. Source HTML and static report pass balanced tags, unique IDs and local-reference checks (62 source references and 72 report references); the report contains no scripts. No browser interaction, pointer capture, OS input or window activation was used. The latest earned full campaign remains the 2.21 fossil journey; this presentation checkpoint did not rerun it. The broader goal remains active and the published site remains 2.8.0.
+
 ## Light and old workings, local 2.24.0
 
 ```text

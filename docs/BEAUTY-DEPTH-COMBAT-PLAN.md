@@ -4,6 +4,8 @@ September 24, 2026. Trent liked the published 2.8.0 build and requested a beauty
 
 ## Direction
 
+Local 2.25.0 rebuilds the Foreman presentation: rotating cutting head, retracting armor, pressure governors and indicators, an impact mark and a ground-shock warning tied to the existing reach rules. Physical-body bounds, saves, damage gates and rewards remain intact. FOREMAN-ART.md records this checkpoint. Next: authored discovery spaces and creature presentation, followed by normal-play review of the combined UI, tools, town, lighting and encounter signals. The ore mimic and wider enemy roster remain deferred until that presentation is stronger.
+
 A battered, sunlit mining yard descends into beautiful, increasingly hostile underground places. The tools used to create the mine also let the player survive its discoveries. The current heart becomes a passage to a deeper act. Encounters cluster around valuable pockets and discoveries, with breathing room in ordinary and cleared tunnels.
 
 Motherload's Mr. Natas reveals himself as Satan in its final fight. The relevant design lesson is a descent that builds toward a surprising playable confrontation. Use original characters, art and encounters. Reference: https://gamefaqs.gamespot.com/flash/933421-motherload/faqs/53229 (final battle section).

@@ -12,7 +12,7 @@
   class Foreman {
     constructor(world, progress, combat) {
       this.world = world; this.progress = progress; this.combat = combat;
-      this.state = progress.expedition.foreman ||= fresh(); this.events = []; this.revision = 0; this.accumulator = 0; this.flash = 0; this.bore = null;
+      this.state = progress.expedition.foreman ||= fresh(); this.events = []; this.revision = 0; this.accumulator = 0; this.flash = 0; this.hitId = null; this.bore = null;
       this.nodes = world.depthVersion ? PARTS.map((p, i) => ({ ...p, hp: this.state.parts[i].hp, kind: 0, radius: Math.hypot(...p.size) / 2, targetRadius: i ? .65 : 1.65, collected: false, offsets: B.boxOffsets(p.size) })) : [];
       this.physics = new B.OreSystem(world, this.nodes, this.state.bodies); this.physics.supportRadius = Math.hypot(...PARTS[0].size) / 2;
       this.refreshTargets(); combat.foreman = this;
@@ -46,7 +46,7 @@
     }
     hit(n, amount, mode) {
       if (!this.owns(n) || !this.progress.expedition.deep?.open || this.state.defeated || n.hp <= 0 || !(amount > 0) || this.physics.contact(n).density < -.004) return false;
-      this.wake(); const core = n === this.core, floor = core ? this.healthFloor : 0;
+      this.wake(); this.hitId=n.id; const core = n === this.core, floor = core ? this.healthFloor : 0;
       if (n.hp <= floor) { this.flash = .14; return false; }
       const old = n.hp; n.hp = Math.max(floor, n.hp - amount * (mode === 'lance' && !core ? 1.4 : 1));
       this.state.parts[n.id - 100].hp = n.hp; this.combat.hitFlash = .14; this.flash = .12; this.revision++;
@@ -64,6 +64,12 @@
       const from = { x: this.core.x, y: this.core.y + .8, z: this.core.z }, p = this.state.aim, length = distance(from, p) || 1, direction = { x: (p.x - from.x) / length, y: (p.y - from.y) / length, z: (p.z - from.z) / length };
       const hit = this.world.ray(from, direction, 22), reach = hit?.distance ?? 22;
       return { from, direction, hit, reach, to: { x: from.x + direction.x * reach, y: from.y + direction.y * reach, z: from.z + direction.z * reach } };
+    }
+    quakeRadius() { return (2.4-this.state.timer)*5.5; }
+    quakeGround() { return this.core.y-this.core.size[1]/2; }
+    quakeReaches(point) {
+      const n=this.core,ground=this.quakeGround();
+      return Math.abs(point.y-ground)<1.1 && this.world.clearLine({x:n.x,y:ground+.35,z:n.z},{x:point.x,y:point.y+.35,z:point.z},.05);
     }
     fire(player) {
       const beam = this.beam(); if (!beam) return;
@@ -90,8 +96,8 @@
       } else if (s.phase === 'aim' && s.timer === 0) { s.phase = 'jet'; s.timer = .3; this.fire(player); }
       else if (s.phase === 'quake-windup' && s.timer === 0) { s.phase = 'quake'; s.timer = 2.4; this.events.push({ kind: 'quake', point: pos(n) }); }
       else if (s.phase === 'quake') {
-        const r = (2.4 - s.timer) * 5.5, ground = n.y - n.size[1] / 2;
-        if (player.grounded && Math.abs(player.y - ground) < 1.1 && Math.abs(Math.hypot(player.x - n.x, player.z - n.z) - r) < .6 && this.world.clearLine({ x: n.x, y: ground + .35, z: n.z }, { x: player.x, y: player.y + .35, z: player.z }, .05)) this.combat.hurt(20);
+        const r = this.quakeRadius();
+        if (player.grounded && Math.abs(Math.hypot(player.x - n.x, player.z - n.z) - r) < .6 && this.quakeReaches(player)) this.combat.hurt(20);
         if (s.timer === 0) { s.phase = 'rest'; s.timer = this.broken === 3 ? .9 : 1.5; }
       } else if (s.phase === 'jet' && s.timer === 0) { s.phase = 'rest'; s.timer = this.broken === 3 ? .9 : 1.5; }
     }

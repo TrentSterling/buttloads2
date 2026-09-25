@@ -11,8 +11,8 @@
   ];
   const TOOLS = {
     cutter: { key: '1', name: 'Cutter', short: 'CUT', hint: 'Balanced excavation', color: '#edbe60', radius: 1, power: 1, depth: 0 },
-    scoop: { key: '2', name: 'Scoop', short: 'SCOOP', hint: 'Wide cuts in soil and clay', color: '#e89c6f', radius: 1.55, power: 1.4, depth: 9 },
-    lance: { key: '3', name: 'Lance', short: 'LANCE', hint: 'Narrow, fast cuts through hard rock', color: '#a9dcdf', radius: .72, power: 2.8, depth: 25 },
+    scoop: { key: '2', name: 'Scoop', short: 'SCOOP', hint: 'Broad, shallow sweeps through soil and clay', color: '#e89c6f', radius: 1.55, power: 1.4, depth: 9 },
+    lance: { key: '3', name: 'Lance', short: 'LANCE', hint: 'Long, narrow bores through hard rock', color: '#a9dcdf', radius: .72, power: 2.8, depth: 25 },
     resonance: { key: '4', name: 'Resonator', short: 'PULSE', hint: 'Hold to charge a rock-breaking pulse', color: '#baacf1', radius: 1.5, power: 1, recovery: 1 },
     gravity: { key: '5', name: 'Heart of the mine', short: 'GRAVITY', hint: 'Hold to draw ore and drain creatures. Q tears open rock.', color: '#78f1cc', radius: 1, power: 1, magic: true },
     axe: { key: '6', name: 'Mining axe', short: 'AXE', hint: 'A short, heavy swing. Chips rock and staggers creatures.', color: '#d59e6b', radius: .65, power: 7, depth: 9 },

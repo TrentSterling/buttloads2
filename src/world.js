@@ -134,16 +134,20 @@
       finally { if (url) URL.revokeObjectURL(url); }
       progress(1);
     }
-    carve(p, radius, strength = Infinity) {
+    carve(p, radius, strength = Infinity, shape = null) {
       const begin = performance.now();
-      const lo = [p.x - radius, p.y - radius, p.z - radius], hi = [p.x + radius, p.y + radius, p.z + radius], base = [W.min, this.bottom, W.min], dims = [this.parcelVersion?129:this.nx, this.ny, this.nz];
+      // Oriented tools share exactly the same ownership, dirty halo and support notifications.
+      // Minimum-axis scaling keeps their scalar field conservative near the cut surface.
+      const bound = radius * (shape ? Math.max(...shape.axes) : 1), scale = shape ? Math.min(...shape.axes) : 1;
+      const lo = [p.x - bound, p.y - bound, p.z - bound], hi = [p.x + bound, p.y + bound, p.z + bound], base = [W.min, this.bottom, W.min], dims = [this.parcelVersion?129:this.nx, this.ny, this.nz];
       for (let k = 0; k < 3; k++) { lo[k] = clamp(Math.floor((lo[k] - base[k]) * 2), 0, dims[k] - 1); hi[k] = clamp(Math.ceil((hi[k] - base[k]) * 2), 0, dims[k] - 1); }
       let changed = 0; const dirty = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
       for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
         const wx = W.min + x * .5, wy = this.bottom + y * .5, wz = W.min + z * .5;
         if (!this.canDig(wx,wy,wz)) continue;
-        const distance = Math.hypot(wx - p.x, wy - p.y, wz - p.z); if (distance >= radius) continue;
-        const field=x>=65?this.parcelField:this.field,id=x>=65?x-65+64*(y+(this.bottom+80)*2+165*z):this.index(x,y,z),target=radius-distance,value=Math.fround(Math.max(field[id],Math.min(target,field[id]+strength)));
+        const dx = wx - p.x, dy = wy - p.y, dz = wz - p.z;
+        const distance = shape ? Math.hypot(...shape.basis.map((v, i) => (dx * v.x + dy * v.y + dz * v.z) / shape.axes[i])) : Math.hypot(dx, dy, dz); if (distance >= radius) continue;
+        const field=x>=65?this.parcelField:this.field,id=x>=65?x-65+64*(y+(this.bottom+80)*2+165*z):this.index(x,y,z),target=(radius-distance)*scale,value=Math.fround(Math.max(field[id],Math.min(target,field[id]+strength)));
         if (value <= field[id] + 1e-7) continue;
         field[id] = value; changed++;
         dirty[0] = Math.min(dirty[0], x); dirty[1] = Math.min(dirty[1], y); dirty[2] = Math.min(dirty[2], z); dirty[3] = Math.max(dirty[3], x); dirty[4] = Math.max(dirty[4], y); dirty[5] = Math.max(dirty[5], z);
@@ -161,7 +165,7 @@
         this.kernel.update(rec.mesh, bounds); this.onChange(rec); this.kernel.clear(rec.mesh);
       }
       this.audit.edits++; this.audit.samples += changed; this.audit.lastEditMs = performance.now() - begin; this.audit.maxEditMs = Math.max(this.audit.maxEditMs, this.audit.lastEditMs);
-      this.onEdit(p, radius);
+      this.onEdit(p, bound);
       return changed;
     }
   }

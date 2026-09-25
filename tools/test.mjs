@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
-for (const name of ['core', 'town', 'caverns', 'deep-terrain', 'parcels', 'mesher', 'world', 'player', 'ore', 'expedition', 'refuges', 'deep', 'combat', 'foreman', 'rescue', 'crawlers', 'kinetics', 'fossil', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'), { filename: name + '.js' });
+for (const name of ['core', 'town', 'caverns', 'deep-terrain', 'parcels', 'mesher', 'world', 'mining', 'player', 'ore', 'expedition', 'refuges', 'deep', 'combat', 'foreman', 'rescue', 'crawlers', 'kinetics', 'fossil', 'actions', 'gadgets', 'thunderstone', 'freight', 'mysteries', 'survey', 'persistence', 'feedback', 'audio', 'fieldkit', 'town-ui']) vm.runInThisContext(fs.readFileSync(path.join(root, 'src', name + '.js'), 'utf8'), { filename: name + '.js' });
 const B = globalThis.B2;
 let passed = 0;
 async function test(name, fn) { await fn(); console.log('PASS ' + name); passed++; }
@@ -110,4 +110,5 @@ passed += (await import('./test-parcels.mjs')).parcelChecks;
 passed += (await import('./test-fossil.mjs')).fossilChecks;
 passed += (await import('./test-beauty.mjs')).beautyChecks;
 passed += (await import('./test-interface.mjs')).interfaceChecks;
+passed += (await import('./test-mining.mjs')).miningChecks;
 console.log(`COMPLETE ${passed} system checks passed`);

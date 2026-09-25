@@ -41,7 +41,7 @@
       const deposits = B.generateDeposits(state.seed, world.depthVersion, world.parcelVersion), collected = new Set(data?.collected || []);
       for (const node of deposits.nodes) node.collected = collected.has(node.id);
       // Everything above is staged. The live state is replaced only after construction succeeds.
-      this.clearInput(); this.world = world; this.deposits = deposits; this.orePhysics = new B.OreSystem(world, deposits.nodes, data?.loose || []); this.index = this.orePhysics.index; this.economy = new B.Economy(state); this.player = new B.Player(world); this.cutter = new B.Cutter(world);
+      this.clearInput(); this.world = world; this.deposits = deposits; this.orePhysics = new B.OreSystem(world, deposits.nodes, data?.loose || []); this.index = this.orePhysics.index; this.economy = new B.Economy(state); this.player = new B.Player(world); this.cutter = new B.Cutter(world); this.mining = new B.MiningFeel(world);
       if (data) { Object.assign(this.settings, data.settings); this.player.teleport(data.player.x, data.player.y, data.player.z); this.player.yaw = data.player.yaw; this.player.pitch = data.player.pitch; }
       this.expedition = new B.Expedition(world, this.economy); this.gadgets = new B.Gadgets(world, state.expedition, state); this.thunder = new B.Thunderstone(world, state); this.mysteries = new B.Mysteries(world, state); this.freight = new B.Freight(world, this.economy); this.feedback = new B.Feedback(world); this.guide = new B.FieldGuide(state); this.town = new B.Town(state,world); this.refuges = new B.Refuges(world, state); this.survey = new B.Survey(world, state, deposits, this.expedition); this.lastChapter = B.chapter(state.deepest); this.chapterUntil = 0; this.aimPreview = null; this.previewAt = -1;
       this.combat = new B.Combat(world, state); this.actions = new B.ToolActions(world, this.cutter, this.combat); this.combatRevision = 0;
@@ -137,11 +137,12 @@
       if (this.survey?.update(dt, this.player)) this.changed();
       if (this.input.aim === 'bomb' && this.clock - this.previewAt > .08) { this.aimPreview = this.gadgets.preview(this.player); this.previewAt = this.clock; }
       if (this.input.aim === 'freight' && this.clock - this.previewAt > .12) { this.freightPreview = this.freight.placement(this.player); this.previewAt = this.clock; }
+      this.mining?.update(dt, this);
       this.feedback?.update(dt, this);
       this.collect();
       if (this.input.keys.has('KeyR')) { this.recallTime += dt; if (this.recallTime >= 1.25) this.recall(); } else this.recallTime = 0;
       if (this.player.y < this.world.floor - 1 || !Number.isFinite(this.player.y)) { this.recall(); this.audit.recoveries++; }
-      this.audio.drill(this.input.fire && !this.input.aim, this.cutter.edited, -this.player.y, mode, this.expedition?.charge || 0);
+      this.audio.drill(this.input.fire && !this.input.aim, this.cutter.edited, -this.player.y, mode, this.expedition?.charge || 0, this.mining);
       if (this.expedition && this.expedition.pulseSerial !== (this.lastSoundPulse || 0)) { this.lastSoundPulse = this.expedition.pulseSerial; this.audio.blast(this.expedition.lastPulse?.magic ? 'rift' : true, this.expedition.lastPulse, this.player, this.world); }
       if (this.clock - this.lastSave >= 20) { this.lastSave = this.clock; this.changed(); this.save(); }
       this.audio.update?.(this, dt);
@@ -431,7 +432,7 @@
       this.setScreen('journal');
     }
     toast(text, duration = 3300) { clearTimeout(this.toastTimer); $('toast').textContent = text; $('toast').classList.add('visible'); this.toastTimer = setTimeout(() => $('toast').classList.remove('visible'), duration); }
-    clearInput() { this.kinetics?.cancel(); this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
+    clearInput() { this.mining?.reset(); this.kinetics?.cancel(); this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
     setScreen(name) {
       this.clearInput(); this.screen = name; this.running = name === null; document.body.classList.toggle('in-menu', !this.running);
       for (const screen of document.querySelectorAll('.screen')) screen.hidden = screen.id !== name + '-screen';

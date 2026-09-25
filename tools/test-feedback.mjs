@@ -108,7 +108,7 @@ await test('audio starts lazily, caps voices, disconnects completed events and m
 });
 await test('actual Game events produce cutter, pickup, blast and ambient audio through the inert device', () => {
   g.settings.sound = true; g.audio.start(); const c = g.audio.context; assert.ok(c); g.player.teleport(6, .08, 6); g.player.pitch = -1.2; g.input.fire = true;
-  g.update(1 / 60); assert.ok(g.cutter.edited); assert.ok(g.audio.tool.gain.gain.value > .1); assert.ok(g.audio.air.gain.gain.value > 0); assert.ok(g.feedback.particles.length > 0);
+  g.update(1 / 60); assert.ok(g.cutter.edited); assert.ok(g.audio.tool.gain.gain.value > 0); assert.ok(g.mining.rev > 0); assert.ok(g.audio.air.gain.gain.value > 0); assert.ok(g.feedback.particles.length > 0);
   c.advance(.1); g.audio.pickup(2); const voices = g.audio.voices.size; g.audio.pickup(2); assert.equal(g.audio.voices.size, voices);
   g.gadgets.blasts.push({ x: 6, y: 1, z: 6, radius: 3, serial: 900 }); c.advance(.1); g.update(1 / 60); assert.ok(g.audio.voices.size > voices); assert.equal(g.lastSoundBlast, 900);
   const before = g.audio.voices.size; g.update(1 / 60); assert.equal(g.audio.voices.size, before); g.clearInput(); assert.ok([g.audio.tool, g.audio.air, g.audio.motor, g.audio.hum].every(loop => loop.gain.gain.value === 0));

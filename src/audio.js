@@ -3,7 +3,7 @@
 (function (B) {
   const TAU = Math.PI * 2;
   function soundSamples(kind, rate = 44100, options = {}) {
-    const duration = options.duration || ({ blast: 1.05, resonance: .9, rift: 1.25, step: .18, impact: .24, pickup: .42, drip: .55, tool: 1, air: 2, motor: 1 }[kind] || .2);
+    const duration = options.duration || ({ blast: 1.05, resonance: .9, rift: 1.25, step: .18, impact: .24, pickup: .42, drip: .55, tool: 1, air: 2, motor: 1, chisel: .12, bite: .22, grit: .08 }[kind] || .2);
     const data = new Float32Array(Math.ceil(rate * duration)), rng = B.random(options.seed ?? 7103), rock = B.clamp(options.layer || 0, 0, 4), frequency = options.frequency || 540;
     let brown = 0, previous = 0, phase = 0;
     for (let i = 0; i < data.length; i++) {
@@ -19,6 +19,9 @@
       } else if (kind === 'step' || kind === 'impact') {
         const f = kind === 'step' ? 78 + rock * 32 : 135 + rock * 65;
         sample = (brown * (2.5 - rock * .3) + high * (.1 + rock * .04)) * Math.exp(-t * (24 + rock * 4)) + Math.sin(t * TAU * f) * .25 * Math.exp(-t * 42);
+      } else if (kind === 'chisel' || kind === 'bite' || kind === 'grit') {
+        const heavy = kind === 'bite', f = heavy ? 74 : kind === 'chisel' ? 330 + rock * 65 : 170;
+        sample = Math.sin(TAU * f * t) * Math.exp(-t * (heavy ? 28 : 65)) * .42 + high * Math.exp(-t * 90) * (heavy ? .12 : .32) + brown * Math.exp(-t * (heavy ? 14 : 36)) * (heavy ? 3 : 1.4);
       } else if (kind === 'pickup' || kind === 'note') {
         sample = (Math.sin(t * TAU * frequency) * .46 + Math.sin(t * TAU * frequency * 2.003) * .17 * Math.exp(-t * 12) + Math.sin(t * TAU * frequency * 3.99) * .06 * Math.exp(-t * 25)) * Math.exp(-t * 8);
       } else if (kind === 'drip') {
@@ -87,12 +90,13 @@
       if (!this.context || this.context.currentTime - this.lastImpact < .07 || Math.hypot(node.vx, node.vy, node.vz) < 2) return;
       this.lastImpact = this.context.currentTime; this.playSound('impact', .12, { layer: node.kind }, soundSpace(node, player, world));
     }
-    drill(fire, contact, depth, mode = 'cutter', charge = 0) {
+    drill(fire, contact, depth, mode = 'cutter', charge = 0, feel = null) {
       if (!this.context) return; const now = this.context.currentTime, magic = mode === 'gravity' || mode === 'resonance', layer = B.chapter(Math.max(0, depth));
       const active = this.settings.sound && fire;
-      this.tool.gain.gain.setTargetAtTime(active && !magic ? contact ? .24 : .06 : 0, now, .035);
-      this.tool.source.playbackRate.setTargetAtTime(mode === 'scoop' ? .72 : mode === 'lance' ? 1.35 : 1, now, .06);
-      this.tool.filter.frequency.setTargetAtTime(contact ? 850 + layer * 420 : 1800, now, .06);
+      const mechanical = !!B.CUT_SHAPES[mode], rev = feel?.rev ?? 1, load = feel?.load ?? (contact ? 1 : 0);
+      this.tool.gain.gain.setTargetAtTime(active && mechanical ? (.04 + load * .13) * rev : 0, now, .035);
+      this.tool.source.playbackRate.setTargetAtTime((mode === 'scoop' ? .72 : mode === 'lance' ? 1.35 : 1) * (.7 + rev * .3 - load * .14), now, .06);
+      this.tool.filter.frequency.setTargetAtTime(1800 + load * (layer * 320 - 700), now, .06);
       this.hum.source.frequency.setTargetAtTime(active && magic ? 100 + charge * 160 : 62 + layer * 9, now, .08);
       this.hum.gain.gain.setTargetAtTime(active && magic ? .033 : this.settings.sound && depth > 25 ? .005 : 0, now, .1);
     }
@@ -100,6 +104,10 @@
     update(game, dt) {
       if (!this.context || !this.settings.sound) return;
       const p = game.player, now = this.context.currentTime, depth = Math.max(0, -p.y), layer = B.chapter(depth), speed = Math.hypot(p.vx, p.vz);
+      if (game.mining && game.mining.serial !== this.lastMining) {
+        this.lastMining = game.mining.serial;
+        if (game.mining.wasCutting) this.playSound(game.mining.mode === 'scoop' ? 'bite' : game.mining.mode === 'lance' ? 'chisel' : 'grit', .18, { layer });
+      }
       this.air.gain.gain.setTargetAtTime(depth < 3 ? .026 : layer === 1 ? .012 : .006, now, .7); this.air.filter.frequency.setTargetAtTime(depth < 3 ? 1600 : 340 + layer * 110, now, .7);
       if (p.grounded && speed > .8) { this.steps += speed * dt; if (this.steps >= 1.8) { this.steps %= 1.8; this.playSound('step', .15, { layer }); } } else this.steps = 0;
       if (p.grounded && !this.wasGrounded && this.fallSpeed < -5) this.playSound('step', Math.min(.35, -this.fallSpeed * .022), { layer });

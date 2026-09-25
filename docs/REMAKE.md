@@ -2,7 +2,7 @@
 
 Requested by Trent, September 2026. This replaces the first playable's implementation. HANDOFF.md remains historical context; the current user request overrides its old prohibition on rewriting systems.
 
-Current local checkpoint: **2.20.0 / field instruments**. Visible UI is game-rendered; terrain-border and full-depth import fixes ship alongside it. Read GAME-INTERFACE.md and VERIFICATION.md. Trent's 2.19 play review makes character/environment art and ordinary digging feel the next priorities.
+Current local checkpoint: **2.21.0 / cutting response**. The scoop and lance now have oriented excavation profiles, distinct working heads and mechanical response. Visible UI remains game-rendered. Read DIGGING-RESPONSE.md, GAME-INTERFACE.md and VERIFICATION.md. Trent's play review still makes character/environment art and ordinary digging feel the priorities; this is not completion of the wider beauty pass.
 
 ## Research and design decisions
 

@@ -84,6 +84,7 @@
       this.box(this.scoopHead, 0, -.05, -.5, .44, .06, .3, p.steel); for (const x of [-.2, .2]) this.box(this.scoopHead, x, .015, -.5, .04, .16, .3, p.metal);
       for (let i = 0; i < 5; i++) this.box(this.scoopHead, -.17 + i * .085, -.06, -.7, .045, .04, .16, p.steel);
       this.lanceHead = new T.Group(); this.tool.add(this.lanceHead); this.cylinder(this.lanceHead, 0, 0, -.53, .015, .075, .6, p.steel).rotation.x = -Math.PI / 2;
+      this.makeMiningTools();
       this.resonatorHead = new T.Group(); this.tool.add(this.resonatorHead);
       for (let i = 0; i < 4; i++) { const ring = add(this.resonatorHead, new T.TorusGeometry(.12 + i * .015, .015, 5, 20), glow('#bfa0f1', .8), 0, 0, -.3 - i * .075); ring.rotation.z = i * .4; }
     }

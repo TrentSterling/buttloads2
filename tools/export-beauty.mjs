@@ -36,6 +36,15 @@ function capture(name,position,target){
 }
 try{
  g.settings.motion=false;g.setScreen(null);g.view.camera.aspect=g.view.toolCamera.aspect=16/9;g.view.camera.updateProjectionMatrix();g.view.toolCamera.updateProjectionMatrix();
+ if(process.argv.includes('--mining')){
+  for(const [i,mode] of ['cutter','scoop','lance'].entries()){
+   g.expedition.state.tool=mode;
+   capture(mode+'-head',[2,.06,5],[-4,2.3,21]);
+   const p=new B2.Player(g.world);p.yaw=0;p.pitch=-Math.PI/2;
+   g.world.carve({x:-7+i*7,y:-.7,z:1},2.5,Infinity,mode==='cutter'?null:B2.cutBrush(p,2.5,mode));
+  }
+  g.expedition.state.tool='scoop';capture('cut-shapes',[0,8,11],[0,-1,1]);
+ } else {
  capture('yard',[2,.06,5],[-4,2.3,21]);capture('town',[5,2,28],[-8,1.8,43]);
  const n=g.world.caverns.networks[0].chamber;capture('cavern',[n.x,n.y-g.player.eye,n.z],[n.x+3,n.y-.6,n.z-2.5]);
  for(const id of [1,2]){
@@ -43,6 +52,7 @@ try{
   const forms=g.view.caveGrowth.filter(f=>id===1?f.root.userData.formation==='chalk-roots':f.root.userData.formation==='mineral-cluster').sort((a,b)=>a.root.position.distanceTo(new T.Vector3(c.x,c.y,c.z))-b.root.position.distanceTo(new T.Vector3(c.x,c.y,c.z)));
   const p=forms[0]?.root.position||new T.Vector3(c.x+2,c.y,c.z);
   capture(id===1?'chalk':'violet',[c.x,c.y-g.player.eye,c.z],[p.x,p.y+(id===1?-.4:.2),p.z]);
+ }
  }
  fs.writeFileSync(path.join(root,'label.txt'),'Offline scene geometry and material study. Synthetic lighting adapter; mapped signs omitted. Not a browser screenshot.\n');
 }finally{h.close();}

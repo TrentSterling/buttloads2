@@ -16,15 +16,15 @@
       const scale = .82 + this.random() * .3;
       this.particles.push({ x: p.x, y: p.y, z: p.z, ...velocity, type, color: color.map(c => c * scale), life, duration: life, size, spin: this.random() * 6.28, bounces: 0 });
     }
-    cut(hit, head, dt) {
+    cut(hit, head, dt, mode = 'cutter') {
       if (!hit) return;
-      const r = this.random, color = B.geology(hit.y).color.map(c => c / 255), n = this.world.normal(hit.x, hit.y, hit.z);
+      const r = this.random, color = B.geology(hit.y).color.map(c => c / 255), n = [...(hit.normal || this.world.normal(hit.x, hit.y, hit.z))];
       if (Math.hypot(...n) < .1) { const length = Math.hypot(head.x - hit.x, head.y - hit.y, head.z - hit.z) || 1; n[0] = (head.x - hit.x) / length; n[1] = (head.y - hit.y) / length; n[2] = (head.z - hit.z) / length; }
       const origin = { x: hit.x + n[0] * .07, y: hit.y + n[1] * .07, z: hit.z + n[2] * .07 };
-      this.cutRemainder += dt * 85;
+      this.cutRemainder += dt * (mode === 'scoop' ? 70 : mode === 'lance' ? 105 : 85);
       while (this.cutRemainder >= 1) {
-        this.cutRemainder--; const speed = .8 + r() * 2.4, dust = r() < .24;
-        this.spawn(origin, dust ? 'dust' : 'chip', color, { vx: n[0] * speed + (r() - .5), vy: n[1] * speed + r(), vz: n[2] * speed + (r() - .5) }, dust ? .7 + r() * .8 : .45 + r() * .55, dust ? .18 + r() * .18 : .035 + r() * .045);
+        this.cutRemainder--; const speed = (mode === 'lance' ? 2 : .8) + r() * 2.4, dust = r() < (mode === 'scoop' ? .6 : mode === 'lance' ? .12 : .24), spread = mode === 'scoop' ? 2.4 : .8;
+        this.spawn(origin, dust ? 'dust' : 'chip', color, { vx: n[0] * speed + (r() - .5)*spread, vy: n[1] * speed + r(), vz: n[2] * speed + (r() - .5)*spread }, dust ? .5 + r() * .5 : .3 + r() * .55, dust ? .18 + r() * .18 : (mode === 'lance' ? .025 : .035) + r() * .045);
       }
       this.kick = Math.max(this.kick, .18);
     }
@@ -58,7 +58,7 @@
     }
     update(dt, game) {
       this.time += dt; this.kick *= Math.exp(-dt * 14);
-      if (game.cutter.edited) this.cut(game.cutter.contact, game.player.head, dt); else this.cutRemainder = 0;
+      if (game.cutter.edited) this.cut(game.cutter.contact, game.player.head, dt, game.expedition.state?.tool); else this.cutRemainder = 0;
       const exp = game.expedition;
       if (exp.pulseSerial !== this.lastPulse) { this.lastPulse = exp.pulseSerial; if (exp.lastPulse) this.burst(exp.lastPulse, exp.lastPulse.radius, true); }
       for (const b of game.gadgets.blasts) if (b.serial > this.lastBlast) {

@@ -46,11 +46,10 @@
       const origin = player.head, direction = player.direction, radius = B.clamp(B.GEAR.drill.values[level] * tool.radius, .72, 2.8);
       let hit = this.world.ray(origin, direction, reach);
       // Wide brush contact: a center ray falling through its own hole does not release firing.
-      const side = { x: Math.cos(player.yaw), y: 0, z: -Math.sin(player.yaw) };
-      const up = { x: -direction.y * side.z, y: direction.z * side.x - direction.x * side.z, z: direction.y * side.x };
+      const brush = B.cutBrush(player, radius, mode), [side, up] = brush.basis;
       for (let i = 0; i < 8; i++) {
         const a = i * Math.PI / 4, offset = radius * .62;
-        const from = { x: origin.x + (side.x * Math.cos(a) + up.x * Math.sin(a)) * offset, y: origin.y + up.y * Math.sin(a) * offset, z: origin.z + (side.z * Math.cos(a) + up.z * Math.sin(a)) * offset };
+        const from = { x: origin.x + (side.x * Math.cos(a) * brush.axes[0] + up.x * Math.sin(a) * brush.axes[1]) * offset, y: origin.y + up.y * Math.sin(a) * brush.axes[1] * offset, z: origin.z + (side.z * Math.cos(a) * brush.axes[0] + up.z * Math.sin(a) * brush.axes[1]) * offset };
         const candidate = this.world.ray(from, direction, reach);
         if (candidate && (!hit || candidate.distance < hit.distance - radius * .4)) hit = candidate;
       }
@@ -59,7 +58,7 @@
       if (!hit) {
         for (let i = 0; i < 8; i++) {
           const a = i * Math.PI / 4, offset = radius * .9;
-          const from = { x: origin.x + (side.x * Math.cos(a) + up.x * Math.sin(a)) * offset, y: origin.y + up.y * Math.sin(a) * offset, z: origin.z + (side.z * Math.cos(a) + up.z * Math.sin(a)) * offset };
+          const from = { x: origin.x + (side.x * Math.cos(a) * brush.axes[0] + up.x * Math.sin(a) * brush.axes[1]) * offset, y: origin.y + up.y * Math.sin(a) * brush.axes[1] * offset, z: origin.z + (side.z * Math.cos(a) * brush.axes[0] + up.z * Math.sin(a) * brush.axes[1]) * offset };
           const candidate = this.world.ray(from, direction, reach);
           if (candidate && (!hit || candidate.distance < hit.distance)) hit = candidate;
         }
@@ -77,14 +76,15 @@
       const layer = B.geology(hit.y), efficiency = mode === 'scoop' && hit.y < -25 ? .22 : mode === 'lance' && hit.y > -9 ? .5 : 1;
       const amount = B.GEAR.drill.power[level] * tool.power * (mode === 'axe' && this.world.impactHead ? 2 : 1) * efficiency * dt / layer.resistance * (hit.y < -80 && this.world.deepUpgrades?.includes(0) ? 2 : 1);
       // Project rim contacts onto the center line, keeping the tunnel wide enough for the capsule.
-      const distance = hit.distance + radius * .27;
+      const brush = B.cutBrush(player, radius, mode), shape = mode === 'scoop' || mode === 'lance' ? brush : null;
+      const distance = hit.distance + radius * brush.axes[2] * .27;
       const target = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance };
-      this.contact = { ...hit, layer: layer.name, protected: !this.world.canDig(hit.x,hit.y,hit.z,.2) };
+      this.contact = { ...hit, normal: this.world.normal(hit.x, hit.y, hit.z), layer: layer.name, protected: !this.world.canDig(hit.x,hit.y,hit.z,.2) };
       if (this.contact.protected) return;
-      this.edited = this.world.carve(target, radius, amount) > 0; this.target = target;
+      this.edited = this.world.carve(target, radius, amount, shape) > 0; this.target = target;
       // Interpolation can leave a sliver at a rim probe after the centered brush saturates.
       // Bite into that actual contact instead of repeatedly carving the same empty volume.
-      if (!this.edited) { this.edited = this.world.carve(hit, radius, amount) > 0; this.target = hit; }
+      if (!this.edited) { this.edited = this.world.carve(hit, radius, amount, shape) > 0; this.target = hit; }
     }
   }
   Object.assign(B, { Player, Cutter });

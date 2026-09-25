@@ -1,5 +1,29 @@
 # Remake verification
 
+## Cutting response, local 2.21.0
+
+```text
+node tools/test.mjs
+COMPLETE 287 system checks passed
+
+node tools/test-mining.mjs
+COMPLETE 11 mining checks passed
+
+node tools/simulate-journey.mjs --fossil
+COMPLETE lantern journey
+COMPLETE fresh-claim journey
+
+node tools/build.mjs
+Standalone build: dist/index.html (1140 KiB)
+PASS standalone: 51 scripts compile; no external scripts or stylesheets.
+```
+
+The aggregate log is `tools/out/verification-2.21.log`; the earned route is `tools/out/journey-2.21.log`. The new tests cover orthogonal brush bases at pitched angles, directional excavation profiles, exact spherical sample behavior, protected ground, support removal beyond the old spherical radius, cold mesh equality, action integration, read-only previews, cadence, motion settings, finite attachment geometry and finite audio samples. The existing audio event check now expects a positive motor start rather than full contact gain on frame one because the new motor spools up.
+
+The fresh campaign earned upgrades, hauled both machines through newly cut routes, opened the seal, awakened the heart, recovered all geodes and restored the lower stations. It excavated and studied all fossil sections, recovered and reloaded the ember, bought Nell's living lenses, reloaded and returned to upgraded placed lamps at 622.6 simulated seconds. The pilot knows coordinates; this is reachability evidence, not a human pacing or enjoyment estimate. This route takes longer than the 2.18 receipt, so human review of cut width, hauling friction and progression pacing remains important.
+
+Three attachment views and an equal-radius cut comparison were exported and rendered offline on the RTX 5070 Ti. The committed scoop, lance and pit studies show actual geometry with approximate lighting and omitted signs. They are not browser screenshots. No browser interaction, OS input or audio device was used. The portable file is 1,167,063 bytes. DIGGING-RESPONSE.md records implementation and outstanding art priorities.
+
 ## Field instruments, local 2.20.0
 
 ```text

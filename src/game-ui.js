@@ -133,6 +133,7 @@
       const c=this.ctx,cx=w/2,cy=h/2;c.strokeStyle=g.cutter.edited?C.gold:C.white;c.lineWidth=1.5;c.beginPath();for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){c.moveTo(cx+Math.cos(a)*5,cy+Math.sin(a)*5);c.lineTo(cx+Math.cos(a)*9,cy+Math.sin(a)*9);}c.stroke();
       const action=g.interaction();if(action&&!g.recallTime){const label=(action.locked?'':'[E]  ')+action.label;this.prompt(label,cy+45,action.locked?C.muted:C.white);}
       else if(g.cutter.contact)this.prompt(value('contact'),cy+35,g.cutter.contact.protected?C.orange:C.muted);
+      else if(g.mining?.preview?.protected)this.prompt('Common land / claim boundary',cy+35,C.orange);
       if(g.scanUntil>g.clock)this.prompt(value('scan-target')+'  /  '+value('scan-detail'),cy+83,C.green);
       if(g.recallTime>0){this.prompt('RETURNING TO THE YARD',cy+45,C.gold);this.line(cx-90,cy+74,cx-90+180*g.recallTime/1.25,cy+74,C.gold,3);}
       if(g.input.aim)this.prompt(value('throw-hint'),cy+110,C.gold);

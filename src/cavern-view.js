@@ -25,7 +25,7 @@
         const origin = { x, y: at.y, z }; if (baseline.density(x, at.y, z) < .1) continue;
         const hit = baseline.ray(origin, { x: 0, y: ceiling ? 1 : -1, z: 0 }, 5); if (!hit) continue;
         const height = .2 + rng() * (ceiling ? 1.2 : .45), root = new T.Group(); root.position.set(hit.x, hit.y, hit.z); g.add(root);
-        const shape = new T.Mesh(new T.ConeGeometry(.1 + rng() * .17, height, 5), i % 4 === 0 ? glow : growth); shape.position.y = (ceiling ? -1 : 1) * height / 2; if (ceiling) shape.rotation.z = Math.PI; root.add(shape);
+        this.makeFormation(root,network.id,ceiling,height,.1+rng()*.17,growth,glow);
         this.caveGrowth.push({ root, anchor: { x: hit.x, y: hit.y + (ceiling ? .12 : -.12), z: hit.z } });
       }
     }

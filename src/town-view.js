@@ -22,7 +22,22 @@
       box(b.x, b.h + .38, front - .51, b.w + .7, .32, .17, trim);
       for (const x of [b.x - b.w / 2 + .15, b.x + b.w / 2 - .15]) { box(x, b.h / 2, front - .15, .18, b.h, .22, trim); box(x, 1.1, front - 1.1, .17, 2.2, .17, timber); }
       // Weatherboards and a dark kick plate lend readable scale at walking height.
-      for (let y = .34; y < b.h; y += .34) for (const side of [-1, 1]) box(b.x + side * (b.w / 4 + .65), y, front - .022, b.w / 2 - 1.3, .025, .055, timber);
+      const faded=paint.clone();faded.color.lerp(trim.color,.12);
+      for (let y = .34,row=0; y < b.h; y += .34,row++) {
+        const board=row%3===0?faded:paint;
+        for (const side of [-1, 1]) {
+          box(b.x + side * (b.w / 4 + .65), y, front - .025, b.w / 2 - 1.3, .30, .04, board);
+          box(b.x + side * (b.w / 2 + .025),y,b.z,.04,.30,b.d,board);
+        }
+        box(b.x,y,b.z+b.d/2+.025,b.w,.30,.04,board);
+      }
+      for(const side of [-1,1]){
+        const x=b.x+side*(b.w/2+.04);
+        for(const z of [front+.06,b.z+b.d/2-.06])box(x,b.h/2,z,.15,b.h,.18,trim);
+        box(x,1.95,b.z,.08,1.23,2.1,trim);box(x+side*.052,1.95,b.z,.03,1.01,1.85,glass);
+        box(x+side*.074,1.95,b.z,.025,1.08,.07,trim);box(x+side*.074,1.95,b.z,.025,.07,1.94,trim);
+        box(x+side*.055,1.31,b.z,.25,.10,2.24,trim);
+      }
       box(b.x, .11, front - .6, b.w + .3, .14, 1.25, timber);
       this.sign(g, b.name, b.sub, b.x, b.h - .48, front - .19, b.w - .65, .75, Math.PI, b.person === 'otis' ? '#303c39' : '#24483f', '#f1d292');
       if (!b.closed) {

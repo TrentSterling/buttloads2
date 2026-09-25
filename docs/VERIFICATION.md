@@ -1,5 +1,37 @@
 # Remake verification
 
+## Bell Works finish, local 2.19.0
+
+The visual pass changes terrain shading and grass vertex color, the sky and sunlight coverage, foliage, building detail, the held cutter and cave formations. It does not change generation, density, mineral identity, rewards, combat values or save schema. The published site remains 2.8.0.
+
+```text
+node tools/test.mjs
+COMPLETE 266 system checks passed
+COMPLETE 6 beauty checks passed
+
+node tools/test-beauty.mjs
+COMPLETE 6 beauty checks passed
+
+python tools/verify-beauty-shaders.py
+PASS actual expanded Three.js terrain vertex + fragment stages compile and link
+GPU: NVIDIA GeForce RTX 5070 Ti/PCIe/SSE2
+
+node tools/export-beauty.mjs after
+python tools/render-beauty.py after
+Yard, town and three upper-cave studies rendered
+
+node tools/build.mjs
+Standalone build: dist/index.html (1128 KiB)
+PASS standalone: 48 scripts compile; no external scripts or stylesheets.
+```
+
+`tools/out/verification-2.19.log` records the aggregate result. The six new cases cover saved-state and mineral isolation, sky/camera/motion behavior, all town building corners inside the actual shadow frustum, plant exclusion from claims/roads/apron, cave decoration removal after excavation and expansion of shader hooks against the bundled Three.js chunks. A derivative degeneracy guard and service-apron planting exclusion also passed the focused suite. The aggregate's final beauty cases include those changes.
+
+The Python shader check compiles the actual expanded terrain stages after translating WebGL GLSL syntax to desktop GLSL. It is a shader integration check, not a browser-driver test. The optional scene study renders actual exported geometry and the same procedural terrain functions using approximate lighting, shadows and tone mapping. It omits canvas signs and HUD. Five current views were inspected; the report includes before/after town studies. Neither the study nor the inert renderer establishes final WebGL appearance, browser layout, performance or human play feel.
+
+The full earned fossil/Nell journey below remains the latest campaign receipt; it was not rerun for this cosmetic pass. Game/economy/terrain isolation and the complete existing system regression suite passed instead. The user's mouse and keyboard were not used, and no browser interaction or window activation was performed.
+
+
 ## Lantern Leviathan, local 2.18.0
 
 Adds a supported giant fossil near 220 m, three excavation/light/scan study sites, one-time ember recovery, Nell Wick's earned arrival and lantern cart, and a permanent paid retrofit of all work lights. The published site remains 2.8.0.

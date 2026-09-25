@@ -108,4 +108,5 @@ passed += (await import('./test-crawlers.mjs')).crawlerChecks;
 passed += (await import('./test-kinetics.mjs')).kineticChecks;
 passed += (await import('./test-parcels.mjs')).parcelChecks;
 passed += (await import('./test-fossil.mjs')).fossilChecks;
+passed += (await import('./test-beauty.mjs')).beautyChecks;
 console.log(`COMPLETE ${passed} system checks passed`);

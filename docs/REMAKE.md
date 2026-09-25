@@ -4,6 +4,10 @@ Requested by Trent, September 2026. This replaces the first playable's implement
 
 ## Research and design decisions
 
+### Bell Works finish (local 2.19.0)
+
+A cosmetic pass improves the terrain finish, sky and town lighting, foliage, building detail, held cutter and upper-cave formations. World-space procedural relief replaces the coarse checker grain; the sun shadow volume covers the town; underground lighting also influences the held tool. New surface planting avoids both editable claims, roads and the service apron. Cave growth retains removable support. Gameplay values, density fields and save versions are unchanged. BEAUTY-PASS.md records the implementation and offline GPU studies. The expanded bundled Three.js terrain shader compiles and links; the aggregate suite passes 266 checks. These do not certify final browser appearance or human feel.
+
 ### Lantern Leviathan (local 2.18.0)
 
 An enormous supported skeleton near 220 m creates a quiet excavation discovery between lower-mine encounters. Expose three bone regions, illuminate their markings with placed work lights and study them with aimed scans. Its recovered ember brings Nell Wick and her original lantern cart to Ridge Common. A paid, earned lens retrofit improves all existing and future lamps, including their real moth-deterrence radius. The skeleton follows its terrain support; study, recovery, the town arrival and the upgrade persist. Existing saves retain their fields and mineral IDs. LANTERN-LEVIATHAN.md records mechanics and architecture; VERIFICATION.md records the fresh campaign and release checks.

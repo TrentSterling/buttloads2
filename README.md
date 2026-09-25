@@ -1,12 +1,15 @@
 # BUTTLOADS 2: The Deepening
 
-**Lantern Leviathan, local 2.18.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
+**Bell Works finish, local 2.19.0.** A first-person excavation game about turning a backyard hole into a mine, recovering oversized machinery, and finding something alive underneath it.
 
 The local build adds a small town, friendly merchants, natural caves, creatures and a continuation through the old floor into a 297 m mine. Restored stations grant equipment and return routes through Otis. The published site remains 2.8.0. Current expansion scope is in [docs/BEAUTY-DEPTH-COMBAT-PLAN.md](docs/BEAUTY-DEPTH-COMBAT-PLAN.md), town details in [docs/TOWN.md](docs/TOWN.md), cave details in [docs/CAVERNS.md](docs/CAVERNS.md), combat details in [docs/COMBAT.md](docs/COMBAT.md), the continuation in [docs/DEEP-WORKINGS.md](docs/DEEP-WORKINGS.md), the furnace encounter in [docs/FOREMAN.md](docs/FOREMAN.md), the surveyor rescue in [docs/RESCUE.md](docs/RESCUE.md), the lantern discovery in [docs/LANTERN-LEVIATHAN.md](docs/LANTERN-LEVIATHAN.md), and test evidence in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 Play at **https://tront.xyz/buttloads2/**, or open **index.html** or the portable **dist/index.html** locally. No install, CDN, server or runtime build tool is required. GitHub Pages publishes the repository root from `main`; the portable file is generated with `node tools/build.mjs`.
 
 ## What is in this build
+
+- A visual pass replaces the coarse terrain checker grain with mineral variation, sediment bands and surface relief. A warm horizon, broader town shadows, varied tree canopies and common-land plants give the surface more character. Shops have full weatherboards, corner trim and side windows.
+- The cutter has a beveled casing, helical bit, gauge ticks and worn paint. Cave formations vary between lantern caps, chalk roots and mineral clusters, with the existing support-removal behavior. The pass preserves terrain, ore and progression. See [docs/BEAUTY-PASS.md](docs/BEAUTY-PASS.md) for changes and labeled offline visual studies.
 
 - Uncover the Lantern Leviathan around 220 m. Excavate three marked bone regions, illuminate each with a placed work light, then aim and scan with F. E recovers the ember from its skull after the study. Its curved ribs, spine and skull fall together when their support is removed. Inez offers a lead; scans, map and journal track the discovery.
 - The ember brings Nell Wick and her lantern cart to Ridge Common, west of the well. Her $350 living lenses upgrade all placed and future work lights to 24 m reach and a 5 m moth refuge along clear light paths. Nell also sells supplies; the other residents react to her arrival. Discovery, support physics, purchases and the resident persist without resetting older mines. See [docs/LANTERN-LEVIATHAN.md](docs/LANTERN-LEVIATHAN.md).

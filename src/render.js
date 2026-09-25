@@ -15,15 +15,9 @@
       this.sun.shadow.mapSize.set(2048, 2048); Object.assign(this.sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 110 }); this.sun.shadow.normalBias = .025; this.sun.shadow.bias = -.0002; this.scene.add(this.sun);
       this.lamp = new T.PointLight('#ffe6b8', 2.6, 22, 1.2); this.scene.add(this.lamp);
       this.terrainMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .96 });
-      this.terrainMaterial.onBeforeCompile = shader => {
-        shader.vertexShader = 'varying vec3 vGround;\n' + shader.vertexShader;
-        shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround=position;');
-        shader.fragmentShader = 'varying vec3 vGround;\nfloat grain(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\n' + shader.fragmentShader;
-        shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\nfloat speck=grain(floor(vGround*31.0));float coarse=grain(floor(vGround*5.0));float sediment=sin(vGround.y*31.0+sin(vGround.x*1.4)*1.8+sin(vGround.z*1.5));diffuseColor.rgb*=.84+.23*speck+.12*coarse+.045*sediment;');
-      };
       this.terrain = new T.Group(); this.resources = new T.Group(); this.discovery = new T.Group(); this.scene.add(this.terrain, this.resources, this.discovery);
       this.palette = { dirt: material('#aa8c60'), grass: material('#919c59'), dark: material('#263434'), metal: material('#70817f', .5), steel: material('#b5bcb3', .65), yellow: material('#efb645'), red: material('#a85638'), wood: material('#726344'), leaf: material('#697e48'), black: material('#182321'), concrete: material('#b9b3a0'), pale: material('#d9d1ac') };
-      this.obstacles = []; this.makeYard(); this.makeTown(); this.makeTool(); this.makeParticles(); this.resize();
+      this.obstacles = []; this.makeLook(); this.makeYard(); this.makeTown(); this.makeTool(); this.makeToolFinish(); this.makeParticles(); this.resize();
     }
     box(group, x, y, z, sx, sy, sz, mat, rotation = 0) {
       const m = new T.Mesh(new T.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.rotation.y = rotation; m.castShadow = m.receiveShadow = true; group.add(m); return m;
@@ -82,7 +76,7 @@
         if(x>16 && x<48 && z>-16 && z< -2){for(let j=0;j<15;j++)rng();continue;}
         if (x > B.SURFACE.minX && x < B.SURFACE.maxX && z > B.SURFACE.minZ && z < B.SURFACE.maxZ) this.obstacles.push([x - .24, 0, z - .24, x + .24, h * .9, z + .24]);
         cylinder(x, h * .45, z, .13, .27, h * .9, p.wood, 7);
-        for (let j = 0; j < 3; j++) { const m = new T.Mesh(new T.IcosahedronGeometry(1, 0), p.leaf); m.scale.set(2.2 + rng(), 2 + rng(), 2 + rng()); m.position.set(x + (rng() - .5) * 2, h - j * .5, z + (rng() - .5) * 2); m.castShadow = true; g.add(m); }
+        for (let j = 0; j < 3; j++) { const m = new T.Mesh(new T.IcosahedronGeometry(1, 0), [p.leafLight,p.leaf,p.leafShade][j]); m.scale.set(2.2 + rng(), 2 + rng(), 2 + rng()); m.position.set(x + (rng() - .5) * 2, h - j * .5, z + (rng() - .5) * 2); m.castShadow = true; g.add(m); }
       }
       const mountain = material('#8b9d90');
       for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2, h = 12 + rng() * 17; const m = new T.Mesh(new T.ConeGeometry(22 + rng() * 14, h, 5), mountain); m.position.set(Math.cos(a) * 110, h * .5 - 3, Math.sin(a) * 110); m.rotation.y = rng() * 6; g.add(m); }
@@ -157,9 +151,10 @@
     }
     makeTool() {
       this.toolScene = new T.Scene(); this.toolCamera = new T.PerspectiveCamera(62, innerWidth / innerHeight, .01, 10);
-      this.toolScene.add(new T.HemisphereLight('#fff1d4', '#39463d', .65)); const light = new T.DirectionalLight('#fff1d4', 1.6); light.position.set(-2, 4, 3); this.toolScene.add(light);
+      this.toolScene.add(new T.HemisphereLight('#fff1d4', '#39463d', .65)); const light = this.toolKey = new T.DirectionalLight('#fff1d4', 1.6); light.position.set(-2, 4, 3); this.toolScene.add(light);
       this.tool = new T.Group(); this.tool.position.set(.34, -.30, -.78); this.tool.scale.setScalar(.7); this.tool.rotation.set(.2, .4, -.04); this.toolScene.add(this.tool); const p = this.palette;
-      this.box(this.tool, 0, 0, 0, .25, .24, .4, p.yellow); this.box(this.tool, 0, -.15, .06, .12, .25, .14, p.dark); this.box(this.tool, 0, -.26, .12, .18, .13, .18, p.black);
+      const housing=new T.Shape();housing.moveTo(-.10,-.12);housing.lineTo(.10,-.12);housing.lineTo(.13,-.09);housing.lineTo(.13,.09);housing.lineTo(.10,.12);housing.lineTo(-.10,.12);housing.lineTo(-.13,.09);housing.lineTo(-.13,-.09);housing.closePath();
+      this.toolHousing=new T.Mesh(new T.ExtrudeGeometry(housing,{depth:.36,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.008,bevelThickness:.008}),p.yellow);this.toolHousing.position.z=-.18;this.tool.add(this.toolHousing); this.box(this.tool, 0, -.15, .06, .12, .25, .14, p.dark); this.box(this.tool, 0, -.26, .12, .18, .13, .18, p.black);
       for (const x of [-.13, .13]) this.box(this.tool, x, .035, -.035, .025, .14, .21, p.metal);
       for (let i = 0; i < 4; i++) this.box(this.tool, -.131, .02, -.09 + i * .045, .006, .08, .012, p.black);
       const gauge = new T.Mesh(new T.CircleGeometry(.058, 24), new T.MeshBasicMaterial({ color: '#c4cba8' })); gauge.position.set(0, .025, .204); this.tool.add(gauge);
@@ -168,9 +163,10 @@
       for (const x of [-.092, .092]) for (const y of [-.087, .087]) { const bolt = this.cylinder(this.tool, x, y, .205, .008, .008, .007, p.steel, 6); bolt.rotation.x = Math.PI / 2; }
       this.box(this.tool, 0, -.069, .205, .095, .018, .005, p.dark);
       this.rotor = new T.Group(); this.rotor.position.z = -.25; this.tool.add(this.rotor);
-      for (let i = 0; i < 4; i++) { const bit = new T.Mesh(new T.CylinderGeometry(.1 - i * .02, .14 - i * .02, .1, 8), i % 2 ? p.metal : p.steel); bit.rotation.x = Math.PI / 2; bit.position.z = -i * .075; this.rotor.add(bit); }
+      const shaft=this.cylinder(this.rotor,0,0,-.145,.045,.09,.34,p.metal,12);shaft.rotation.x=-Math.PI/2;
+      for(let side=0;side<2;side++){const points=[];for(let j=0;j<=48;j++){const t=j/48,a=t*Math.PI*5+side*Math.PI,r=.11*(1-t*.65);points.push(new V(Math.cos(a)*r,Math.sin(a)*r,-t*.33));}this.rotor.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),48,.018,5,false),p.steel));}
       this.box(this.tool, .065, .135, -.04, .085, .026, .07, p.black); this.box(this.tool, .065, .137, -.08, .06, .012, .01, new T.MeshBasicMaterial({ color: '#fff1c0' }));
-      this.box(this.tool, .07, -.22, .32, .17, .17, .4, p.wood);
+      this.box(this.tool, .07, -.25, .36, .15, .15, .34, p.dark); this.box(this.tool, .015, -.23, .17, .15, .15, .18, p.wood);
       const cable = new T.CatmullRomCurve3([new V(-.11, -.08, .13), new V(-.2, -.27, .08), new V(-.17, -.3, -.16), new V(-.06, -.09, -.2)]); this.tool.add(new T.Mesh(new T.TubeGeometry(cable, 12, .014, 5), p.black));
     }
     makeParticles() { this.makeFeedback(); }
@@ -180,11 +176,11 @@
       if (title) { this.camera.position.set(25 + Math.sin(time * .04) * 2, 19, 29); this.camera.lookAt(-1, -1, 0); }
       else { this.camera.position.set(p.x, p.y + p.eye, p.z); this.camera.rotation.set(p.pitch, p.yaw, 0, 'YXZ'); }
       const depth = Math.max(0, -this.camera.position.y), daylight = Math.exp(-depth * .24);
-      this.hemi.intensity = .035 + .62 * daylight; this.sun.intensity = 1.7 * daylight;
+      this.hemi.intensity = .04 + .48 * daylight; this.sun.intensity = 1.85 * daylight;
       this.lamp.position.copy(this.camera.position); this.lamp.intensity = title ? 0 : .2 + 1.6 * (1 - daylight); this.lamp.distance = 22 + game.economy.state.gear.scanner * 3;
       this.scene.fog.near = 35 - Math.min(25, depth); this.scene.fog.far = 145 - Math.min(95, depth * 4);
       const atmosphere = this.atmosphere(depth); this.lamp.color.copy(atmosphere.lamp);
-      this.scene.fog.color.set('#b5c6c4').lerp(atmosphere.fog, 1 - daylight); this.scene.background.copy(this.scene.fog.color);
+      this.scene.fog.color.copy(this.skyDome.material.uniforms.horizon.value).lerp(atmosphere.fog, 1 - daylight); this.scene.background.copy(this.scene.fog.color); this.renderLook(game,daylight);
       const fire = game.running && game.input.fire && !game.input.aim, moving = this.settings.motion, shake = moving && fire ? .002 : 0;
       this.tool.position.z = -.78 + (moving ? (game.feedback?.kick || 0) * .045 : 0);
       if (moving) this.rotor.rotation.z += dt * (fire ? 35 : .5); this.tool.position.y = -.30 + Math.sin(time * 8) * (this.settings.motion && Math.hypot(p.vx, p.vz) > .5 ? .006 : 0); this.tool.position.x = .34 + Math.sin(time * 77) * shake;

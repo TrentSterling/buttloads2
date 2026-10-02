@@ -2,6 +2,25 @@
 'use strict';
 (function(B){
  const T=THREE,C=B.COMMON;
+ B.CANOPY_ART={index(geometry){
+  // The static merger expands every leaf into independent triangle records.
+  // Share only bit-identical complete records; UV and normal seams stay split.
+  const rows=Object.entries(geometry.attributes),count=geometry.attributes.position?.count;
+  if(!count||count%3||geometry.index||geometry.groups.length||geometry.drawRange.start!==0||geometry.drawRange.count!==Infinity||Object.keys(geometry.morphAttributes).length)throw Error('Canopy indexing requires a complete unindexed static geometry');
+  for(const [,a]of rows)if(a.isInterleavedBufferAttribute||!(a.array instanceof Float32Array)||a.count!==count||!a.array.every(Number.isFinite))throw Error('Canopy indexing requires finite aligned Float32 attributes');
+  const bits=rows.map(([,a])=>new Uint32Array(a.array.buffer,a.array.byteOffset,a.array.length)),sourceIds=[],buckets=new Map(),indices=new Array(count);
+  const equal=(a,b)=>rows.every(([,attr],k)=>{for(let j=0;j<attr.itemSize;j++)if(bits[k][a*attr.itemSize+j]!==bits[k][b*attr.itemSize+j])return false;return true;});
+  for(let i=0;i<count;i++){
+   let hash=2166136261;for(let k=0;k<rows.length;k++)for(let j=0;j<rows[k][1].itemSize;j++)hash=Math.imul(hash^bits[k][i*rows[k][1].itemSize+j],16777619)>>>0;
+   let candidates=buckets.get(hash),id;
+   if(candidates!==undefined)for(const candidate of typeof candidates==='number'?[candidates]:candidates)if(equal(i,sourceIds[candidate])){id=candidate;break;}
+   if(id===undefined){id=sourceIds.length;sourceIds.push(i);if(candidates===undefined)buckets.set(hash,id);else if(typeof candidates==='number')buckets.set(hash,[candidates,id]);else candidates.push(id);}
+   indices[i]=id;
+  }
+  const result=new T.BufferGeometry();
+  for(const [name,a]of rows){const array=new Float32Array(sourceIds.length*a.itemSize);for(let i=0;i<sourceIds.length;i++)array.set(a.array.subarray(sourceIds[i]*a.itemSize,(sourceIds[i]+1)*a.itemSize),i*a.itemSize);result.setAttribute(name,new T.BufferAttribute(array,a.itemSize,a.normalized).setUsage(a.usage));}
+  result.setIndex(indices);result.computeBoundingBox();result.computeBoundingSphere();return result;
+ }};
  const mat=(hex,metalness=0)=>new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness:.9,metalness});
  const fade=(a,b,value)=>{const t=B.clamp((value-a)/(b-a),0,1);return t*t*(3-2*t);};
  const groundNoise=(x,z)=>{
@@ -140,19 +159,52 @@
    const uv=[];for(let i=0;i<pos.length;i+=3)uv.push(pos[i]*3,pos[i+1]*3);
    const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.computeVertexNormals();return geo;
   };
-  const crownGeometry=seed=>{
-   const random=B.random(seed),pos=[],colors=[],indices=[],twigs=[],phase=random()*6.28;
-   // Actual curved leaves replace the closed pillow that supplied canopy volume.
-   for(let j=0;j<20;j++){
-    const t=(j%5)/4,a=phase+j*2.399,r=(.35+.58*Math.sin(t*Math.PI))*(.7+random()*.28),cx=Math.cos(a)*r,cy=-.42+t*1.08+(random()-.5)*.10,cz=Math.sin(a)*r*.88;
-    const angle=a+1.15+(random()-.5)*.65,length=.58+random()*.19,w=length*.39,roll=(random()-.5)*1.1,offset=pos.length/3;
-    const point=(along,side,lift)=>[cx+Math.cos(angle)*length*along-Math.sin(angle)*w*side*Math.cos(roll),cy-length*(.08*along+.16*along*along)+lift+w*side*Math.sin(roll),cz+Math.sin(angle)*length*along+Math.cos(angle)*w*side*Math.cos(roll)];
-    for(const q of [[0,0,0],[.17,-.56,0],[.43,-1,0],[.77,-.68,0],[1,0,0],[.77,.68,0],[.43,1,0],[.17,.56,0],[.48,0,length*.08]]){pos.push(...point(...q));const tone=.78+.12*t+.06*Math.sin(j*2+phase)+q[0]*.03;colors.push(tone*.98,tone,tone*.91);}
-    for(let k=0;k<8;k++)indices.push(offset+k,offset+(k+1)%8,offset+8);
-    const rx=cx*.18,ry=cy*.32-.19,rz=cz*.18,root=[[rx+.007,ry,rz],[rx-.0035,ry,rz+.006],[rx-.0035,ry,rz-.006]],tip=[cx,cy,cz];for(let k=0;k<3;k++)for(const v of [root[k],tip,root[(k+1)%3]])twigs.push(...v);
+  // One shared cutout atlas keeps the many small leaves in one tree material.
+  // Left: a veined broadleaf. Right: a short fir shoot with paired needles.
+  const canopyCanvas=document.createElement('canvas');canopyCanvas.width=canopyCanvas.height=512;
+  const cc=canopyCanvas.getContext('2d'),atlasRandom=B.random(391854);
+  const leafPath=()=>{cc.beginPath();cc.moveTo(128,480);cc.bezierCurveTo(22,404,20,225,92,126);cc.bezierCurveTo(110,96,125,60,128,28);cc.bezierCurveTo(148,105,232,171,231,293);cc.bezierCurveTo(232,388,178,447,128,480);cc.closePath();};
+  leafPath();const leafShade=cc.createLinearGradient(30,260,235,260);leafShade.addColorStop(0,'#b1bf98');leafShade.addColorStop(.45,'#f2f0d3');leafShade.addColorStop(.53,'#ced6b1');leafShade.addColorStop(1,'#b6c99d');cc.fillStyle=leafShade;cc.fill();cc.save();cc.clip();
+  cc.strokeStyle='#a5b681';cc.lineWidth=2;for(let j=0;j<10;j++){const y=120+j*32;for(const side of [-1,1]){cc.beginPath();cc.moveTo(128,y+24);cc.quadraticCurveTo(128+side*44,y+8,128+side*(65+25*Math.sin(j*.31)),y-32);cc.stroke();}}
+  for(let j=0;j<650;j++){cc.fillStyle=atlasRandom()>.5?'#ffffff12':'#7f925412';cc.fillRect(28+atlasRandom()*210,75+atlasRandom()*390,1.4,2.2);}cc.restore();
+  cc.strokeStyle='#e6e7c6';cc.lineWidth=3;cc.beginPath();cc.moveTo(128,491);cc.quadraticCurveTo(123,269,128,39);cc.stroke();
+  cc.lineCap='round';cc.strokeStyle='#acb391';cc.lineWidth=4;cc.beginPath();cc.moveTo(384,491);cc.quadraticCurveTo(373,230,386,30);cc.stroke();
+  for(let j=0;j<55;j++)for(const side of [-1,1]){
+   const y=49+j*7.9+(atlasRandom()-.5)*7,l=(14+58*Math.sin(j/58*Math.PI))*(.55+atlasRandom()*.7),x=382+Math.sin(j*.19)*3,slope=.24+atlasRandom()*.72,w=1.8+atlasRandom()*1.4;
+   cc.fillStyle=['#c2d5b3','#e5ead2','#afc69e'][j%3];cc.beginPath();cc.moveTo(x,y);cc.quadraticCurveTo(x+side*l*.48,y-l*slope*.34-w,x+side*l,y-l*slope);cc.quadraticCurveTo(x+side*l*.5,y-l*slope*.32+w,x,y+2);cc.closePath();cc.fill();
+   cc.strokeStyle='#e8efdc';cc.lineWidth=.75;cc.beginPath();cc.moveTo(x+side*4,y);cc.lineTo(x+side*l*.86,y-l*slope*.81);cc.stroke();
+  }
+  const canopyMap=new T.CanvasTexture(canopyCanvas);canopyMap.encoding=T.sRGBEncoding;canopyMap.anisotropy=8;
+  const canopyMaterial=mat('#ffffff');canopyMaterial.map=canopyMap;canopyMaterial.alphaTest=.26;canopyMaterial.side=T.DoubleSide;canopyMaterial.vertexColors=true;canopyMaterial.emissive.set('#405a32').convertSRGBToLinear();canopyMaterial.emissiveIntensity=.045;
+  this.canopyMaterial=canopyMaterial;
+  const foliageGeometry=(pos,colors,uv,indices)=>{const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
+  // Four faces fold each rectangular carrier around its raised midrib. The
+  // atlas supplies the actual small leaf or many-needle shoot outline.
+  const foliageCard=(pos,colors,uv,indices,base,angle,length,half,roll,pitch,tone,fir=false)=>{
+   const dx=Math.cos(angle),dz=Math.sin(angle),offset=pos.length/3;
+   for(const [t,side]of [[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]){
+    const along=length*t,across=half*side,lift=-Math.abs(side)*length*.065;
+    pos.push(base[0]+dx*along*Math.cos(pitch)-dz*across*Math.cos(roll),base[1]+Math.sin(pitch)*along+Math.sin(roll)*across+lift-length*.08*t*t,base[2]+dz*along*Math.cos(pitch)+dx*across*Math.cos(roll));
+    colors.push(tone.r*(1-.04*t),tone.g*(1-.035*t),tone.b*(1-.025*t));uv.push((fir?.75:.25)+side*.21,.04+t*.92);
    }
-   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.setIndex(indices);geo.computeVertexNormals();
-   geo.userData.twigs=woodGeometry(twigs);return geo;
+   for(const [a,b,c]of [[0,3,1],[1,3,4],[1,4,2],[2,4,5]])indices.push(offset+a,offset+b,offset+c);
+  };
+  const leafTone=(material,t)=>material.color.clone().multiplyScalar(1.25+t*.24);
+  const crownGeometry=(seed,material)=>{
+   const random=B.random(seed),pos=[],colors=[],uv=[],indices=[],twigs=[],phase=random()*6.28;
+   // Ten branching shoots carry seven smaller leaves each, with an open centre
+   // and varied inclination rather than a radial umbrella of large discs.
+   for(let j=0;j<10;j++){
+    const a=phase+j*2.399,root=[0,-.21,0],reach=.70+random()*.30,tilt=-.16+random()*.94;
+    const tip=[root[0]+Math.cos(a)*reach,root[1]+tilt,root[2]+Math.sin(a)*reach*.85];
+    const ring=[];for(let k=0;k<3;k++){const q=k/3*Math.PI*2;ring.push([root[0]-Math.sin(a)*.008*Math.cos(q),root[1]+.008*Math.sin(q),root[2]+Math.cos(a)*.008*Math.cos(q)]);}for(let k=0;k<3;k++)for(const v of [ring[k],tip,ring[(k+1)%3]])twigs.push(...v);
+    for(let k=0;k<7;k++){
+     const t=.17+k*.119,side=k%2?1:-1,base=[root[0]+(tip[0]-root[0])*t,root[1]+(tip[1]-root[1])*t,root[2]+(tip[2]-root[2])*t];
+     const length=.24+random()*.14,roll=(random()-.5)*1.7,pitch=-.28+random()*.50;
+     foliageCard(pos,colors,uv,indices,base,a+side*(.72+random()*.32),length,length*(.25+random()*.045),roll,pitch,leafTone(material,random()));
+    }
+   }
+   const geo=foliageGeometry(pos,colors,uv,indices);geo.userData.twigs=woodGeometry(twigs);return geo;
   };
   const bent=(points,r0,r1,m)=>{
    const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),geo=new T.TubeGeometry(curve,5,1,6,false),attr=geo.attributes.position;
@@ -160,37 +212,27 @@
    geo.computeVertexNormals();return add(geo,m,0,0,0);
   };
   const leafSpray=(x,y,z,angle,size,material)=>{
-   const verts=[],colors=[],indices=[];
+   const pos=[],colors=[],uv=[],indices=[];
    beam([x-Math.cos(angle)*size*.85,y,z-Math.sin(angle)*size*.85],[x+Math.cos(angle)*size*.85,y,z+Math.sin(angle)*size*.85],.009,.004,barkLight,4);
-   for(let j=0;j<5;j++){
-    const along=(j/4-.5)*size*1.7,side=j%2?1:-1,cx=x+Math.cos(angle)*along,cz=z+Math.sin(angle)*along,a=angle+side*(.85+j*.07),length=size*(.34+(j%3)*.055),w=length*.34,offset=verts.length/3;
-    const roll=.56*Math.sin(j*1.4+angle),point=(t,s,lift)=>[cx+Math.cos(a)*length*t-Math.sin(a)*w*s*Math.cos(roll),y-length*(.11*t+.21*t*t)+lift+w*s*Math.sin(roll),cz+Math.sin(a)*length*t+Math.cos(a)*w*s*Math.cos(roll)];
-    // Rounded edges and a raised midrib form a curved leaf rather than a diamond.
-    for(const q of [[0,0,0],[.17,-.56,0],[.43,-1,0],[.77,-.68,0],[1,0,0],[.77,.68,0],[.43,1,0],[.17,.56,0],[.48,0,length*.10]]){verts.push(...point(...q));const tone=.84+.09*Math.sin(j*2+a)+.035*q[0];colors.push(tone*.97,tone,tone*.91);}
-    for(let k=0;k<8;k++)indices.push(offset+k,offset+(k+1)%8,offset+8);
+   for(let j=0;j<10;j++){
+    const along=(j/9-.5)*size*1.7,side=j%2?1:-1,base=[x+Math.cos(angle)*along,y,z+Math.sin(angle)*along],length=size*(.21+(j%3)*.025);
+    foliageCard(pos,colors,uv,indices,base,angle+side*(.75+j*.035),length,length*.27,.85*Math.sin(j*1.4+angle),-.18+.14*Math.sin(j*1.73),leafTone(material,j%3/3));
    }
-   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(verts,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.setIndex(indices);geo.computeVertexNormals();add(geo,material,0,0,0);
+   add(foliageGeometry(pos,colors,uv,indices),canopyMaterial,0,0,0);
   };
   const pineBough=(base,angle,length,random,material)=>{
    const dx=Math.cos(angle),dz=Math.sin(angle),point=t=>[base[0]+dx*length*t,base[1]+length*(.13*Math.sin(t*Math.PI)-.15*t*t),base[2]+dz*length*t];
    const middle=point(.55),tip=point(1);beam(base,middle,.026,.014,bark,5);beam(middle,tip,.014,.005,barkLight,4);
-   const pos=[],colors=[],twigs=[];
+   const pos=[],colors=[],uv=[],indices=[],twigs=[];
    for(let j=0;j<7;j++)for(const side of [-1,1]){
     const t=.14+j*.124,p=point(t),reach=length*(.60+.13*random())*Math.sin(t*Math.PI),a=angle+side*(.9+.22*random()),sx=Math.cos(a),sz=Math.sin(a);
-    // Keep the original construction stream and scaffold. Slender secondary
-    // twigs carry sprays in different planes instead of broad folded paper fans.
-    const twigTip=[p[0]+sx*reach*.88,p[1]-.055*reach,p[2]+sz*reach*.88],edge=[p[0]-sz*.004,p[1],p[2]+sx*.004],other=[p[0]+sz*.004,p[1],p[2]-sx*.004];
-    for(const v of [edge,twigTip,other])twigs.push(...v);
-    for(let k=0;k<4;k++){
-     const along=.14+k*.20,spread=(k%2?1:-1)*(.65+.06*(k%3)),needleAngle=a+spread,nx=Math.cos(needleAngle),nz=Math.sin(needleAngle),l=reach*(.60+.10*(k%3)),half=l*.085;
-     const base=[p[0]+sx*reach*along,p[1]+reach*(.08*Math.sin(along*Math.PI)-.08*along),p[2]+sz*reach*along],roll=k*2.399+side*.7;
-     const drop=.12*Math.sin(roll)-.16,tip=[base[0]+nx*l,base[1]+l*drop,base[2]+nz*l],middle=[base[0]+nx*l*.48,base[1]+l*(drop*.48+.006),base[2]+nz*l*.48],vy=Math.sin(roll)*half,flat=Math.cos(roll)*half;
-     const edge=[middle[0]-nz*flat,middle[1]+vy,middle[2]+nx*flat],other=[middle[0]+nz*flat,middle[1]-vy,middle[2]-nx*flat];
-     for(const v of [base,edge,tip,base,tip,other]){pos.push(...v);const tone=.79+.055*(k%3)+.08*along;colors.push(tone*.96,tone,tone*.91);}
+    const twigTip=[p[0]+sx*reach*.88,p[1]-.055*reach,p[2]+sz*reach*.88],edge=[p[0]-sz*.004,p[1],p[2]+sx*.004],other=[p[0]+sz*.004,p[1],p[2]-sx*.004];for(const v of [edge,twigTip,other])twigs.push(...v);
+    for(let k=0;k<3;k++){
+     const along=.12+k*.25,spread=(k%2?1:-1)*.48,l=reach*(.62+.06*(k%3)),base=[p[0]+sx*reach*along,p[1]+reach*(.08*Math.sin(along*Math.PI)-.08*along),p[2]+sz*reach*along];
+     foliageCard(pos,colors,uv,indices,base,a+spread,l,l*.31,k*2.399+side*.7,-.12+.09*Math.sin(k*1.9+j),leafTone(material,.24+(j%3)*.12),true);
     }
    }
-   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.computeVertexNormals();add(geo,material,0,0,0);
-   add(woodGeometry(twigs),barkLight,0,0,0);
+   add(foliageGeometry(pos,colors,uv,indices),canopyMaterial,0,0,0);add(woodGeometry(twigs),barkLight,0,0,0);
   };
   const tree=(x,z,h,conifer=false)=>{
    // Preserve the original placement stream; construction variation uses its own seed.
@@ -200,7 +242,7 @@
    if(x>B.SURFACE.minX+.6&&x<B.SURFACE.maxX-.6&&z>B.SURFACE.minZ+.6&&z<B.SURFACE.maxZ-.6)obstacle(x,y,z,.27,h*.85);
    if(conifer){
     // Individually curved boughs spiral up the trunk; there are no crown blobs.
-    const count=42+Math.floor(random()*7);
+    const count=36+Math.floor(random()*5);
     for(let j=0;j<count;j++){
      const t=j/(count-1),cy=y+h*(.20+t*.75),a=phase+j*2.399+(random()-.5)*.55,r=h*(.26*(1-t)+.027)*(.76+random()*.38);
      pineBough([x+lean*(.18+t*.8),cy,z+.04*Math.sin(t*6)],a,r,random,leaves[j%4===0?0:2]);
@@ -208,7 +250,7 @@
    }else for(let j=0;j<8;j++){
     const a=phase+j*2.399,r=(j===7?.24:.9+random()*.8)*h/7,cy=y+h*(.61+(j%3)*.11+random()*.045),cx=x+lean*.7+Math.cos(a)*r,cz=z+Math.sin(a)*r;
     bent([[x+lean*.25,y+h*.40,z],[x+lean*.5+Math.cos(a)*r*.55,cy-.65,z+Math.sin(a)*r*.55],[cx,cy+.05,cz]],.09,.018,j%3?bark:barkLight);
-    const geo=crownGeometry(j*93+Math.floor(x*17+z*23)),o=add(geo,leaves[(j+Math.floor(random()*3))%4],cx,cy+.26,cz);o.scale.set(h*(.14+random()*.055),h*.12,h*.16);o.rotation.y=a;
+    const leafMaterial=leaves[(j+Math.floor(random()*3))%4],geo=crownGeometry(j*93+Math.floor(x*17+z*23),leafMaterial),o=add(geo,canopyMaterial,cx,cy+.26,cz);o.scale.set(h*(.14+random()*.055),h*.12,h*.16);o.rotation.y=a;
     const stems=add(geo.userData.twigs,barkLight,cx,cy+.26,cz);stems.scale.copy(o.scale);stems.rotation.copy(o.rotation);
     for(let k=0;k<2;k++){const a2=a+(k?1:-1)*.95;leafSpray(cx+Math.cos(a2)*h*.11,cy+.04,cz+Math.sin(a2)*h*.11,a2,h*.14,leaves[(j+k)%4]);}
    }
@@ -567,7 +609,10 @@
   this.merge(ridge,true);for(const m of ridge.children)m.castShadow=false;
   this.merge(verge);this.merge(g,true);this.makeGroundCover();
   // Canopies use broad spatial batches rather than landscape-wide bounds.
-  for(const mesh of [...g.children])if(mesh.isMesh&&leaves.includes(mesh.material))B.WorkshopShapes.partitionRigid(mesh,64);
+  for(const mesh of [...g.children])if(mesh.isMesh&&(leaves.includes(mesh.material)||mesh.material===canopyMaterial)){
+   if(mesh.material===canopyMaterial){const original=mesh.geometry,start=performance.now(),compact=B.CANOPY_ART.index(original),bytes=geo=>Object.values(geo.attributes).reduce((n,a)=>n+a.array.byteLength,geo.index?.array.byteLength||0);this.canopyIndex={inputVertices:original.attributes.position.count,outputVertices:compact.attributes.position.count,beforeBytes:bytes(original),afterBytes:bytes(compact),creationMs:performance.now()-start};original.dispose();mesh.geometry=compact;}
+   B.WorkshopShapes.partitionRigid(mesh,64);
+  }
   this.commonPath=g.children.find(m=>m.isMesh&&m.material===path);this.renderer.shadowMap.needsUpdate=true;
  };
 })(B2);

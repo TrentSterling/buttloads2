@@ -141,6 +141,7 @@ passed += (await import('./test-contact-scan.mjs')).contactScanChecks;
 passed += (await import('./test-corner-slide.mjs')).cornerSlideChecks;
 passed += (await import('./test-reservoir.mjs')).reservoirChecks;
 passed += (await import('./test-static-partition.mjs')).staticPartitionChecks;
+passed += (await import('./test-canopy-index.mjs')).canopyIndexChecks;
 passed += (await import('./test-perimeter.mjs')).perimeterChecks;
 passed += (await import('./test-ground-cover.mjs')).groundCoverChecks;
 passed += (await import('./test-support-batches.mjs')).supportBatchChecks;

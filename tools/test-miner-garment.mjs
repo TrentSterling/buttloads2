@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {nodeGame} from './node-game.mjs';
+import {posedWorkerMesh} from './miner-joint-test-helper.mjs';
 const h=await nodeGame(),T=THREE,current=B2.buildMinerArt;
 // Keep the released body factory as the comparison fixture, not the current implementation.
 vm.runInThisContext(fs.readFileSync(new URL('fixtures/miner-art-2.48.0.js',import.meta.url),'utf8'));
@@ -20,9 +21,9 @@ try{
  });
  test('knee cloth encloses the pivot below the thigh cut through a full bend',()=>{
   for(let k=0;k<2;k++){
-   const leg=rig.legs[k],joint=rig.knees[k],cloth=meshes(leg).find(n=>n.parent===leg&&n.material===rig.materials[0]);assert.ok(cloth);
+   const leg=rig.legs[k],joint=rig.knees[k],cloth=meshes(leg).find(n=>n.name==='continuous-trouser');assert.ok(cloth);
    for(const bend of [0,.5,1,1.65,2.1]){joint.rotation.x=-bend;rig.root.updateMatrixWorld(true);const center=leg.localToWorld(new T.Vector3(0,-.38,0));
-    for(const azimuth of [-1.2,-.6,0,.6,1.2]){const direction=new T.Vector3(Math.sin(azimuth)*.7,-.7,Math.cos(azimuth)*.7).normalize().applyQuaternion(leg.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.16),direction.clone().negate());const hits=ray.intersectObject(cloth);assert.ok(hits.length);assert.ok(hits[0].point.distanceTo(center)>.075,'flat thigh cut leaves the lower joint unfilled');}}
+    const posed=posedWorkerMesh(cloth);try{for(const azimuth of [-1.2,-.6,0,.6,1.2]){const direction=new T.Vector3(Math.sin(azimuth)*.7,-.7,Math.cos(azimuth)*.7).normalize().applyQuaternion(leg.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.9),direction.clone().negate());const hits=ray.intersectObject(posed);assert.ok(hits.length&&hits[0].distance<.9,JSON.stringify({k,bend,azimuth,reason:'knee pivot outside posed garment'}));assert.ok(hits[0].point.distanceTo(center)>.075,JSON.stringify({k,bend,azimuth,radius:hits[0].point.distanceTo(center),reason:'flat thigh cut leaves the lower joint unfilled'}));}}finally{posed.geometry.dispose();}}
   }
  });
  test('knee retention bands are hollow and cannot expose a solid cylinder cap',()=>{
@@ -32,14 +33,14 @@ try{
  });
  test('elbow sleeves cover the pivot while the articulated glove is retained',()=>{
   for(let k=0;k<2;k++){
-   const arm=rig.arms[k],sleeve=meshes(arm).find(n=>n.parent===arm&&n.material===rig.materials[2]);assert.ok(sleeve);
-   for(const bend of [0,.7,1.4,2]){rig.elbows[k].rotation.x=bend;rig.root.updateMatrixWorld(true);const center=arm.localToWorld(new T.Vector3(0,-.245,0)),direction=new T.Vector3(0,-.8,.6).applyQuaternion(arm.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.14),direction.clone().negate());const hit=ray.intersectObject(sleeve)[0];assert.ok(hit&&hit.point.distanceTo(center)>.065);}
+   const arm=rig.arms[k],sleeve=meshes(arm).find(n=>n.name==='continuous-sleeve');assert.ok(sleeve);
+   for(const bend of [0,.7,1.4,2]){rig.elbows[k].rotation.x=bend;rig.root.updateMatrixWorld(true);const center=arm.localToWorld(new T.Vector3(0,-.245,0)),direction=new T.Vector3(0,-.8,.6).applyQuaternion(arm.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.7),direction.clone().negate());const posed=posedWorkerMesh(sleeve);try{const hit=ray.intersectObject(posed)[0];assert.ok(hit&&hit.distance<.7&&hit.point.distanceTo(center)>.065,JSON.stringify({k,bend,radius:hit?.point.distanceTo(center),reason:'elbow coverage'}));}finally{posed.geometry.dispose();}}
   }
  });
  test('head, boots, cuff shapes, texture count, body draw inventory and released motion anchors are conserved; fabric UVs and glove art are checked separately',()=>{
   const compare=(a,b)=>{assert.equal(a.length,b.length);for(let j=0;j<a.length;j++){const x=a[j].geometry,y=b[j].geometry;assert.deepEqual(x.index?.array,y.index?.array);for(const n of Object.keys(x.attributes)){if(n==='uv'&&a[j].material===rig.materials[1])continue;assert.deepEqual(x.attributes[n].array,y.attributes[n].array);}}};
   compare(meshes(rig.head),meshes(old.head));for(let k=0;k<2;k++){compare(meshes(rig.feet[k]),meshes(old.feet[k]));compare(meshes(rig.elbows[k]).filter(n=>![2,3,5].includes(rig.materials.indexOf(n.material))),meshes(old.elbows[k]).filter(n=>![2,3,5].includes(old.materials.indexOf(n.material))));for(const prop of ['legs','knees','feet','arms','elbows'])assert.deepEqual(rig[prop][k].position.toArray(),old[prop][k].position.toArray());}
-  assert.equal(meshes(rig.root).length,52);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,15);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),1816);
+  assert.equal(meshes(rig.root).length,48);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,25);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),872);
   for(const m of meshes(rig.root))assert.ok(m.castShadow&&m.receiveShadow);
  });
 }finally{clearInterval(h.game.net.timer);h.close();}

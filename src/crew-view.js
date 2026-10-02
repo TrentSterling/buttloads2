@@ -150,7 +150,7 @@
  B.View.prototype.clearCrewBatches=function(){
   for(const groups of [this.crewBodyBatches,this.crewWeaponBatches])for(const group of groups?.values()||[]){
    for(const item of group.sources)item.source.visible=item.visible;
-   if(group.mesh){this.scene.remove(group.mesh);group.mesh.dispose?.();}
+   if(group.mesh){this.scene.remove(group.mesh);if(group.mesh.userData.ownedCrewJointGeometry)group.mesh.geometry.dispose();group.mesh.dispose?.();}
   }
   this.crewBodyBatches=this.crewWeaponBatches=null;this.crewBatchMembershipDirty=true;
   this.crewBatchStats={groups:0,instances:0,capacity:0,instanceBytes:0};
@@ -202,17 +202,21 @@
    }
    if(active.length>=2){
     if(group.capacity<active.length){
-     if(group.mesh){this.scene.remove(group.mesh);group.mesh.dispose?.();}
+     if(group.mesh){this.scene.remove(group.mesh);if(group.mesh.userData.ownedCrewJointGeometry)group.mesh.geometry.dispose();group.mesh.dispose?.();}
      const source=active[0].source;group.capacity=2**Math.ceil(Math.log2(active.length));
-     const mesh=group.mesh=new T.InstancedMesh(source.geometry,source.material,group.capacity);
+     const geometry=source.userData.workerJoint?source.geometry.clone():source.geometry;
+     if(source.userData.workerJoint)geometry.setAttribute('workerInstanceJoint',new T.InstancedBufferAttribute(new Float32Array(group.capacity*4),4).setUsage(T.DynamicDrawUsage));
+     const mesh=group.mesh=new T.InstancedMesh(geometry,source.material,group.capacity);
+     if(source.userData.workerJoint){mesh.userData.ownedCrewJointGeometry=true;mesh.customDepthMaterial=source.customDepthMaterial;mesh.customDistanceMaterial=source.customDistanceMaterial;}
      mesh.name=name;mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
      mesh.castShadow=source.castShadow;mesh.receiveShadow=source.receiveShadow;mesh.layers.mask=source.layers.mask;mesh.renderOrder=source.renderOrder;this.scene.add(mesh);
     }
     group.mesh.count=active.length;group.mesh.visible=true;
-    active.forEach(({source},i)=>{group.mesh.setMatrixAt(i,source.matrixWorld);source.visible=false;});group.mesh.instanceMatrix.needsUpdate=true;
+    active.forEach(({source},i)=>{group.mesh.setMatrixAt(i,source.matrixWorld);if(source.userData.workerJoint){const q=source.userData.workerJoint.joint.quaternion;group.mesh.geometry.attributes.workerInstanceJoint.setXYZW(i,q.x,q.y,q.z,q.w);}source.visible=false;});group.mesh.instanceMatrix.needsUpdate=true;
+    if(group.mesh.geometry.attributes.workerInstanceJoint)group.mesh.geometry.attributes.workerInstanceJoint.needsUpdate=true;
     stats.groups++;stats.instances+=active.length;
    }else if(group.mesh){group.mesh.count=0;group.mesh.visible=false;}
-   stats.capacity+=group.capacity;stats.instanceBytes+=group.capacity*64;
+   stats.capacity+=group.capacity;stats.instanceBytes+=group.capacity*(group.mesh?.geometry.attributes.workerInstanceJoint?80:64);
   }
  };
  B.View.prototype.removeMiner=function(id){const m=this.miners?.get(id);if(!m)return;this.clearCrewBatches();m.root.traverse(n=>{if(n.isMesh&&!n.userData.sharedCrewAsset)n.geometry?.dispose();});m.texture.dispose();for(const texture of m.textures||[])texture.dispose();m.badge.material.dispose();[...m.materials,...(m.weaponMaterials||[])].forEach(material=>material.dispose());m.root.parent?.remove(m.root);this.miners.delete(id);};

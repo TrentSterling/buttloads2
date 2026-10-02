@@ -2,10 +2,10 @@
 'use strict';
 (function(B){
  const T=THREE;
- function loft(rings,segments=16,closedSeam=false){
+ function loft(rings,segments=16){
   if(rings[0][0]>rings[rings.length-1][0])rings=[...rings].reverse();
   const positions=[],uv=[],indices=[];
-  rings.forEach(([y,rx,rz,z=0,x=0],row)=>{for(let j=0;j<=segments;j++){const a=closedSeam&&j===segments?0:j/segments*Math.PI*2;positions.push(x+Math.sin(a)*rx,y,z+Math.cos(a)*rz);uv.push(j/segments,row/(rings.length-1));}});
+  rings.forEach(([y,rx,rz,z=0,x=0],row)=>{for(let j=0;j<=segments;j++){const a=j/segments*Math.PI*2;positions.push(x+Math.sin(a)*rx,y,z+Math.cos(a)*rz);uv.push(j/segments,row/(rings.length-1));}});
   for(let row=0;row<rings.length-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;indices.push(a,a+1,b,a+1,b+1,b);}
   for(const row of [0,rings.length-1]){const [y,,,z=0,x=0]=rings[row],center=positions.length/3;positions.push(x,y,z);uv.push(.5,.5);for(let j=0;j<segments;j++){const a=row*(segments+1)+j;indices.push(center,...(row?[a,a+1]:[a+1,a]));}}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;
@@ -68,8 +68,8 @@
    uv.setXY(i,(tile[0]+4+B.clamp(u,0,1)*(tile[2]-8))/256,1-(tile[1]+tile[3]-4-B.clamp(v,0,1)*(tile[3]-8))/256);
   }
  }
- function garment(rings,segments,folds=[],kind='torso',closedSeam=false){
-  const geo=loft(rings,segments,closedSeam),p=geo.attributes.position;
+ function garment(rings,segments,folds=[],kind='torso'){
+  const geo=loft(rings,segments),p=geo.attributes.position;
   for(let i=0;i<p.count;i++){
    const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=Math.hypot(x,z);if(r<.005)continue;
    let tuck=0;for(const [height,width,depth,slope=0]of folds){const d=(y-height-x*slope)/width;tuck+=depth*Math.exp(-d*d);}
@@ -77,45 +77,6 @@
   }
   geo.computeVertexNormals();geo.userData.workerCloth=kind;return geo;
  }
- const jointGLSL=`
- uniform vec4 workerJointQuaternion;
- uniform vec2 workerJointSection;
- #ifdef USE_INSTANCING
- attribute vec4 workerInstanceJoint;
- #endif
- vec4 workerJointRotation(){
- #ifdef USE_INSTANCING
- vec4 q=workerInstanceJoint;
- #else
- vec4 q=workerJointQuaternion;
- #endif
- return q.w<0.0?-q:q;
- }
- vec3 workerRotate(vec4 q,vec3 p){return p+2.0*cross(q.xyz,cross(q.xyz,p)+q.w*p);}
- vec4 workerWeightedRotation(vec3 p,vec4 q){float t=clamp((p.y-workerJointSection.x+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0);return normalize(mix(vec4(0.0,0.0,0.0,1.0),q,1.0-t*t*(3.0-2.0*t)));}
- vec3 workerJointPoint(vec3 p){vec3 pivot=vec3(0.0,workerJointSection.x,0.0);return pivot+workerRotate(workerWeightedRotation(p,workerJointRotation()),p-pivot);}
- vec3 workerJointNormal(vec3 p,vec3 n){
-  vec4 q=workerJointRotation();float t=clamp((p.y-workerJointSection.x+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0),w=1.0-t*t*(3.0-2.0*t),dw=-3.0*t*(1.0-t)/workerJointSection.y;
-  vec4 raw=mix(vec4(0.0,0.0,0.0,1.0),q,w);vec3 v=cross(2.0*q.xyz*dw/dot(raw,raw),p-vec3(0.0,workerJointSection.x,0.0));float determinant=1.0+v.y;
-  n.y-=dot(v,n)/(abs(determinant)<0.001?(determinant<0.0?-0.001:0.001):determinant);
-  return normalize(workerRotate(normalize(raw),n));
- }
- `;
- function jointShader(material,joint,pivot,span){
-  material.customProgramCacheKey=()=> 'worker-continuous-joint-v1';
-  material.onBeforeCompile=shader=>{
-   shader.uniforms.workerJointQuaternion={value:joint.quaternion};shader.uniforms.workerJointSection={value:new T.Vector2(pivot,span)};
-   shader.vertexShader=jointGLSL+shader.vertexShader;
-   shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=workerJointNormal(position,objectNormal);');
-   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=workerJointPoint(transformed);');
-  };return material;
- }
- function jointPoint(point,quaternion,pivot,span,target=new T.Vector3()){
-  const t=B.clamp((point.y-pivot+span)/(2*span),0,1),w=1-t*t*(3-2*t),sign=quaternion.w<0?-1:1,x=quaternion.x*sign*w,y=quaternion.y*sign*w,z=quaternion.z*sign*w,qw=1+w*(quaternion.w*sign-1),inverse=1/Math.hypot(x,y,z,qw);
-  const qx=x*inverse,qy=y*inverse,qz=z*inverse,qwN=qw*inverse,px=point.x,py=point.y-pivot,pz=point.z,tx=2*(qy*pz-qz*py),ty=2*(qz*px-qx*pz),tz=2*(qx*py-qy*px);
-  return target.set(px+qwN*tx+qy*tz-qz*ty,py+qwN*ty+qz*tx-qx*tz+pivot,pz+qwN*tz+qx*ty-qy*tx);
- }
- B.WorkerJoint={point:jointPoint,shader:jointShader};
  function bibPanel(){
   // The bib follows the ribcage cross-section, with closed edges and a shaped top.
   const rows=[[.933,.129,.196,.136],[.981,.145,.197,.139],[1.06,.151,.210,.148],[1.15,.159,.233,.151],[1.213,.155,.240,.148],[1.258,.117,.242,.143]],segments=12,positions=[],uv=[],indices=[];
@@ -227,16 +188,6 @@
   const ball=(parent,m,x,y,z,rx,ry=rx,rz=rx)=>{const geometry=new T.SphereGeometry(1,14,10);if(m===cloth||m===shirt)geometry.userData.workerCloth=m===cloth?'joint-thigh':'joint-sleeve';const mesh=add(parent,geometry,m,x,y,z);mesh.scale.set(rx,ry,rz);return mesh;};
   const wire=(parent,m,points,r=.003)=>add(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),Math.max(6,points.length*4),r,5,false),m);
   const bolt=(parent,x,y,z,r=.007)=>{const mesh=add(parent,new T.CylinderGeometry(r,r,.006,6),steel,x,y,z);mesh.rotation.x=Math.PI/2;return mesh;};
-  const jointCloth=(parent,joint,geometry,base,pivot,span)=>{
-   if(base.map===fabric)clothUV(geometry);const m=jointShader(base.clone(),joint,pivot,span);materials.push(m);
-   const mesh=add(parent,geometry,m);mesh.userData.workerJoint={joint,pivot,span};mesh.name=base.map===fabric?(pivot===-.38?'continuous-trouser':'continuous-sleeve'):'continuous-knee-equipment';
-   mesh.customDepthMaterial=jointShader(new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking}),joint,pivot,span);
-   mesh.customDistanceMaterial=jointShader(new T.MeshDistanceMaterial(),joint,pivot,span);materials.push(mesh.customDepthMaterial,mesh.customDistanceMaterial);
-   // Weighted quaternions preserve distance from the pivot for every vertex.
-   const p=geometry.attributes.position;let radiusSquared=0;for(let i=0;i<p.count;i++)radiusSquared=Math.max(radiusSquared,p.getX(i)**2+(p.getY(i)-pivot)**2+p.getZ(i)**2);
-   geometry.boundingSphere=new T.Sphere(new T.Vector3(0,pivot,0),Math.sqrt(radiusSquared)+.00001);
-   return mesh;
-  };
   const torso=new T.Group();root.add(torso);
   // A waist, abdomen, ribcage and rounded shoulder line, rather than a rectangular shell.
   add(torso,garment([[.84,.177,.119],[.89,.194,.132],[.96,.188,.132],[1.04,.199,.140],[1.14,.226,.146],[1.24,.241,.140],[1.29,.249,.127],[1.34,.204,.107],[1.38,.105,.079]],20,[[.932,.024,.004,.17],[1.008,.018,.005,-.3],[1.274,.024,.004,.16]]),cloth);
@@ -298,15 +249,15 @@
   const legs=[],knees=[],feet=[],arms=[],elbows=[];
   for(const side of [-1,1]){
    const leg=new T.Group();leg.position.set(side*.12,.89,0);leg.rotation.z=side*.04;root.add(leg);legs.push(leg);
+   add(leg,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.28,.091,.094],[-.35,.084,.086],[-.395,.082,.083]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22]],'thigh'),cloth);
+   // Continuous cloth volume covers both cut ends when the shin turns at the knee.
+   ball(leg,cloth,0,-.38,0,.089,.097,.09);
    wire(leg,edge,[[side*.092,-.05,-.04],[side*.096,-.18,-.042],[side*.077,-.33,-.045]],.002);
    const knee=new T.Group();knee.position.y=-.38;leg.add(knee);knees.push(knee);
-   jointCloth(leg,knee,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.25,.095,.097],[-.29,.091,.094],[-.33,.088,.09],[-.38,.089,.09],[-.425,.091,.089],[-.465,.092,.086],[-.495,.093,.084],[-.59,.087,.081],[-.665,.076,.073],[-.705,.075,.072]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22],[-.481,.018,.004,.21],[-.634,.013,.003,-.23]],'thigh',true),cloth,-.38,.19);
-   const pad=new T.Group();
-   block(pad,rubber,0,-.015,-.088,.151,.17,.046,.026);block(pad,leather,0,-.021,-.115,.112,.124,.018,.02);
-   for(const y of [-.059,-.021,.017])block(pad,edge,0,y,-.127,.075,.009,.008,.002);
-   for(const y of [-.105,.020])add(pad,garmentBand(y,.095,.096),rubber);mergeRigid(pad);
-   // Pad and retention loops use the same continuous bend as the trouser.
-   for(const piece of pad.children){piece.updateMatrix();piece.geometry.applyMatrix4(piece.matrix).translate(0,-.38,0);jointCloth(leg,knee,piece.geometry,piece.material,-.38,.19);}
+   add(knee,garment([[.03,.083,.085],[-.035,.092,.091],[-.115,.093,.084],[-.21,.087,.081],[-.285,.076,.073],[-.325,.075,.072]],16,[[-.101,.018,.004,.21],[-.254,.013,.003,-.23]],'shin'),cloth);
+   block(knee,rubber,0,-.015,-.088,.151,.17,.046,.026);block(knee,leather,0,-.021,-.115,.112,.124,.018,.02);
+   for(const y of [-.059,-.021,.017])block(knee,edge,0,y,-.127,.075,.009,.008,.002);
+   for(const y of [-.105,.020])add(knee,garmentBand(y,.095,.096),rubber);
    const foot=new T.Group();foot.position.y=-.50;foot.rotation.y=-side*.10;knee.add(foot);feet.push(foot);
    add(foot,loft([[0,.095,.148,-.028],[.024,.103,.165,-.039],[.060,.105,.165,-.037],[.077,.096,.151,-.031]],20),rubber);
    add(foot,loft([[.065,.091,.149,-.03],[.105,.096,.142,-.031],[.153,.089,.106,-.008],[.185,.075,.076,.012],[.241,.072,.074,.015]],20),leather);
@@ -315,9 +266,11 @@
    for(let j=0;j<4;j++){const y=.131+j*.019,z=-.109+j*.009;for(const x of [-.031,.031])bolt(foot,x,y,z,.005);wire(foot,reflector,[[-.03,y,z-.006],[.03,y+.015,z+.003]],.0025);wire(foot,reflector,[[.03,y,z-.006],[-.03,y+.015,z+.003]],.0025);}
    for(const z of [-.12,-.045,.03,.10])block(foot,rubber,0,.015,z,.19,.018,.019,.003);
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
+   add(arm,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.229,.063,.065],[-.269,.061,.063]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25]],'sleeve'),shirt);
+   ball(arm,shirt,0,-.245,0,.068,.085,.070);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
-   jointCloth(arm,elbow,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.213,.068,.069],[-.245,.067,.068],[-.275,.070,.071],[-.31,.071,.070],[-.353,.064,.062],[-.398,.055,.056],[-.45,.047,.05]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25],[-.322,.015,.003,-.32],[-.408,.014,.003,.27]],'sleeve',true),shirt,-.245,.13);
+   add(elbow,garment([[.029,.061,.063],[-.036,.069,.068],[-.108,.064,.062],[-.153,.055,.056],[-.205,.047,.05]],18,[[-.077,.015,.003,-.32],[-.163,.014,.003,.27]],'forearm'),shirt);
    add(elbow,loft([[-.188,.052,.054],[-.214,.053,.054]],16),darkCloth);
    const glove=workerGlove(side);for(const geometry of [glove.palm,...glove.fingers,glove.thumb])add(elbow,geometry,leather);for(const geometry of [glove.back,glove.cuff,...glove.pads])add(elbow,geometry,edge);
    for(const x of [-.027,.027])wire(elbow,edge,[[x,-.230,.025],[x,-.245,.023],[x*.9,-.268,.022]],.0014);

@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Continuous miner joints, 2.58.0
+
+The latest [joint reconstruction](MINER-JOINTS.md) replaces separate rigid trouser and sleeve pieces with continuous GPU bending around existing bones. Knee pads and bands share the deformation. All 581 system checks pass; 29 native pairs retain exact cameras and bone poses. Per worker, four fewer meshes remove 944 triangles and 25,952 model geometry bytes. Ten added main materials, twenty shadow materials and cloned instance buffers carry explicit costs. The ten-slide review retains failed attachments, all seven tools and actual independently posed native/instanced GPU evidence; it leads the 60-section hub. Counterbalanced profile cadence stays near 16.8 ms under unknown competing load. Molded shoulders, repeated anatomy, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.
+
 ## Mapped miner cloth, 2.57.0
 
 The latest [garment atlas reconstruction](MINER-CLOTH-MAP.md) replaces repeated cloth grain with placed fold shading and wear. All 575 system checks pass. Twenty-nine native pairs preserve exact cameras, rigs, draw counts and resource inventories; all 58 final frames were individually inspected. No body mesh, triangle, geometry byte, material or texture allocation is added. All 1,316 shared-material slot comparisons preserve batch compatibility. The ten-slide review retains two rejected atlas versions and leads the 59-section hub. Scalloped knee cut edges, rigid joints, repeated anatomy, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.

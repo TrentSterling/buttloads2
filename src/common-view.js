@@ -384,7 +384,7 @@
    const v=[[-1,bottom,-1],[1,bottom,-1],[1,bottom,1],[-1,bottom,1],[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]];
    return [[0,1,2,3],[4,7,6,5],[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]].map(ids=>({points:ids.map(i=>v[i]),fissure:false}));
   };
-  const cutBed=(faces,normal,limit,fissure=false)=>{
+  const cutBed=(faces,normal,limit,fissure=false,bevel=false)=>{
    const cut=[],result=[],value=p=>p[0]*normal[0]+p[1]*normal[1]+p[2]*normal[2]-limit;
    for(const face of faces){
     const polygon=[];
@@ -398,22 +398,42 @@
    if(cut.length>=3){
     const n=new T.Vector3(...normal).normalize(),u=new T.Vector3(...(Math.abs(n.y)<.8?[0,1,0]:[1,0,0])).cross(n).normalize(),v=n.clone().cross(u),centre=cut.reduce((p,q)=>p.add(new T.Vector3(...q)),new T.Vector3()).multiplyScalar(1/cut.length);
     const angle=p=>{const q=new T.Vector3(...p).sub(centre);return Math.atan2(q.dot(v),q.dot(u));};
-    cut.sort((a,b)=>angle(a)-angle(b));result.push({points:cut,fissure});
+    cut.sort((a,b)=>angle(a)-angle(b));result.push({points:cut,fissure,bevel});
    }
    return result;
   };
+  const bevelBed=(faces,sx,sy,sz,radius)=>{
+   const edges=new Map(),planes=[];
+   for(const face of faces){
+    const points=face.points.map(p=>new T.Vector3(p[0]*sx,p[1]*sy,p[2]*sz)),normal=new T.Vector3();
+    for(let i=1;i<points.length-1;i++)normal.add(points[i].clone().sub(points[0]).cross(points[i+1].clone().sub(points[0])));
+    if(normal.lengthSq()<1e-16)continue;normal.normalize();const plane={normal,limit:normal.dot(points[0]),fissure:face.fissure};
+    const key=p=>p.toArray().map(v=>Math.round(v*1e6)).join(',');
+    for(let i=0;i<points.length;i++){const a=key(points[i]),b=key(points[(i+1)%points.length]);if(a===b)continue;const id=[a,b].sort().join('/');if(!edges.has(id))edges.set(id,[]);edges.get(id).push(plane);}
+   }
+   for(const pair of edges.values())if(pair.length===2){
+    const [a,b]=pair;if(a.normal.dot(b.normal)>.995)continue;
+    const r=radius*((a.fissure||b.fissure)? .35:1);
+    const n=a.normal.clone().add(b.normal).multiplyScalar(.5),limit=(a.limit+b.limit)*.5-r*(1-n.length());
+    planes.push({normal:[n.x*sx,n.y*sy,n.z*sz],limit,fissure:a.fissure&&b.fissure});
+   }
+   for(const plane of planes)faces=cutBed(faces,plane.normal,plane.limit,plane.fissure,true);return faces;
+  };
   const emitBed=(faces,cx,cy,cz,sx,sy,sz,buckets)=>{
    const phase=cx*.17+cz*.23;
-   const surface=q=>[cx+(q[0]+.065*Math.sin(q[1]*3.4+q[2]*2.9+phase))*sx,cy+(q[1]+.035*Math.sin(q[0]*3.3+q[2]*4.1+phase)*Math.min(1,Math.max(0,1-q[1])))*sy,cz+(q[2]+.060*Math.sin(q[1]*4.1-q[0]*3.7+phase))*sz];
+   const surface=q=>{
+    const px=cx+q[0]*sx,py=cy+q[1]*sy,pz=cz+q[2]*sz,recess=sy>.5?.16*(groundNoise(px*.83+py*.31,pz*.83-py*.29)+.3*groundNoise(px*2.7+py*.9,pz*2.7-py*.8)):0;
+    return[cx+(q[0]+.080*Math.sin(q[1]*3.4+q[2]*2.9+phase))*sx-q[0]*recess,cy+(q[1]+.050*Math.sin(q[0]*3.3+q[2]*4.1+phase)*Math.min(1,Math.max(0,1-q[1])))*sy,cz+(q[2]+.075*Math.sin(q[1]*4.1-q[0]*3.7+phase))*sz-q[2]*recess];
+   };
+   if(sy>.5)faces=bevelBed(faces,sx,sy,sz,.22);
    for(const face of faces){
-    const centre=face.points.reduce((a,b)=>a.map((v,k)=>v+b[k]),[0,0,0]).map(v=>v/face.points.length),p=[];
-    for(let i=0;i<face.points.length;i++){const a=face.points[i],b=face.points[(i+1)%face.points.length];p.push(surface(a),surface(a.map((v,k)=>(v+b[k])*.5)));}
+    const centre=face.points.reduce((a,b)=>a.map((v,k)=>v+b[k]),[0,0,0]).map(v=>v/face.points.length),local=[],p=[];
+    for(let i=0;i<face.points.length;i++){const a=face.points[i],b=face.points[(i+1)%face.points.length],distance=Math.hypot((a[0]-b[0])*sx,(a[1]-b[1])*sy,(a[2]-b[2])*sz),count=sy>.5?Math.max(2,Math.ceil(distance/.45)):2;for(let j=0;j<count;j++){const q=a.map((v,k)=>v+(b[k]-v)*j/count);local.push(q);p.push(surface(q));}}
     const middle=surface(centre),normal=new T.Vector3(...p[1]).sub(new T.Vector3(...middle)).cross(new T.Vector3(...p[2]).sub(new T.Vector3(...middle))).normalize();
     const tone=normal.y>.65&&groundNoise(cx*.21,cz*.21)>.57?2:0;
-    for(let i=0;i<p.length;i++)for(const q of [middle,p[i],p[(i+1)%p.length]]){
-     buckets[tone].pos.push(...q);buckets[tone].uv.push(q[0]*.7,q[1]*.9);
-     const value=(face.fissure?.78:1)*(.89+.12*groundNoise(q[0]*.95+q[1]*.18,q[2]*.95-q[1]*.14));buckets[tone].color.push(value*.98,value,value*.96);
-    }
+    const tri=(a,b,c)=>{const points=[a,b,c].map(p=>p.map(Math.fround)),av=new T.Vector3(...points[0]),area=new T.Vector3(...points[1]).sub(av).cross(new T.Vector3(...points[2]).sub(av));if(area.lengthSq()<1e-12)return;for(const q of points){buckets[tone].pos.push(...q);buckets[tone].uv.push(q[0]*.7,q[1]*.9);const value=(face.fissure?.78:1)*(.89+.12*groundNoise(q[0]*.95+q[1]*.18,q[2]*.95-q[1]*.14));buckets[tone].color.push(value*.98,value,value*.96);}};
+    if(sy>.5&&!face.bevel){const inner=local.map(q=>surface(q.map((v,k)=>(v+centre[k])*.5)));for(let i=0;i<p.length;i++){const j=(i+1)%p.length;tri(p[i],p[j],inner[i]);tri(p[j],inner[j],inner[i]);tri(inner[i],inner[j],middle);}}
+    else for(let i=0;i<p.length;i++)tri(middle,p[i],p[(i+1)%p.length]);
    }
   };
   for(const [variant,[x,z,w,h,d]] of [[-46,25,4.4,1.6,2.6],[-41,28,2.8,1.25,2],[-38,-37,4.2,1.6,2.8],[49,43,3.4,1.8,2.8],[35,62,3.8,1.7,2.5]].entries()){
@@ -442,7 +462,12 @@
     let chip=bedBox(-.15);for(let j=0;j<4;j++){const angle=phase+j*Math.PI/2;chip=cutBed(chip,[Math.cos(angle),.5,Math.sin(angle)],1.03);}
     emitBed(chip,cx,height(cx,cz)-.04,cz,size*1.3,size,size*.84,buckets);
    }
-   for(const [i,data]of buckets.entries()){if(!data.pos.length)continue;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(data.pos,3));geo.setAttribute('uv',new T.Float32BufferAttribute(data.uv,2));geo.setAttribute('color',new T.Float32BufferAttribute(data.color,3));geo.computeVertexNormals();add(geo,this.commonRockMaterials[i],0,0,0);}
+   // Average adjacent surface normals across the rounded shoulders and warped
+   // faces; keep sharp breaks separate. Colour boundaries share these normals.
+   const adjacent=new Map(),triangles=[],key=(p,i)=>p.slice(i,i+3).map(v=>Math.round(v*1e6)).join(',');
+   for(const data of buckets)for(let i=0;i<data.pos.length;i+=9){const a=new T.Vector3(...data.pos.slice(i,i+3)),normal=new T.Vector3(...data.pos.slice(i+3,i+6)).sub(a).cross(new T.Vector3(...data.pos.slice(i+6,i+9)).sub(a));triangles.push({data,i,area:normal,normal:normal.clone().normalize()});for(let j=0;j<3;j++){const id=key(data.pos,i+j*3);if(!adjacent.has(id))adjacent.set(id,[]);adjacent.get(id).push(normal);}}
+   for(const triangle of triangles)for(let j=0;j<3;j++){const normal=new T.Vector3();for(const area of adjacent.get(key(triangle.data.pos,triangle.i+j*3)))if(area.clone().normalize().dot(triangle.normal)>.75)normal.add(area);normal.normalize();(triangle.data.normal||=[]).push(normal.x,normal.y,normal.z);}
+   for(const [i,data]of buckets.entries()){if(!data.pos.length)continue;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(data.pos,3));geo.setAttribute('uv',new T.Float32BufferAttribute(data.uv,2));geo.setAttribute('color',new T.Float32BufferAttribute(data.color,3));geo.setAttribute('normal',new T.Float32BufferAttribute(data.normal,3));add(geo,this.commonRockMaterials[i],0,0,0);}
    this.commonRocks.push({x,y,z,bounds:obstacle(x,y,z,w*.58,h*1.1,d*.65)});
   }
   // Grass follows compositional patches rather than a uniform scatter. Its own
@@ -630,6 +655,11 @@
   }
   this.merge(ridge,true);for(const m of ridge.children)m.castShadow=false;
   this.merge(verge);this.merge(g,true);this.makeGroundCover();
+  // The rock merger repeats complete static records just like the canopy.
+  // Compact only identical records, retaining every normal and colour seam.
+  for(const mesh of g.children)if(mesh.isMesh&&this.commonRockMaterials.includes(mesh.material)){
+   const original=mesh.geometry;mesh.geometry=B.CANOPY_ART.index(original);original.dispose();
+  }
   // Canopies use broad spatial batches rather than landscape-wide bounds.
   for(const mesh of [...g.children])if(mesh.isMesh&&(leaves.includes(mesh.material)||mesh.material===canopyMaterial)){
    if(mesh.material===canopyMaterial){const original=mesh.geometry,start=performance.now(),compact=B.CANOPY_ART.index(original),bytes=geo=>Object.values(geo.attributes).reduce((n,a)=>n+a.array.byteLength,geo.index?.array.byteLength||0);this.canopyIndex={inputVertices:original.attributes.position.count,outputVertices:compact.attributes.position.count,beforeBytes:bytes(original),afterBytes:bytes(compact),creationMs:performance.now()-start};original.dispose();mesh.geometry=compact;}

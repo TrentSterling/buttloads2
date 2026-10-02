@@ -1,5 +1,10 @@
 # Buttloads 2: remake direction
 
+## Nearby rock surfaces, 2.55.0
+
+The latest [nearby rock surface reconstruction](ROCK-SURFACES.md) adds rounded shoulders and irregular geometry relief to five existing outcrop groups. All 570 system checks pass. Eleven matched native pairs retain contacts, placements and refreshed-shadow draws; eight provide useful rock views, one is a yard control and two are obstructed. Complete record indexing offsets the detail: 11,936 more model triangles and 139,112 fewer common geometry bytes, with no added batch, material, texture or light. The nine-slide review retains rejected courses, a slight candidate and nonshipping diagnostics. Thin dark creases, broad faces, the wider landscape, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.
+
+
 ## Tree branching, 2.54.0
 
 The latest [tree branching reconstruction](TREE-BRANCHING.md) replaces eight repeated forks with divided boughs, ten smaller crown clusters and an exact scaled shoot attachment. All 570 system checks pass. Fourteen matched native views retain cameras, terrain, contacts and refreshed-shadow draw counts. The native construction audit reduces crown anchor gaps from up to 83 mm to floating-point tolerance. The same leaf budget, 43 common meshes, 26 foliage batches and 21 materials add 7,520 model triangles and 722,324 geometry bytes. Atlas pixels and all fir foliage attributes remain exact. The nine-slide review retains rejected heavy limbs, excess tessellation and the blocked porch fixture. Rear tiers, repeated growth, fir cards, bare hills, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.

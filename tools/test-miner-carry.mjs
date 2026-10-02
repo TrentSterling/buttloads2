@@ -10,9 +10,21 @@ const palm=(m,i)=>m.elbows[i].localToWorld(new T.Vector3(0,-.265,-.01));
 try{
  v.minerFloor=()=>0;g.settings.motion=true;
  test('both palms retain mechanical tool contact while walking, firing and aiming steeply',()=>{
-  for(const tool of ['cutter','scoop','lance','resonance'])for(const pitch of [-1.45,-.8,0,.8,1.45])for(const [dx,dz]of [[0,-.025],[.025,0]]){
+  for(const tool of ['cutter','scoop','lance','resonance'])for(const pitch of [-1.54,-1.45,-.8,0,.8,1.45,1.54])for(const [dx,dz]of [[0,-.025],[.025,0]]){
    const p=boot(tool);p.player.pitch=pitch;p.fire=true;for(let i=0;i<90;i++){const m=step(p,dx,dz),model=m.weapon.children[0],primary=model.localToWorld(new T.Vector3(0,-.22,.096)),support=model.localToWorld(new T.Vector3(-.145,-.07,-.085));assert.ok(palm(m,0).distanceTo(support)<.025,tool+' support glove misses the casing');assert.ok(palm(m,1).distanceTo(primary)<.025,tool+' primary glove misses the handle');for(let k=0;k<2;k++){const point=m.torso.worldToLocal(palm(m,k));assert.ok(point.z<-.175,JSON.stringify({tool,pitch,i,k,point:point.toArray()})+' glove sinks into chest');}}
   }
+ });
+ test('raised mechanical working ends remain separate from the animated head through firing and travel',()=>{
+  let minimum=Infinity;
+  for(const tool of ['cutter','scoop','lance','resonance'])for(const pitch of [1.2,1.54])for(const [dx,dz]of [[0,-.025],[.025,0]]){
+   const p=boot(tool);p.player.pitch=pitch;p.fire=true;
+   for(let i=0;i<180;i++){
+    const m=step(p,dx,dz),head=new T.Box3().setFromObject(m.head),end=new T.Box3().setFromObject(m.attachments[tool]);
+    const clearance=head.min.z-end.max.z;minimum=Math.min(minimum,clearance);
+    assert.ok(clearance>0,JSON.stringify({tool,pitch,i,clearance})+' working end overlaps the head forward plane');
+   }
+  }
+  console.log('Raised mechanical end minimum head-plane clearance: '+(minimum*1000).toFixed(2)+' mm (sampled animated poses).');
  });
  test('support palm is located at the real casing surface rather than an arbitrary air point',()=>{
   const p=boot('cutter'),m=step(p,0,0),model=m.weapon.children[0];model.updateWorldMatrix(true,true);

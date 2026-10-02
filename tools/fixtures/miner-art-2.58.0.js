@@ -101,52 +101,13 @@
   return normalize(workerRotate(normalize(raw),n));
  }
  `;
- const shoulderGLSL=`
- uniform vec4 workerShoulderArm;
- uniform vec4 workerShoulderBody;
- uniform vec2 workerShoulderRadius;
- uniform vec3 workerShoulderLateral;
- #ifdef USE_INSTANCING
- attribute vec4 workerInstanceShoulder;
- #endif
- vec4 workerShoulderRotation(){
- #ifdef USE_INSTANCING
- vec4 q=workerInstanceShoulder;
- #else
- vec4 a=vec4(-workerShoulderArm.xyz,workerShoulderArm.w),b=workerShoulderBody;
- vec4 q=vec4(a.w*b.xyz+b.w*a.xyz+cross(a.xyz,b.xyz),a.w*b.w-dot(a.xyz,b.xyz));
- #endif
- return q.w<0.0?-q:q;
- }
- vec3 workerShoulderPoint(vec3 rest,vec3 p){
-  float t=clamp((workerShoulderRadius.x+workerShoulderRadius.y-length(rest))/(2.0*workerShoulderRadius.y),0.0,1.0);
-  if(t<=0.0)return p;
-  float s=clamp((rest.x*workerShoulderLateral.x-workerShoulderLateral.y+workerShoulderLateral.z)/(2.0*workerShoulderLateral.z),0.0,1.0),w=t*t*(3.0-2.0*t)*(1.0-s*s*(3.0-2.0*s));
-  if(w<=0.0)return p;
-  return workerRotate(normalize(mix(vec4(0.0,0.0,0.0,1.0),workerShoulderRotation(),w)),p);
- }
- vec3 workerShoulderNormal(vec3 p,vec3 n){
-  float radius=length(p),t=clamp((workerShoulderRadius.x+workerShoulderRadius.y-radius)/(2.0*workerShoulderRadius.y),0.0,1.0);
-  if(t<=0.0)return n;
-  float s=clamp((p.x*workerShoulderLateral.x-workerShoulderLateral.y+workerShoulderLateral.z)/(2.0*workerShoulderLateral.z),0.0,1.0),wy=t*t*(3.0-2.0*t),wx=1.0-s*s*(3.0-2.0*s),w=wy*wx;
-  if(w<=0.0)return n;
-  vec4 q=workerShoulderRotation();vec3 gradient=vec3(-workerShoulderLateral.x*3.0*s*(1.0-s)*wy/workerShoulderLateral.z,0.0,0.0)-p*(3.0*t*(1.0-t)*wx/(max(radius,0.001)*workerShoulderRadius.y));
-  vec4 raw=mix(vec4(0.0,0.0,0.0,1.0),q,w);vec3 v=cross(2.0*q.xyz/dot(raw,raw),p);float determinant=1.0+dot(v,gradient);
-  n-=gradient*dot(v,n)/(abs(determinant)<0.001?(determinant<0.0?-0.001:0.001):determinant);
-  return normalize(workerRotate(normalize(raw),n));
- }
- `;
- function jointShader(material,joint,pivot,span,shoulder=null){
-  material.customProgramCacheKey=()=> shoulder?'worker-continuous-shoulder-v3':'worker-continuous-joint-v1';
+ function jointShader(material,joint,pivot,span){
+  material.customProgramCacheKey=()=> 'worker-continuous-joint-v1';
   material.onBeforeCompile=shader=>{
    shader.uniforms.workerJointQuaternion={value:joint.quaternion};shader.uniforms.workerJointSection={value:new T.Vector2(pivot,span)};
-   if(shoulder){
-    shader.uniforms.workerShoulderArm={value:shoulder.arm.quaternion};shader.uniforms.workerShoulderBody={value:shoulder.torso.quaternion};shader.uniforms.workerShoulderRadius={value:new T.Vector2(shoulder.radius,shoulder.falloff)};
-    shader.uniforms.workerShoulderLateral={value:new T.Vector3(shoulder.side,shoulder.lateral,shoulder.width)};
-   }
-   shader.vertexShader=jointGLSL+(shoulder?shoulderGLSL:'')+shader.vertexShader;
-   shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=workerJointNormal(position,objectNormal);'+(shoulder?'\nobjectNormal=workerShoulderNormal(position,objectNormal);':''));
-   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=workerJointPoint(transformed);'+(shoulder?'\ntransformed=workerShoulderPoint(position,transformed);':''));
+   shader.vertexShader=jointGLSL+shader.vertexShader;
+   shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=workerJointNormal(position,objectNormal);');
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=workerJointPoint(transformed);');
   };return material;
  }
  function jointPoint(point,quaternion,pivot,span,target=new T.Vector3()){
@@ -155,16 +116,6 @@
   return target.set(px+qwN*tx+qy*tz-qz*ty,py+qwN*ty+qz*tx-qx*tz+pivot,pz+qwN*tz+qx*ty-qy*tx);
  }
  B.WorkerJoint={point:jointPoint,shader:jointShader};
- function shoulderPoint(rest,point,arm,body,section,target=new T.Vector3()){
-  const t=B.clamp((section.radius+section.falloff-rest.length())/(2*section.falloff),0,1),s=B.clamp((rest.x*section.side-section.lateral+section.width)/(2*section.width),0,1),w=t*t*(3-2*t)*(1-s*s*(3-2*s));
-  if(w===0)return target.copy(point);
-  const ax=-arm.x,ay=-arm.y,az=-arm.z,aw=arm.w,bx=body.x,by=body.y,bz=body.z,bw=body.w;
-  let qx=aw*bx+ax*bw+ay*bz-az*by,qy=aw*by+ay*bw+az*bx-ax*bz,qz=aw*bz+az*bw+ax*by-ay*bx,qw=aw*bw-ax*bx-ay*by-az*bz;
-  const sign=qw<0?-1:1;qx*=sign*w;qy*=sign*w;qz*=sign*w;qw=1+w*(qw*sign-1);const inverse=1/Math.hypot(qx,qy,qz,qw);qx*=inverse;qy*=inverse;qz*=inverse;qw*=inverse;
-  const {x,y,z}=point,tx=2*(qy*z-qz*y),ty=2*(qz*x-qx*z),tz=2*(qx*y-qy*x);
-  return target.set(x+qw*tx+qy*tz-qz*ty,y+qw*ty+qz*tx-qx*tz,z+qw*tz+qx*ty-qy*tx);
- }
- B.WorkerShoulder={point:shoulderPoint};
  function bibPanel(){
   // The bib follows the ribcage cross-section, with closed edges and a shaped top.
   const rows=[[.933,.129,.196,.136],[.981,.145,.197,.139],[1.06,.151,.210,.148],[1.15,.159,.233,.151],[1.213,.155,.240,.148],[1.258,.117,.242,.143]],segments=12,positions=[],uv=[],indices=[];
@@ -276,17 +227,13 @@
   const ball=(parent,m,x,y,z,rx,ry=rx,rz=rx)=>{const geometry=new T.SphereGeometry(1,14,10);if(m===cloth||m===shirt)geometry.userData.workerCloth=m===cloth?'joint-thigh':'joint-sleeve';const mesh=add(parent,geometry,m,x,y,z);mesh.scale.set(rx,ry,rz);return mesh;};
   const wire=(parent,m,points,r=.003)=>add(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),Math.max(6,points.length*4),r,5,false),m);
   const bolt=(parent,x,y,z,r=.007)=>{const mesh=add(parent,new T.CylinderGeometry(r,r,.006,6),steel,x,y,z);mesh.rotation.x=Math.PI/2;return mesh;};
-  const jointCloth=(parent,joint,geometry,base,pivot,span,shoulder=null)=>{
-   if(base.map===fabric)clothUV(geometry);const m=jointShader(base.clone(),joint,pivot,span,shoulder);materials.push(m);
+  const jointCloth=(parent,joint,geometry,base,pivot,span)=>{
+   if(base.map===fabric)clothUV(geometry);const m=jointShader(base.clone(),joint,pivot,span);materials.push(m);
    const mesh=add(parent,geometry,m);mesh.userData.workerJoint={joint,pivot,span};mesh.name=base.map===fabric?(pivot===-.38?'continuous-trouser':'continuous-sleeve'):'continuous-knee-equipment';
-   if(shoulder)mesh.userData.workerShoulder=shoulder;
-   mesh.customDepthMaterial=jointShader(new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking}),joint,pivot,span,shoulder);
-   mesh.customDistanceMaterial=jointShader(new T.MeshDistanceMaterial(),joint,pivot,span,shoulder);materials.push(mesh.customDepthMaterial,mesh.customDistanceMaterial);
+   mesh.customDepthMaterial=jointShader(new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking}),joint,pivot,span);
+   mesh.customDistanceMaterial=jointShader(new T.MeshDistanceMaterial(),joint,pivot,span);materials.push(mesh.customDepthMaterial,mesh.customDistanceMaterial);
    // Weighted quaternions preserve distance from the pivot for every vertex.
-   const p=geometry.attributes.position;let radiusSquared=0;for(let i=0;i<p.count;i++){
-    radiusSquared=Math.max(radiusSquared,p.getX(i)**2+(p.getY(i)-pivot)**2+p.getZ(i)**2);
-    if(shoulder&&Math.hypot(p.getX(i),p.getY(i),p.getZ(i))<shoulder.radius+shoulder.falloff)radiusSquared=Math.max(radiusSquared,(Math.hypot(p.getX(i),p.getY(i),p.getZ(i))+Math.abs(pivot))**2);
-   }
+   const p=geometry.attributes.position;let radiusSquared=0;for(let i=0;i<p.count;i++)radiusSquared=Math.max(radiusSquared,p.getX(i)**2+(p.getY(i)-pivot)**2+p.getZ(i)**2);
    geometry.boundingSphere=new T.Sphere(new T.Vector3(0,pivot,0),Math.sqrt(radiusSquared)+.00001);
    return mesh;
   };
@@ -370,10 +317,7 @@
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
-   // The proximal seam sits inside the chest. Radial shoulder influence ends
-   // before the elbow transition and the reflector's visible rim.
-   const shoulder={arm,torso,radius:.101,falloff:.009,side,lateral:.005,width:.060};
-   jointCloth(arm,elbow,garment([[.038,.008,.025,-.009,-side*.063],[.030,.043,.062,-.004,-side*.040],[.020,.065,.075,-.001,-side*.025],[.009,.077,.082,0,-side*.012],[.002,.084,.084,0,-side*.005],[-.012,.087,.084],[-.023,.087,.083],[-.035,.087,.083],[-.106,.077,.076],[-.173,.068,.068],[-.213,.068,.069],[-.245,.067,.068],[-.275,.070,.071],[-.31,.071,.070],[-.353,.064,.062],[-.398,.055,.056],[-.45,.047,.05]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25],[-.322,.015,.003,-.32],[-.408,.014,.003,.27]],'sleeve',true),shirt,-.245,.13,shoulder);
+   jointCloth(arm,elbow,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.213,.068,.069],[-.245,.067,.068],[-.275,.070,.071],[-.31,.071,.070],[-.353,.064,.062],[-.398,.055,.056],[-.45,.047,.05]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25],[-.322,.015,.003,-.32],[-.408,.014,.003,.27]],'sleeve',true),shirt,-.245,.13);
    add(elbow,loft([[-.188,.052,.054],[-.214,.053,.054]],16),darkCloth);
    const glove=workerGlove(side);for(const geometry of [glove.palm,...glove.fingers,glove.thumb])add(elbow,geometry,leather);for(const geometry of [glove.back,glove.cuff,...glove.pads])add(elbow,geometry,edge);
    for(const x of [-.027,.027])wire(elbow,edge,[[x,-.230,.025],[x,-.245,.023],[x*.9,-.268,.022]],.0014);

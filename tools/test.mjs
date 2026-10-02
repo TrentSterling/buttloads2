@@ -157,6 +157,7 @@ passed += (await import('./test-crew-assets.mjs')).crewAssetChecks;
 passed += (await import('./test-miner-motion.mjs')).minerMotionChecks;
 passed += (await import('./test-miner-garment.mjs')).minerGarmentChecks;
 passed += (await import('./test-miner-joint.mjs')).minerJointChecks;
+passed += (await import('./test-miner-shoulder.mjs')).minerShoulderChecks;
 passed += (await import('./test-miner-cloth-map.mjs')).minerClothMapChecks;
 passed += (await import('./test-miner-carry.mjs')).minerCarryChecks;
 passed += (await import('./test-miner-glove.mjs')).minerGloveChecks;

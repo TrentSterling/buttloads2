@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Miner shoulder construction, 2.59.0
+
+The latest [miner shoulder construction](MINER-SHOULDERS.md) anchors the upper sleeve to the torso and keeps raised mechanical tools farther ahead of the face. All 588 system checks pass. 35 native pairs retain exact cameras and draw counts; all 70 frames have direct or exact inherited inspection provenance. The same 48 body meshes, 25 main materials and one texture add 288 model triangles and 6,592 geometry bytes per worker. The eleven-slide review retains four failed constructions, independent native/instanced GPU evidence and dated profile costs; it leads the 61-section hub. Broader character art, physical Firefox feel, quiet-machine timing and separate-network co-op remain open.
+
 ## Continuous miner joints, 2.58.0
 
 The latest [joint reconstruction](MINER-JOINTS.md) replaces separate rigid trouser and sleeve pieces with continuous GPU bending around existing bones. Knee pads and bands share the deformation. All 581 system checks pass; 29 native pairs retain exact cameras and bone poses. Per worker, four fewer meshes remove 944 triangles and 25,952 model geometry bytes. Ten added main materials, twenty shadow materials and cloned instance buffers carry explicit costs. The ten-slide review retains failed attachments, all seven tools and actual independently posed native/instanced GPU evidence; it leads the 60-section hub. Counterbalanced profile cadence stays near 16.8 ms under unknown competing load. Molded shoulders, repeated anatomy, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.

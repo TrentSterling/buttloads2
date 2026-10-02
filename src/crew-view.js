@@ -41,7 +41,7 @@
  };
  B.View.prototype.poseMinerWeapon=function(m,pitch=0,swing=0,kick=0){
   m.carry=['cutter','scoop','lance','resonance'].includes(m.tool);
-  m.weapon.rotation.set(pitch*.75+swing,-.06,0);m.weapon.position.set(m.carry?.045:.285,(m.carry?1.18:m.tool==='gravity'?1.10:1.065)+Math.max(0,pitch)*.09+kick,(m.carry?-.30:-.34)+Math.max(0,pitch)*(m.carry?.11:.14)-(m.carry?Math.max(0,-pitch)*.08:0));
+  m.weapon.rotation.set(pitch*.75+swing,-.06,0);m.weapon.position.set(m.carry?.045:.285,(m.carry?1.18:m.tool==='gravity'?1.10:1.065)+Math.max(0,pitch)*.09+kick,(m.carry?-.30:-.34)+Math.max(0,pitch)*(m.carry?0:.14)-(m.carry?Math.max(0,-pitch)*.08:0));
   if(m.gait){m.weapon.position.applyQuaternion(m.torso.quaternion).add(m.torso.position);m.weapon.quaternion.premultiply(m.torso.quaternion);}this.poseMinerGrip(m);
  };
  B.View.prototype.minerFootSupport=function(m,f,point,target,world){
@@ -206,17 +206,19 @@
      const source=active[0].source;group.capacity=2**Math.ceil(Math.log2(active.length));
      const geometry=source.userData.workerJoint?source.geometry.clone():source.geometry;
      if(source.userData.workerJoint)geometry.setAttribute('workerInstanceJoint',new T.InstancedBufferAttribute(new Float32Array(group.capacity*4),4).setUsage(T.DynamicDrawUsage));
+     if(source.userData.workerShoulder)geometry.setAttribute('workerInstanceShoulder',new T.InstancedBufferAttribute(new Float32Array(group.capacity*4),4).setUsage(T.DynamicDrawUsage));
      const mesh=group.mesh=new T.InstancedMesh(geometry,source.material,group.capacity);
      if(source.userData.workerJoint){mesh.userData.ownedCrewJointGeometry=true;mesh.customDepthMaterial=source.customDepthMaterial;mesh.customDistanceMaterial=source.customDistanceMaterial;}
      mesh.name=name;mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
      mesh.castShadow=source.castShadow;mesh.receiveShadow=source.receiveShadow;mesh.layers.mask=source.layers.mask;mesh.renderOrder=source.renderOrder;this.scene.add(mesh);
     }
     group.mesh.count=active.length;group.mesh.visible=true;
-    active.forEach(({source},i)=>{group.mesh.setMatrixAt(i,source.matrixWorld);if(source.userData.workerJoint){const q=source.userData.workerJoint.joint.quaternion;group.mesh.geometry.attributes.workerInstanceJoint.setXYZW(i,q.x,q.y,q.z,q.w);}source.visible=false;});group.mesh.instanceMatrix.needsUpdate=true;
+    active.forEach(({source},i)=>{group.mesh.setMatrixAt(i,source.matrixWorld);if(source.userData.workerJoint){const q=source.userData.workerJoint.joint.quaternion;group.mesh.geometry.attributes.workerInstanceJoint.setXYZW(i,q.x,q.y,q.z,q.w);}if(source.userData.workerShoulder){const s=source.userData.workerShoulder,q=this.crewShoulderQuaternion ||= new T.Quaternion();q.copy(s.arm.quaternion).invert().multiply(s.torso.quaternion);group.mesh.geometry.attributes.workerInstanceShoulder.setXYZW(i,q.x,q.y,q.z,q.w);}source.visible=false;});group.mesh.instanceMatrix.needsUpdate=true;
     if(group.mesh.geometry.attributes.workerInstanceJoint)group.mesh.geometry.attributes.workerInstanceJoint.needsUpdate=true;
+    if(group.mesh.geometry.attributes.workerInstanceShoulder)group.mesh.geometry.attributes.workerInstanceShoulder.needsUpdate=true;
     stats.groups++;stats.instances+=active.length;
    }else if(group.mesh){group.mesh.count=0;group.mesh.visible=false;}
-   stats.capacity+=group.capacity;stats.instanceBytes+=group.capacity*(group.mesh?.geometry.attributes.workerInstanceJoint?80:64);
+   stats.capacity+=group.capacity;stats.instanceBytes+=group.capacity*(64+(group.mesh?.geometry.attributes.workerInstanceJoint?16:0)+(group.mesh?.geometry.attributes.workerInstanceShoulder?16:0));
   }
  };
  B.View.prototype.removeMiner=function(id){const m=this.miners?.get(id);if(!m)return;this.clearCrewBatches();m.root.traverse(n=>{if(n.isMesh&&!n.userData.sharedCrewAsset)n.geometry?.dispose();});m.texture.dispose();for(const texture of m.textures||[])texture.dispose();m.badge.material.dispose();[...m.materials,...(m.weaponMaterials||[])].forEach(material=>material.dispose());m.root.parent?.remove(m.root);this.miners.delete(id);};

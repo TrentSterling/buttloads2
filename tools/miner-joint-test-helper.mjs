@@ -6,7 +6,7 @@ export function unchangedWorkerMeshes(art){
 }
 export function posedWorkerMesh(source){
  const {joint,pivot,span}=source.userData.workerJoint,geometry=source.geometry.clone(),p=geometry.attributes.position,point=new THREE.Vector3(),posed=new THREE.Vector3();
- for(let i=0;i<p.count;i++){point.fromBufferAttribute(p,i);B2.WorkerJoint.point(point,joint.quaternion,pivot,span,posed);p.setXYZ(i,posed.x,posed.y,posed.z);}
+ for(let i=0;i<p.count;i++){point.fromBufferAttribute(p,i);B2.WorkerJoint.point(point,joint.quaternion,pivot,span,posed);const s=source.userData.workerShoulder;if(s)B2.WorkerShoulder.point(point,posed,s.arm.quaternion,s.torso.quaternion,s,posed);p.setXYZ(i,posed.x,posed.y,posed.z);}
  geometry.computeVertexNormals();geometry.computeBoundingBox();geometry.computeBoundingSphere();
  const mesh=new THREE.Mesh(geometry,source.material);mesh.matrixAutoUpdate=false;mesh.matrixWorld.copy(source.matrixWorld);return mesh;
 }

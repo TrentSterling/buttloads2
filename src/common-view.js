@@ -54,7 +54,7 @@
  };
  B.View.prototype.makeCommonGround=function(){
   this.surfaceGround=[];
-  const finish=this.commonGroundMaterial=this.palette.grass.clone();finish.color.set(0xffffff);finish.vertexColors=true;B.TERRAIN_LOOK.apply(finish);
+  const finish=this.commonGroundMaterial=this.palette.grass.clone();finish.color.set(0xffffff);finish.vertexColors=true;B.TERRAIN_LOOK.apply(finish,true);
   for(const [x0,z0,x1,z1] of [[-134,15.75,134,134],[-134,-134,134,-16.25],[-134,-16.25,-16.25,15.75],[47.75,-16.25,134,15.75]]){
    const pos=[],uv=[],indices=[],vertices=new Map();
    const vertex=p=>{const key=p[0]+','+p[2];if(!vertices.has(key)){vertices.set(key,pos.length/3);pos.push(...p);uv.push(p[0]*.2,p[2]*.2);}return vertices.get(key);};
@@ -81,6 +81,7 @@
   for(const m of [...leaves,...flowers])m.side=T.DoubleSide;
   for(const m of leaves)m.vertexColors=true;
   for(const m of [stone,rockDark])B.TERRAIN_LOOK.apply(m);
+  for(const m of [sand,path])B.TERRAIN_LOOK.apply(m);
   this.commonRockMaterials=[stone,rockDark,moss];
   const box=(...a)=>this.box(g,...a),cyl=(...a)=>this.cylinder(g,...a),height=C.height;
   const add=(geo,m,x,y,z)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;g.add(o);return o;};

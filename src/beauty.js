@@ -2,14 +2,53 @@
 'use strict';
 (function(B){
  const T=THREE;
+ // One periodic packed texture for grass fibres, earth grains and aggregate.
+ // It is constructed once, sampled in world space and shared by every finish.
+ let groundMap;
+ function groundData(){
+  const size=512,data=new Uint8Array(size*size*4),random=B.random(728391);
+  const hash=(x,y,seed)=>{let h=Math.imul(x+seed,374761393)^Math.imul(y,668265263);h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;};
+  const noise=(x,y,cells,seed)=>{const px=x/size*cells,py=y/size*cells,ix=Math.floor(px),iy=Math.floor(py);let u=px-ix,v=py-iy;u=u*u*(3-2*u);v=v*v*(3-2*v);const sample=(a,b)=>hash((a+cells)%cells,(b+cells)%cells,seed);return (sample(ix,iy)*(1-u)+sample(ix+1,iy)*u)*(1-v)+(sample(ix,iy+1)*(1-u)+sample(ix+1,iy+1)*u)*v;};
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   const i=(x+y*size)*4,broad=noise(x,y,8,17),patch=noise(x,y,24,71),fine=hash(x,y,39);
+   data[i]=112+36*broad+18*(fine-.5);data[i+1]=91+43*patch+24*(fine-.5);data[i+2]=99+35*patch+17*(fine-.5);data[i+3]=255*(broad*.7+patch*.3);
+  }
+  const pixel=(x,y)=>( (Math.round(x)&511)+(Math.round(y)&511)*size)*4;
+  for(let j=0;j<6800;j++){
+   const x=random()*size,y=random()*size,angle=random()*Math.PI*2,length=5+random()*18,bend=(random()-.5)*6,tone=154+random()*57;
+   const dx=Math.cos(angle),dy=Math.sin(angle);
+   for(let s=0;s<=length;s+=.6){const t=s/length,px=x+dx*s-dy*bend*t*t,py=y+dy*s+dx*bend*t*t,i=pixel(px,py),edge=pixel(px-dy*1.15,py+dx*1.15);
+    data[edge]=Math.min(data[edge],75+random()*23);data[i]=Math.max(data[i],tone-28*t);
+   }
+  }
+  for(let j=0;j<11500;j++){
+   const x=random()*size,y=random()*size,r=.65+random()*2.7,tone=145+random()*72;
+   for(let oy=-Math.ceil(r);oy<=r;oy++)for(let ox=-Math.ceil(r);ox<=r;ox++){
+    const d=Math.hypot(ox/r,oy/(r*.75));if(d>1)continue;const i=pixel(x+ox,y+oy),ridge=Math.max(0,1-d),shade=.65+.35*ridge-.11*oy/r;
+    data[i+1]=tone*shade;data[i+2]=Math.max(data[i+2],93+ridge*104-oy/r*12);
+   }
+  }
+  return data;
+ }
+ B.GROUND_DETAIL={data:groundData,texture(){
+  if(!groundMap){groundMap=new T.DataTexture(groundData(),512,512,T.RGBAFormat);groundMap.wrapS=groundMap.wrapT=T.RepeatWrapping;groundMap.magFilter=T.LinearFilter;groundMap.minFilter=T.LinearMipmapLinearFilter;groundMap.generateMipmaps=true;groundMap.anisotropy=8;groundMap.needsUpdate=true;}
+  return groundMap;
+ }};
  const glsl=`
+ uniform sampler2D b2GroundDetail;
+ uniform float b2GroundJoin;
  float b2Hash(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
  float b2Noise(vec3 p){
   vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
   return mix(mix(mix(b2Hash(i),b2Hash(i+vec3(1,0,0)),f.x),mix(b2Hash(i+vec3(0,1,0)),b2Hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(b2Hash(i+vec3(0,0,1)),b2Hash(i+vec3(1,0,1)),f.x),mix(b2Hash(i+vec3(0,1,1)),b2Hash(i+vec3(1,1,1)),f.x),f.y),f.z);
  }
  float b2Beds(vec3 p){return sin(p.y*7.5+b2Noise(p*.38)*4.+p.x*.13+p.z*.08);}
- vec3 b2Terrain(vec3 p,vec3 n,vec3 base){
+ vec4 b2SurfaceDetail(vec3 p,vec3 n){
+  vec3 w=abs(n);w*=w;w/=max(.0001,w.x+w.y+w.z);
+  return texture2D(b2GroundDetail,p.yz*.36)*w.x+texture2D(b2GroundDetail,p.xz*.36)*w.y+texture2D(b2GroundDetail,p.xy*.36)*w.z;
+ }
+ float b2Grass(vec3 p,vec3 n,vec3 base){return smoothstep(.02,.10,(base.g-base.r)/max(.001,base.r+base.g))*smoothstep(.3,.72,n.y)*(1.-smoothstep(.45,1.4,-p.y));}
+ vec3 b2Mineral(vec3 p,vec3 base){
   float macro=b2Noise(p*.72),fine=b2Noise(p*11.5),beds=b2Beds(p);
   float rock=smoothstep(2.,14.,-p.y),lamina=smoothstep(.73,.98,beds);
   float grain=.87+.16*macro+.09*fine+.045*b2Noise(p*43.);
@@ -20,18 +59,45 @@
   stone*=1.-seams*.095*rock;
   return stone;
  }
- float b2Height(vec3 p){float depth=smoothstep(.5,8.,-p.y);return (b2Noise(p*11.5)*.012+b2Noise(p*2.3)*.035+smoothstep(.7,.98,b2Beds(p))*.018)*mix(.15,1.,depth);}
+ vec3 b2Terrain(vec3 p,vec3 n,vec3 base){
+  // Both the editable field and its clipped common-land neighbour use this
+  // world-space paint at their join. Other stone, paving and path finishes do not.
+  if(b2GroundJoin>.5&&p.y> -1.5){
+   vec2 outside=max(max(vec2(-16.25)-p.xz,p.xz-vec2(47.75,15.75)),vec2(0.));
+   float join=(1.-smoothstep(0.,4.,length(outside)))*(1.-smoothstep(.25,1.5,-p.y));
+   float meadow=(1.-smoothstep(.35,.65,-p.y+sin(p.x*.24+p.z*.17)*.7))*smoothstep(.35,.7,n.y);
+   vec3 paint=mix(vec3(.250158,.114435,.043735),vec3(.165132,.234551,.076185),meadow);
+   paint*=.91+.09*sin(p.y*3.1+sin(p.x*.4)+sin(p.z*.3));
+   base=mix(base,paint,join);
+  }
+  if(p.y<=-13.)return b2Mineral(p,base);
+  vec4 detail=b2SurfaceDetail(p,n);
+  float grass=b2Grass(p,n,base),top=1.-smoothstep(8.,13.,-p.y);
+  float cover=b2Noise(p*.085)*.72+b2Noise(p*.21+vec3(19.,0.,-11.))*.28;
+  vec3 earth=base*(.81+detail.g*.37)*(1.-smoothstep(.55,.8,cover)*.13);
+  vec3 turf=base*(.81+detail.r*.31)*mix(vec3(.84,.95,.79),vec3(1.08,1.,.85),smoothstep(.36,.72,cover));
+  turf*=mix(vec3(.80,.94,.73),vec3(1.10,1.04,.84),smoothstep(.32,.79,detail.r));
+  float worn=smoothstep(.58,.76,detail.a*.35+b2Noise(p*.28)*.65);
+  turf=mix(turf,vec3(.18,.13,.075)*(.81+detail.g*.37),worn*.55);
+  vec3 upper=mix(earth,turf,grass);
+  if(p.y>=-8.)return upper;
+  return mix(b2Mineral(p,base),upper,top);
+ }
+ float b2Height(vec3 p){if(p.y>=-8.)return 0.;float depth=smoothstep(.5,8.,-p.y);return (b2Noise(p*11.5)*.012+b2Noise(p*2.3)*.035+smoothstep(.7,.98,b2Beds(p))*.018)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);}
+ float b2SurfaceHeight(vec3 p,vec3 n,vec3 base){if(p.y<=-13.)return 0.;vec4 d=b2SurfaceDetail(p,n);return mix(d.g*.006+d.b*.002,d.r*.006,b2Grass(p,n,base))*(1.-smoothstep(8.,13.,-p.y));}
  `;
- B.TERRAIN_LOOK={glsl,apply(material){
+ B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false){
   material.extensions={...material.extensions,derivatives:true};
-  material.customProgramCacheKey=()=> 'b2-strata-1';
+  material.customProgramCacheKey=()=> 'b2-strata-ground-2';
   material.onBeforeCompile=shader=>{
+   shader.uniforms=shader.uniforms||{};shader.uniforms.b2GroundDetail={value:B.GROUND_DETAIL.texture()};shader.uniforms.b2GroundJoin={value:groundJoin?1:0};
    shader.vertexShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+shader.vertexShader;
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGround=(modelMatrix*vec4(transformed,1.)).xyz;vGroundNormal=normalize(mat3(modelMatrix)*normal);');
    shader.fragmentShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+glsl+shader.fragmentShader;
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=b2Terrain(vGround,normalize(vGroundNormal),diffuseColor.rgb);');
    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
     float strataHeight=b2Height(vGround)*(1.-smoothstep(5.,22.,length(vViewPosition)));
+    strataHeight+=b2SurfaceHeight(vGround,normalize(vGroundNormal),diffuseColor.rgb)*(1.-smoothstep(5.,22.,length(vViewPosition)));
     vec3 strataQ0=dFdx(-vViewPosition),strataQ1=dFdy(-vViewPosition),strataR0=cross(strataQ1,normal),strataR1=cross(normal,strataQ0);
     float strataDet=dot(strataQ0,strataR0);
     if(abs(strataDet)>1e-8)normal=normalize(abs(strataDet)*normal-sign(strataDet)*(dFdx(strataHeight)*strataR0+dFdy(strataHeight)*strataR1));`);
@@ -39,9 +105,9 @@
  }};
  B.SKY_LOOK={zenith:'#7599a2',horizon:'#d8cbb0',sun:'#fff0c4'};
  B.View.prototype.makeLook=function(){
-  B.TERRAIN_LOOK.apply(this.terrainMaterial);
+  B.TERRAIN_LOOK.apply(this.terrainMaterial,true);
   this.palette.grass.color.set('#71854e').convertSRGBToLinear();
-  B.TERRAIN_LOOK.apply(this.palette.grass);
+  B.TERRAIN_LOOK.apply(this.palette.grass,true);
   this.palette.leaf.color.set('#526e49').convertSRGBToLinear();
   this.palette.leafLight=this.palette.leaf.clone();this.palette.leafLight.color.set('#7e9254').convertSRGBToLinear();
   this.palette.leafShade=this.palette.leaf.clone();this.palette.leafShade.color.set('#3c5846').convertSRGBToLinear();

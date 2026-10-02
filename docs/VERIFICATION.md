@@ -1,5 +1,9 @@
 # Remake verification
 
+## Ground materials, 2.52.0
+
+The latest [ground material reconstruction](GROUND-MATERIALS.md) adds shared grass fibres, soil grain and path aggregate, and repairs the common/mine colour seam. All 567 system checks pass. Twelve matched native views preserve cameras, field, draws and triangles; all 1,159 mesh buffers and transforms remain exact. One shared texture adds 1 MiB before mipmaps. The eight-slide review retains rejected candidates and counterbalanced GPU costs. Larger art weaknesses, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.
+
 ## Guest contact, 2.51.1
 
 The latest [guest contact correction](GUEST-CONTACT.md) fixes undefined rock labels and false successful-cut feedback on protected common ground. All 567 system checks and eight actual global-lobby observations pass. Three matched native pairs preserve cameras and render counts; the dated 2.51.0 performance audit adds no speedup claim. Physical Firefox feel, separate-network co-op and larger art weaknesses remain open.

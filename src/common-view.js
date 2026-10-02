@@ -192,9 +192,9 @@
   const leafTone=(material,t)=>material.color.clone().multiplyScalar(1.25+t*.24);
   const crownGeometry=(seed,material)=>{
    const random=B.random(seed),pos=[],colors=[],uv=[],indices=[],twigs=[],phase=random()*6.28;
-   // Ten branching shoots carry seven smaller leaves each, with an open centre
+   // Eight branching shoots carry seven smaller leaves each, with an open centre
    // and varied inclination rather than a radial umbrella of large discs.
-   for(let j=0;j<10;j++){
+   for(let j=0;j<8;j++){
     const a=phase+j*2.399,root=[0,-.21,0],reach=.70+random()*.30,tilt=-.16+random()*.94;
     const tip=[root[0]+Math.cos(a)*reach,root[1]+tilt,root[2]+Math.sin(a)*reach*.85];
     const ring=[];for(let k=0;k<3;k++){const q=k/3*Math.PI*2;ring.push([root[0]-Math.sin(a)*.008*Math.cos(q),root[1]+.008*Math.sin(q),root[2]+Math.cos(a)*.008*Math.cos(q)]);}for(let k=0;k<3;k++)for(const v of [ring[k],tip,ring[(k+1)%3]])twigs.push(...v);
@@ -206,16 +206,16 @@
    }
    const geo=foliageGeometry(pos,colors,uv,indices);geo.userData.twigs=woodGeometry(twigs);return geo;
   };
-  const bent=(points,r0,r1,m)=>{
-   const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),geo=new T.TubeGeometry(curve,5,1,6,false),attr=geo.attributes.position;
-   for(let j=0;j<=5;j++){const c=curve.getPointAt(j/5),r=r0+(r1-r0)*j/5;for(let i=0;i<=6;i++){const k=j*7+i;attr.setXYZ(k,c.x+(attr.getX(k)-c.x)*r,c.y+(attr.getY(k)-c.y)*r,c.z+(attr.getZ(k)-c.z)*r);}}
+  const bent=(points,r0,r1,m,segments=5,sides=6)=>{
+   const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),geo=new T.TubeGeometry(curve,segments,1,sides,false),attr=geo.attributes.position;
+   for(let j=0;j<=segments;j++){const c=curve.getPointAt(j/segments),r=r0+(r1-r0)*j/segments;for(let i=0;i<=sides;i++){const k=j*(sides+1)+i;attr.setXYZ(k,c.x+(attr.getX(k)-c.x)*r,c.y+(attr.getY(k)-c.y)*r,c.z+(attr.getZ(k)-c.z)*r);}}
    geo.computeVertexNormals();return add(geo,m,0,0,0);
   };
   const leafSpray=(x,y,z,angle,size,material)=>{
    const pos=[],colors=[],uv=[],indices=[];
    beam([x-Math.cos(angle)*size*.85,y,z-Math.sin(angle)*size*.85],[x+Math.cos(angle)*size*.85,y,z+Math.sin(angle)*size*.85],.009,.004,barkLight,4);
-   for(let j=0;j<10;j++){
-    const along=(j/9-.5)*size*1.7,side=j%2?1:-1,base=[x+Math.cos(angle)*along,y,z+Math.sin(angle)*along],length=size*(.21+(j%3)*.025);
+   for(let j=0;j<8;j++){
+    const along=(j/7-.5)*size*1.7,side=j%2?1:-1,base=[x+Math.cos(angle)*along,y,z+Math.sin(angle)*along],length=size*(.21+(j%3)*.025);
     foliageCard(pos,colors,uv,indices,base,angle+side*(.75+j*.035),length,length*.27,.85*Math.sin(j*1.4+angle),-.18+.14*Math.sin(j*1.73),leafTone(material,j%3/3));
    }
    add(foliageGeometry(pos,colors,uv,indices),canopyMaterial,0,0,0);
@@ -238,7 +238,8 @@
    // Preserve the original placement stream; construction variation uses its own seed.
    for(let i=0;i<(conifer?1:14);i++)rng();
    const y=height(x,z),random=B.random(Math.round((x+140)*1271+(z+140)*137)),lean=(random()-.5)*1.15,phase=random()*6.28;this.commonTrees.push({x,y,z,height:h,conifer});
-   bent([[x,y-.22,z],[x+lean*.18,y+h*.30,z+.05],[x+lean*.75,y+h*.63,z-.11],[x+lean,y+h*.94,z+.10]],.24,.026,bark);
+   const trunkPoints=[[x,y-.22,z],[x+lean*.18,y+h*.30,z+.05],[x+lean*.75,y+h*.63,z-.11],[x+lean,y+h*.94,z+.10]];
+   bent(trunkPoints,.24,.026,bark);
    if(x>B.SURFACE.minX+.6&&x<B.SURFACE.maxX-.6&&z>B.SURFACE.minZ+.6&&z<B.SURFACE.maxZ-.6)obstacle(x,y,z,.27,h*.85);
    if(conifer){
     // Individually curved boughs spiral up the trunk; there are no crown blobs.
@@ -247,12 +248,33 @@
      const t=j/(count-1),cy=y+h*(.20+t*.75),a=phase+j*2.399+(random()-.5)*.55,r=h*(.26*(1-t)+.027)*(.76+random()*.38);
      pineBough([x+lean*(.18+t*.8),cy,z+.04*Math.sin(t*6)],a,r,random,leaves[j%4===0?0:2]);
     }
-   }else for(let j=0;j<8;j++){
-    const a=phase+j*2.399,r=(j===7?.24:.9+random()*.8)*h/7,cy=y+h*(.61+(j%3)*.11+random()*.045),cx=x+lean*.7+Math.cos(a)*r,cz=z+Math.sin(a)*r;
-    bent([[x+lean*.25,y+h*.40,z],[x+lean*.5+Math.cos(a)*r*.55,cy-.65,z+Math.sin(a)*r*.55],[cx,cy+.05,cz]],.09,.018,j%3?bark:barkLight);
-    const leafMaterial=leaves[(j+Math.floor(random()*3))%4],geo=crownGeometry(j*93+Math.floor(x*17+z*23),leafMaterial),o=add(geo,canopyMaterial,cx,cy+.26,cz);o.scale.set(h*(.14+random()*.055),h*.12,h*.16);o.rotation.y=a;
-    const stems=add(geo.userData.twigs,barkLight,cx,cy+.26,cz);stems.scale.copy(o.scale);stems.rotation.copy(o.rotation);
-    for(let k=0;k<2;k++){const a2=a+(k?1:-1)*.95;leafSpray(cx+Math.cos(a2)*h*.11,cy+.04,cz+Math.sin(a2)*h*.11,a2,h*.14,leaves[(j+k)%4]);}
+   }else{
+    const trunk=new T.CatmullRomCurve3(trunkPoints.map(p=>new T.Vector3(...p)));
+    // Branch collars follow the actual curved trunk, at unequal heights. Four
+    // primary boughs carry divided limbs instead of eight identical long forks.
+    const trunkAt=level=>{let lo=0,hi=1;for(let i=0;i<24;i++){const t=(lo+hi)/2;if(trunk.getPoint(t).y<y+h*level)lo=t;else hi=t;}return trunk.getPoint((lo+hi)/2);};
+    let cluster=0;
+    const crown=(anchor,angle)=>{
+     const j=cluster++,leafMaterial=leaves[(j+Math.floor(random()*3))%4],geo=crownGeometry(j*93+Math.floor(x*17+z*23),leafMaterial),sy=h*(.165+random()*.045);
+     // The local shoot root is y=-.21. Apply its scaled offset exactly, so
+     // small and large trees both meet the parent limb without a visible gap.
+     const o=add(geo,canopyMaterial,anchor.x,anchor.y+.21*sy,anchor.z);o.scale.set(h*(.145+random()*.035),sy,h*(.15+random()*.025));o.rotation.y=angle;
+     const stems=add(geo.userData.twigs,barkLight,o.position.x,o.position.y,o.position.z);stems.scale.copy(o.scale);stems.rotation.copy(o.rotation);
+     for(let k=0;k<2;k++){const a2=angle+(k?1:-1)*.95;leafSpray(anchor.x+Math.cos(a2)*h*.11,anchor.y,anchor.z+Math.sin(a2)*h*.11,a2,h*.14,leaves[(j+k)%4]);}
+    };
+    for(let j=0;j<4;j++){
+     const angle=phase+j*2.399+(random()-.5)*.5,root=trunkAt(.50+j*.065+random()*.025),reach=h*(.15+random()*.10),tip=trunkAt(.69+j*.037+random()*.025);
+     tip.x+=Math.cos(angle)*reach;tip.z+=Math.sin(angle)*reach;
+     const elbow=root.clone().lerp(tip,.49);elbow.y+=h*.018;elbow.x+=Math.sin(angle)*h*.018;
+     const points=[root,elbow,tip],bough=new T.CatmullRomCurve3(points);bent(points.map(p=>p.toArray()),h*(.011+random()*.003),h*.005,bark,4);
+     for(let k=0;k<2;k++){
+      const side=k?1:-1,split=bough.getPointAt(.64+k*.18),a=angle+side*(.43+random()*.31),length=h*(.065+random()*.035),end=tip.clone();
+      end.x+=Math.cos(a)*length;end.z+=Math.sin(a)*length;end.y+=h*(-.025+random()*.105);
+      const bend=split.clone().lerp(end,.53);bend.y+=h*.025;
+      bent([split.toArray(),bend.toArray(),end.toArray()],h*.0065,.012,barkLight,4);crown(end,a);
+     }
+    }
+    crown(trunkAt(.735),phase-.6);crown(trunkAt(.90),phase+.8);
    }
    const verts=[],uv=[],idx=[],sides=16;
    for(let ring=0;ring<3;ring++)for(let j=0;j<=sides;j++){

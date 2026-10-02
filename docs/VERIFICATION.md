@@ -1,5 +1,9 @@
 # Remake verification
 
+## Tree branching, 2.54.0
+
+The latest [tree branching reconstruction](TREE-BRANCHING.md) replaces eight repeated forks with divided boughs, ten smaller crown clusters and an exact scaled shoot attachment. All 570 system checks pass. Fourteen matched native views retain cameras, terrain, contacts and refreshed-shadow draw counts. The native construction audit reduces crown anchor gaps from up to 83 mm to floating-point tolerance. The same leaf budget, 43 common meshes, 26 foliage batches and 21 materials add 7,520 model triangles and 722,324 geometry bytes. Atlas pixels and all fir foliage attributes remain exact. The nine-slide review retains rejected heavy limbs, excess tessellation and the blocked porch fixture. Rear tiers, repeated growth, fir cards, bare hills, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.
+
 ## Tree canopy, 2.53.0
 
 The latest [tree canopy reconstruction](CANOPY-ART.md) replaces broad polygonal blades with smaller connected leaf shoots and mapped fir branches. All 570 system checks pass. Fourteen matched native pairs retain exact cameras, field, tree placements, roots and obstacles; all 28 final comparison frames were directly inspected. Common foliage batches fall from 44 to 26 and geometry capacity falls by 3,984,550 bytes, while model triangles increase by 50,582 and one shared atlas adds 1 MiB before mipmaps. Only common-view.js changes executable behaviour. The nine-slide review retains two rejected candidates and a failed camera fixture. Repeated forks, thin crowns, sparse fir tops, near cards, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.

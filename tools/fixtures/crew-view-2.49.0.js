@@ -2,7 +2,6 @@
 'use strict';
 (function(B){
  const T=THREE;
- const armScratch=m=>m.armSolve ||= {point:new T.Vector3(),u:new T.Vector3(),out:new T.Vector3(),elbow:new T.Vector3(),direction:new T.Vector3(),down:new T.Vector3(0,-1,0),inverse:new T.Quaternion()};
  B.View.prototype.makeMiner=function(id,color,label){
   this.miners ||= new Map();const rig=B.buildMinerArt(this,color),{root,head,legs,arms}=rig,bodyMeshes=[];
   root.traverse(n=>{if(n.isMesh)bodyMeshes.push(n);});this.crewBatchMembershipDirty=true;
@@ -26,22 +25,16 @@
   m.attachments={};if(mechanical){const node=copies.get(heads[key]);if(node){node.visible=true;m.attachments[key]=node;}}
   m.weapon.add(model);m.weapon.position.set(.285,key==='gravity'?1.10:1.065,-.34);m.tool=key;
  };
- B.View.prototype.poseMinerArm=function(m,index,point){
-  const s=armScratch(m);
-  const arm=m.arms[index],joint=m.elbows[index],l1=.245,l2=.266;s.u.copy(point).sub(arm.position);const d=B.clamp(s.u.length(),.03,l1+l2-.001);s.u.normalize();
-  s.out.set(index?m.carry?.9:.45:-.9,-.05,m.carry?.35:1).addScaledVector(s.u,-s.out.dot(s.u)).normalize();const along=(l1*l1-l2*l2+d*d)/(2*d),height=Math.sqrt(Math.max(0,l1*l1-along*along));
-  s.elbow.copy(arm.position).addScaledVector(s.u,along).addScaledVector(s.out,height);
-  arm.quaternion.setFromUnitVectors(s.down,s.direction.copy(s.elbow).sub(arm.position).normalize());s.inverse.copy(arm.quaternion).invert();joint.quaternion.setFromUnitVectors(s.down,s.direction.copy(point).sub(s.elbow).applyQuaternion(s.inverse).normalize());
- };
  B.View.prototype.poseMinerGrip=function(m){
-  const point=armScratch(m).point;
-  if(m.tool==='gravity')point.set(0,-.168,.04);else if(m.tool==='axe')point.set(-.01,-.13,.022);else if(m.tool==='sling')point.set(0,-.11,.024);else point.set(0,-.22,.096);
-  point.multiplyScalar(m.weapon.children[0]?.scale.x||1).applyQuaternion(m.weapon.quaternion).add(m.weapon.position);this.poseMinerArm(m,1,point);
-  if(m.carry){point.set(-.145,-.07,-.085).multiplyScalar(m.weapon.children[0]?.scale.x||1).applyQuaternion(m.weapon.quaternion).add(m.weapon.position);this.poseMinerArm(m,0,point);}
+  const point=m.tool==='gravity'?new T.Vector3(0,-.168,.04):m.tool==='axe'?new T.Vector3(-.01,-.13,.022):m.tool==='sling'?new T.Vector3(0,-.11,.024):new T.Vector3(0,-.22,.096);
+  point.multiplyScalar(m.weapon.children[0]?.scale.x||1).applyQuaternion(m.weapon.quaternion).add(m.weapon.position);
+  const arm=m.arms[1],joint=m.elbows[1],start=arm.position.clone(),delta=point.clone().sub(start),l1=.245,l2=.266,d=Math.min(l1+l2-.001,Math.max(.03,delta.length())),u=delta.normalize();
+  const out=new T.Vector3(.45,-.05,1);out.addScaledVector(u,-out.dot(u)).normalize();const along=(l1*l1-l2*l2+d*d)/(2*d),height=Math.sqrt(Math.max(0,l1*l1-along*along));
+  const elbow=start.clone().addScaledVector(u,along).addScaledVector(out,height),down=new T.Vector3(0,-1,0);
+  arm.quaternion.setFromUnitVectors(down,elbow.clone().sub(start).normalize());joint.quaternion.setFromUnitVectors(down,point.sub(elbow).applyQuaternion(arm.quaternion.clone().invert()).normalize());
  };
  B.View.prototype.poseMinerWeapon=function(m,pitch=0,swing=0,kick=0){
-  m.carry=['cutter','scoop','lance','resonance'].includes(m.tool);
-  m.weapon.rotation.set(pitch*.75+swing,-.06,0);m.weapon.position.set(m.carry?.045:.285,(m.carry?1.18:m.tool==='gravity'?1.10:1.065)+Math.max(0,pitch)*.09+kick,(m.carry?-.30:-.34)+Math.max(0,pitch)*(m.carry?.11:.14)-(m.carry?Math.max(0,-pitch)*.08:0));
+  m.weapon.rotation.set(pitch*.75+swing,-.06,0);m.weapon.position.set(.285,(m.tool==='gravity'?1.10:1.065)+Math.max(0,pitch)*.09+kick,-.34+Math.max(0,pitch)*.14);
   if(m.gait){m.weapon.position.applyQuaternion(m.torso.quaternion).add(m.torso.position);m.weapon.quaternion.premultiply(m.torso.quaternion);}this.poseMinerGrip(m);
  };
  B.View.prototype.minerFootSupport=function(m,f,point,target,world){
@@ -114,8 +107,7 @@
   m.torso.position.copy(g.pivot).sub(g.rest.copy(g.pivot).applyQuaternion(m.torso.quaternion));m.torso.position.y+=bob;
   m.head.position.set(0,1.51,0).applyQuaternion(m.torso.quaternion).add(m.torso.position);m.head.rotation.set((target.pitch||0)*.6,-m.torso.rotation.y*.65,-m.torso.rotation.z*.7);
   for(let i=0;i<2;i++)m.arms[i].position.set((i?1:-1)*.251,1.30,.018).applyQuaternion(m.torso.quaternion).add(m.torso.position);
-  const armSwing=wave*(.30+Math.min(1,g.speed/4)*.24)*weight;
-  m.arms[0].rotation.set(armSwing*g.local.z,0,.10-Math.max(0,armSwing*g.local.x));m.arms[0].quaternion.premultiply(m.torso.quaternion);m.elbows[0].rotation.set(.16+Math.max(0,-armSwing*g.local.z)*.28,0,0);
+  m.arms[0].rotation.set(-wave*.28*weight,0,.10);m.arms[0].quaternion.premultiply(m.torso.quaternion);m.elbows[0].rotation.set(.13+Math.max(0,wave)*.20*weight,0,0);
   for(let i=0;i<2;i++){
    const side=i?1:-1,f=g.feet[i],leg=m.legs[i],joint=m.knees[i],foot=m.feet[i];leg.position.set(side*.12,.89+bob,0);
    if(!animated){leg.rotation.set(0,0,side*.04);joint.rotation.set(0,0,0);foot.rotation.set(0,-side*.10,0);continue;}

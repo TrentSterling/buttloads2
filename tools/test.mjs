@@ -154,6 +154,7 @@ passed += (await import('./test-crew-equipment.mjs')).crewEquipmentChecks;
 passed += (await import('./test-crew-assets.mjs')).crewAssetChecks;
 passed += (await import('./test-miner-motion.mjs')).minerMotionChecks;
 passed += (await import('./test-miner-garment.mjs')).minerGarmentChecks;
+passed += (await import('./test-miner-carry.mjs')).minerCarryChecks;
 passed += (await import('./test-cutter-art.mjs')).cutterArtChecks;
 passed += (await import('./test-attachment-art.mjs')).attachmentArtChecks;
 complete = true;

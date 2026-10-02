@@ -49,28 +49,6 @@
   for(let j=0;j<segments;j++){const a=j,b=n+j,c=2*n+j,d=3*n+j;quad(a,a+1,b,b+1);quad(c,d,c+1,d+1);quad(a,c,a+1,c+1);quad(b,b+1,d,d+1);}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;
  }
- function gloveDigit(rings,segments=10){
-  // Elliptical sections follow the finger's joints; both ends are closed.
-  const points=rings.map(r=>new T.Vector3(...r.slice(0,3))),p=[],uv=[],indices=[],u=new T.Vector3(),v=new T.Vector3(),t=new T.Vector3();
-  for(let i=0;i<rings.length;i++){
-   t.copy(points[Math.min(i+1,points.length-1)]).sub(points[Math.max(0,i-1)]).normalize();u.set(1,0,0).addScaledVector(t,-t.x).normalize();v.crossVectors(t,u).normalize();
-   for(let j=0;j<=segments;j++){const a=j/segments*Math.PI*2,x=Math.cos(a)*rings[i][3],y=Math.sin(a)*rings[i][4];p.push(points[i].x+u.x*x+v.x*y,points[i].y+u.y*x+v.y*y,points[i].z+u.z*x+v.z*y);uv.push(j/segments,i/(rings.length-1));}
-  }
-  for(let row=0;row<rings.length-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;indices.push(a,a+1,b,a+1,b+1,b);}
-  for(const row of [0,rings.length-1]){const center=p.length/3;p.push(...points[row].toArray());uv.push(.5,.5);for(let j=0;j<segments;j++){const a=row*(segments+1)+j;indices.push(center,...(row?[a,a+1]:[a+1,a]));}}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;
- }
- function workerGlove(side){
-  const palm=loft([[-.201,.049,.049],[-.216,.050,.044,.001],[-.229,.046,.029,.006],[-.254,.045,.026,.001],[-.278,.043,.024,-.002],[-.288,.034,.020,-.012]],18),fingers=[],pads=[];
-  for(let i=0;i<4;i++){
-   const x=side*(-.032+i*.021),base=-.276+i*.001,h=[.049,.055,.052,.041][i],r=i===3?.0095:.0105;
-   fingers.push(gloveDigit([[x,base,.006,r,.010],[x+side*.0015,base-h*.48,.011,r,.010],[x+side*.002,base-h*.90,.002,.010,.0095],[x+side*.001,base-h,-.017,.009,.0085],[x,base-h*.75,-.033,.0085,.008],[x,base-h*.38,-.040,.0075,.007],[x,base-h*.15,-.036,.003,.003]],10));
-   pads.push(loft([[base-.013,.008,.004,.022,x],[base-.020,.009,.005,.019,x],[base-.025,.008,.004,.014,x]],10));
-  }
-  const thumb=gloveDigit([[-side*.043,-.239,-.012,.019,.016],[-side*.055,-.258,-.026,.017,.015],[-side*.055,-.278,-.042,.015,.014],[-side*.044,-.290,-.054,.014,.013],[-side*.026,-.288,-.056,.011,.010],[-side*.018,-.282,-.053,.003,.003]],12);
-  const back=loft([[-.225,.033,.005,.031],[-.238,.038,.007,.028],[-.256,.037,.007,.026],[-.270,.029,.004,.025]],14),cuff=garmentBand(-.212,.052,.047,.009,.004);
-  return{palm,fingers,thumb,pads,back,cuff};
- }
  function mergeRigid(group,exclude=new Set(),recursive=false){
   // Callers identify rigid assemblies. Excluded meshes/groups retain their
   // identity, animation, material changes and independent visibility.
@@ -129,7 +107,7 @@
   }
   mesh.parent?.remove(mesh);source.dispose();return result;
  }
- B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,mergeRigid,partitionRigid};
+ B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,mergeRigid,partitionRigid};
  B.buildMinerArt=function(view,color){
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
@@ -225,8 +203,9 @@
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
    add(elbow,garment([[.029,.061,.063],[-.036,.069,.068],[-.108,.064,.062],[-.153,.055,.056],[-.205,.047,.05]],18,[[-.077,.015,.003,-.32],[-.163,.014,.003,.27]]),shirt);
    add(elbow,loft([[-.188,.052,.054],[-.214,.053,.054]],16),darkCloth);
-   const glove=workerGlove(side);for(const geometry of [glove.palm,...glove.fingers,glove.thumb])add(elbow,geometry,leather);for(const geometry of [glove.back,glove.cuff,...glove.pads])add(elbow,geometry,edge);
-   for(const x of [-.027,.027])wire(elbow,edge,[[x,-.230,.025],[x,-.245,.023],[x*.9,-.268,.022]],.0014);
+   block(elbow,leather,0,-.254,-.01,.102,.113,.078,.02);block(elbow,edge,0,-.237,.033,.079,.035,.014,.005);
+   for(let finger=0;finger<4;finger++){const x=-.034+finger*.022;ball(elbow,leather,x,-.31,-.018,.011,.029,.022);ball(elbow,edge,x,-.285,-.046,.012,.013,.008);}
+   const thumb=ball(elbow,leather,side*.06,-.265,-.032,.018,.034,.019);thumb.rotation.z=side*-.6;
   }
   for(const group of [torso,head,...legs,...knees,...feet,...arms,...elbows])mergeRigid(group);
   root.name='miner-sculpted-worker';return{root,head,torso,legs,knees,feet,arms,elbows,materials,textures};

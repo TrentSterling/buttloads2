@@ -1,5 +1,10 @@
 # Buttloads 2: remake direction
 
+## Native worker glove construction, local 2.51.0
+
+The latest [miner glove reconstruction](MINER-GLOVES.md): Tapered palms, curled unequal fingers and opposing thumbs replace the box palms and oval blobs. All 564 system checks pass. Thirty-one matched native pairs retain exact cameras, rig poses and draw counts; all 62 final frames were directly inspected. Per miner, the same 52 body meshes, 15 materials and one texture remove 2,008 model triangles and 119,248 geometry bytes. Only miner-art.js changes executable behavior; the other 48 body meshes retain exact buffers and transforms. The six-slide review retains a rejected camera fixture and leads the 52-section hub. Fixed claw-like empty curl, smooth pristine leather, broad pads and repeated anatomy remain criticism. Quiet-machine timing, physical Firefox feel and separate-network co-op remain open.
+
+
 ## Miner carry, 2.50.0
 
 [MINER-CARRY.md](MINER-CARRY.md) records the correction. Mechanical tools now use both hands ahead of the bib, while the free arm on one-handed tools balances along travel direction. All 560 system checks pass. Twenty-seven matched native pairs preserve exact cameras, capsules, feet, torso, draw counts and submitted triangles; all 54 final frames were directly inspected. A rejected carry pose buried the rear glove in the chest and remains in the six-slide review. No geometry or materials are added; mechanical carry adds a second arm solve using reusable storage. Only crew-view.js changes executable behavior. The review leads the 51-section hub. Fixed glove curl, clean repeated clothing/face, restrained carry sway and wide crouched strafing remain criticism. Quiet-machine timing, physical Firefox feel and separate-network co-op remain open.

@@ -9,7 +9,7 @@ const released=B2.buildMinerArt;vm.runInThisContext(fs.readFileSync(new URL('../
 const old=released(h.game.view,2),rig=current(h.game.view,2);export let minerGarmentChecks=0;
 const test=(name,fn)=>{fn();minerGarmentChecks++;console.log('PASS miner garment: '+name);};
 const meshes=root=>{const a=[];root.traverse(n=>{if(n.isMesh)a.push(n);});return a;};
-const tris=root=>meshes(root).reduce((n,m)=>n+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0);
+const trisWithoutGloves=art=>meshes(art.root).filter(m=>!art.elbows.includes(m.parent)||![art.materials[3],art.materials[5]].includes(m.material)).reduce((n,m)=>n+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0);
 try{
  test('fitted bib is closed, has outward winding and covers the front of the chest',()=>{
   const g=B2.WorkshopShapes.bibPanel(),p=g.attributes.position,i=g.index,edges=new Map();let volume=0;const key=n=>[p.getX(n),p.getY(n),p.getZ(n)].map(v=>v.toFixed(6)).join(',');
@@ -36,10 +36,10 @@ try{
    for(const bend of [0,.7,1.4,2]){rig.elbows[k].rotation.x=bend;rig.root.updateMatrixWorld(true);const center=arm.localToWorld(new T.Vector3(0,-.245,0)),direction=new T.Vector3(0,-.8,.6).applyQuaternion(arm.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.14),direction.clone().negate());const hit=ray.intersectObject(sleeve)[0];assert.ok(hit&&hit.point.distanceTo(center)>.065);}
   }
  });
- test('head, boots, hands, textures, body draw inventory and released motion anchors are conserved',()=>{
+ test('head, boots, cuffs, textures, body draw inventory and released motion anchors are conserved; glove art is checked separately',()=>{
   const compare=(a,b)=>{assert.equal(a.length,b.length);for(let j=0;j<a.length;j++){const x=a[j].geometry,y=b[j].geometry;assert.deepEqual(x.index?.array,y.index?.array);for(const n of Object.keys(x.attributes))assert.deepEqual(x.attributes[n].array,y.attributes[n].array);}};
-  compare(meshes(rig.head),meshes(old.head));for(let k=0;k<2;k++){compare(meshes(rig.feet[k]),meshes(old.feet[k]));compare(meshes(rig.elbows[k]).filter(n=>n.material!==rig.materials[2]),meshes(old.elbows[k]).filter(n=>n.material!==old.materials[2]));for(const prop of ['legs','knees','feet','arms','elbows'])assert.deepEqual(rig[prop][k].position.toArray(),old[prop][k].position.toArray());}
-  assert.equal(meshes(rig.root).length,52);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,15);assert.equal(rig.textures.length,old.textures.length);assert.equal(tris(rig.root)-tris(old.root),1816);
+  compare(meshes(rig.head),meshes(old.head));for(let k=0;k<2;k++){compare(meshes(rig.feet[k]),meshes(old.feet[k]));compare(meshes(rig.elbows[k]).filter(n=>![2,3,5].includes(rig.materials.indexOf(n.material))),meshes(old.elbows[k]).filter(n=>![2,3,5].includes(old.materials.indexOf(n.material))));for(const prop of ['legs','knees','feet','arms','elbows'])assert.deepEqual(rig[prop][k].position.toArray(),old[prop][k].position.toArray());}
+  assert.equal(meshes(rig.root).length,52);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,15);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),1816);
   for(const m of meshes(rig.root))assert.ok(m.castShadow&&m.receiveShadow);
  });
 }finally{clearInterval(h.game.net.timer);h.close();}

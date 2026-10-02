@@ -128,7 +128,7 @@ await test('actual update integrates bombs, lamps, rendered tool changes and cha
   simulate(3.2, dt => { game.update(dt); game.view.render(game, dt, game.clock); }); assert.equal(game.gadgets.blasts.length, 1); assert.equal(game.view.deviceModels.size, 1); assert.equal(game.gadgets.nodes[0].type, 'lamp'); assert.ok(game.view.workLights[0].intensity > 0);
   game.world.carve({ x: 0, y: -10, z: 0 }, 3); game.player.teleport(0, -10, 0); game.update(1 / 60); assert.equal(elements.get('chapter-name').textContent, 'Rustwater');
   game.selectTool('scoop'); game.view.render(game, 1 / 60, 4); assert.ok(game.view.scoopHead.visible); assert.ok(!game.view.rotor.visible);
-  assert.equal(elements.get('bomb-count').textContent, 2); assert.equal(elements.get('light-count').textContent, 5);
+  assert.equal(elements.get('bomb-count').textContent, '2'); assert.equal(elements.get('light-count').textContent, '5');
 });
 await test('recall releases the tether without smuggling heavy salvage to the yard', () => {
   const body = game.expedition.bodies[0]; game.economy.state.deepest = 20; game.player.teleport(body.x, body.y + .5, body.z); game.world.carve(body, 2); game.expedition.physics.refresh([body]); assert.ok(game.expedition.attach(0, game.player.head));

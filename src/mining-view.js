@@ -3,43 +3,26 @@
 (function (B) {
   const T = THREE;
   B.View.prototype.makeMiningTools = function () {
-    const p = this.palette;
     for (const root of [this.scoopHead, this.lanceHead]) { root.traverse(n => n.geometry?.dispose()); root.clear(); }
-    const steel = new T.MeshStandardMaterial({ color: '#a3b5b4', metalness: .72, roughness: .37 });
-    const edge = new T.MeshStandardMaterial({ color: '#d1d5bf', metalness: .8, roughness: .23 });
-    const bronze = new T.MeshStandardMaterial({ color: '#bd8442', metalness: .6, roughness: .42 });
+    const art=this.artToolKit.p,steel=art.steel,edge=art.edge,bronze=art.copper,A=B.ToolArt;
     const add = (root, geometry, material, x, y, z) => { const m = new T.Mesh(geometry, material); m.position.set(x, y, z); root.add(m); return m; };
-    // Formed bucket: a curved back and floor, closed side cheeks and replaceable teeth.
-    const section = [[.12,-.28],[.05,-.37],[-.065,-.48],[-.10,-.62],[-.075,-.77]], verts = [];
-    const quad = (a,b,c,d) => verts.push(...a,...b,...c,...a,...c,...d);
-    for (let i=0;i<section.length-1;i++) {
-      const [y,z]=section[i],[ny,nz]=section[i+1];
-      quad([-.27,y,z],[.27,y,z],[.27,ny,nz],[-.27,ny,nz]);
-      quad([-.27,ny-.025,nz],[.27,ny-.025,nz],[.27,y-.025,z],[-.27,y-.025,z]);
-      for(const x of [-.27,.27])quad([x,y,z],[x,y-.025,z],[x,ny-.025,nz],[x,ny,nz]);
-    }
-    for(const i of [0,section.length-1]) {const [y,z]=section[i];quad([-.27,y,z],[-.27,y-.025,z],[.27,y-.025,z],[.27,y,z]);}
-    const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(verts,3));geo.computeVertexNormals();
-    // The bucket interior is visible from above, so both faces must be drawable.
-    steel.side=T.DoubleSide;add(this.scoopHead,geo,steel,0,0,0);
-    for(const x of [-.268,.248]) {
-      const shape=new T.Shape();shape.moveTo(-.28,.12);shape.lineTo(-.72,.055);for(let i=section.length-1;i>=0;i--)shape.lineTo(section[i][1],section[i][0]);shape.closePath();
-      const cheek=add(this.scoopHead,new T.ExtrudeGeometry(shape,{depth:.02,bevelEnabled:false}),steel,x,0,0);cheek.rotation.y=-Math.PI/2;
-      // Extrusion rotation maps local profile X to tool Z.
-      this.box(this.scoopHead,x,0,-.37,.036,.065,.3,p.metal);
-      add(this.scoopHead,new T.CylinderGeometry(.045,.045,.038,12),bronze,x,.045,-.33).rotation.z=Math.PI/2;
+    add(this.scoopHead,A.bucketFloor(),steel,0,0,0);
+    for(const x of [-.254,.254]) {
+      add(this.scoopHead,A.bucketCheek(),steel,x,0,0);
+      this.box(this.scoopHead,x,.01,-.31,.033,.053,.15,art.iron);
+      add(this.scoopHead,new T.CylinderGeometry(.034,.034,.030,16),bronze,x,.056,-.317).rotation.z=Math.PI/2;
     }
     for(let i=0;i<6;i++){
-      const tooth=add(this.scoopHead,new T.BoxGeometry(.06,.035,.16),edge,-.225+i*.09,-.07,-.8);tooth.rotation.x=-.08;
-      this.box(this.scoopHead,-.225+i*.09,-.093,-.70,.034,.026,.15,p.metal);
+      const x=-.210+i*.084;
+      add(this.scoopHead,A.housing([[-.875,.040,.012,.003,-.077],[-.852,.050,.025,.004,-.074],[-.783,.060,.041,.005,-.070],[-.726,.056,.037,.005,-.072]],1),edge,x,0,0);
+      this.box(this.scoopHead,x,-.085,-.735,.046,.020,.095,art.iron);
     }
-    const barrel=(root,z,r,length,material)=>{const m=add(root,new T.CylinderGeometry(r,r,length,12),material,0,0,z);m.rotation.x=Math.PI/2;return m;};
-    barrel(this.lanceHead,-.36,.11,.24,p.metal);barrel(this.lanceHead,-.48,.092,.15,steel);
-    for(let i=0;i<4;i++)barrel(this.lanceHead,-.31-i*.052,.12,.017,bronze);
+    add(this.lanceHead,A.turned([[-.245,.073],[-.260,.103],[-.284,.110],[-.430,.110],[-.480,.085],[-.550,.070],[-.556,.049],[-.245,.049]]),steel,0,0,0);
+    for(const [z,r]of [[-.287,.115],[-.429,.112]])add(this.lanceHead,A.turned([[z+.012,r-.008],[z+.008,r],[z-.008,r],[z-.012,r-.008],[z-.012,r-.015],[z+.012,r-.015]]),bronze,0,0,0);
     this.lanceStriker=new T.Group();this.lanceHead.add(this.lanceStriker);
-    barrel(this.lanceStriker,-.64,.042,.37,edge);barrel(this.lanceStriker,-.60,.07,.045,bronze);
-    const tip=add(this.lanceStriker,new T.ConeGeometry(.045,.19,4),edge,0,0,-.89);tip.rotation.x=-Math.PI/2;
-    for(const x of [-.086,.086])this.box(this.lanceHead,x,-.035,-.57,.017,.026,.31,p.steel);
+    add(this.lanceStriker,A.turned([[-.485,.039],[-.741,.039],[-.782,.034],[-.940,.005],[-.965,.002],[-.965,.001],[-.485,.001]]),edge,0,0,0);
+    add(this.lanceStriker,A.turned([[-.555,.043],[-.565,.062],[-.593,.062],[-.600,.048],[-.600,.040],[-.555,.040]]),bronze,0,0,0);
+    for(const x of [-.091,.091])this.box(this.lanceHead,x,-.025,-.513,.018,.036,.20,art.iron);
     this.miningMarks=new T.Group();this.scene.add(this.miningMarks);this.miningTicks=[];
     for(let i=0;i<8;i++) {
       const material=new T.MeshBasicMaterial({color:'#ffe1a1',transparent:true,opacity:.6,depthWrite:false});

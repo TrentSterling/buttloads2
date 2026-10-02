@@ -1,5 +1,7 @@
 # Third-party material
 
+`vendor/trystero.min.js` bundles [Trystero](https://github.com/dmotz/trystero) 0.24.0's modular torrent signaling strategy, built with esbuild from `@trystero-p2p/torrent` and its MIT-licensed core. Copyright Daniel Motz; MIT license in `vendor/TRYSTERO-LICENSE.txt`. `npm run vendor` rebuilds it. Runtime scripts are bundled locally, with no CDN dependency. Public signaling uses `tracker.webtorrent.dev` and `tracker.openwebtorrent.com`; Google and Cloudflare provide STUN.
+
 `vendor/three.min.js` is the unchanged Three.js r140 library extracted from this project's original embedded distribution. Copyright 2010-2022 Three.js Authors. MIT license:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

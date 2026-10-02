@@ -8,23 +8,10 @@
     const mat = (color, glow = 0) => new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: glow, roughness: .83, flatShading: true });
     for (const n of game.crawlers.nodes) {
       const root = new T.Group(); scene.add(root); const stone = mat('#696c61'), dark = mat('#323d39'), core = mat('#ce805b', .15), glow = mat('#efd6a1', .8);
-      const body = new T.Mesh(new T.IcosahedronGeometry(.43, 1), core); body.scale.set(1.15, .65, 1.45); root.add(body);
-      const shell = new T.Group(); root.add(shell);
-      for (let i = 0; i < 4; i++) { const plate = new T.Mesh(new T.DodecahedronGeometry(.31, 0), stone); plate.position.set(0, .15, -.36 + i * .2); plate.scale.set(1.75, .85, .9); shell.add(plate); }
-      const rear = this.box(root, 0, -.035, -.63, .35, .23, .035, core);
-      const legs = [], claws = [];
-      for (const side of [-1, 1]) {
-        for (const z of [-.38, -.1, .18]) {
-          const leg = new T.Group(); leg.position.set(side * .44, -.15, z); root.add(leg);
-          this.box(leg, side * .15, -.05, -.01, .32, .09, .09, stone, side * -.35);
-          this.box(leg, side * .29, -.2, -.01, .055, .25, .06, dark); legs.push(leg);
-        }
-        const claw = new T.Group(); claw.position.set(side * .32, -.04, .34); root.add(claw);
-        this.box(claw, side * .08, -.015, .14, .14, .17, .3, stone, side * -.24);
-        this.box(claw, side * .12, .015, .29, .18, .15, .16, dark); claws.push(claw);
-        const eye = new T.Mesh(new T.IcosahedronGeometry(.048, 0), glow); eye.position.set(side * .19, .05, .59); root.add(eye);
-      }
+      const {body,shell,rear,legs,claws}=B.CreatureArt.crawler(root,stone,dark,core,glow,n.id*.71);
       const tell = new T.Mesh(new T.TorusGeometry(1, .027, 5, 32), new T.MeshBasicMaterial({ color: '#ffc08a', transparent: true, opacity: .85, depthWrite: false })); tell.rotation.x = Math.PI / 2; scene.add(tell);
+      B.WorkshopShapes.mergeRigid(shell);
+      B.WorkshopShapes.mergeRigid(root,new Set([body,rear,shell,...legs,...claws]));
       this.crawlerModels.push({ root, shell, body, core, stone, glow, rear, legs, claws, tell, node: n });
     }
     if (!this.impactAxe) {

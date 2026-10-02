@@ -50,7 +50,7 @@
           if (this.contact(n).density < -.004) continue; // Still physically attached to surrounding rock.
           this.loose.add(n); this.revision++;
         }
-        n.motion = 'falling'; this.awake.add(n);
+        n.motion = 'falling'; n.stillTime=0; this.awake.add(n);
       }
     }
     // Advances a detached body without touching indexes. Optional hooks handle
@@ -59,7 +59,7 @@
         const override = this.motionOverride?.(n, dt); if (override !== undefined) return override;
         this.accelerate(n, dt);
         const steps = Math.max(1, Math.ceil(Math.hypot(n.vx, n.vy, n.vz) * dt / .075)), h = dt / steps;
-        const oldX = n.x, oldY = n.y, oldZ = n.z;
+        const oldX = n.x, oldY = n.y, oldZ = n.z; let supported = false;
         for (let i = 0; i < steps; i++) {
           const dx = n.vx * h, dy = n.vy * h, dz = n.vz * h, hit = this.contact(n, n.x + dx, n.y + dy, n.z + dz);
           let lo = 1, hi = 1;
@@ -71,10 +71,16 @@
           this.onSolid?.(n);
           if (this.onContact?.(n, hit)) break;
           const a=B.SURFACE,normal = hit.x<a.minX+.005?[1,0,0]:hit.x>a.maxX-.005?[-1,0,0]:hit.z<a.minZ+.005?[0,0,1]:hit.z>a.maxZ-.005?[0,0,-1]:hit.y>a.maxY-.005?[0,-1,0]:this.world.normal(hit.x, hit.y, hit.z), into = n.vx * normal[0] + n.vy * normal[1] + n.vz * normal[2];
+          supported ||= normal[1] > .35;
           if (into < 0) { n.vx -= normal[0] * into; n.vy -= normal[1] * into; n.vz -= normal[2] * into; }
           n.vx *= .75; n.vy *= .75; n.vz *= .75;
           if (normal[1] > .35 && Math.hypot(n.vx, n.vy, n.vz) < .12) { n.vx = n.vy = n.vz = 0; n.motion = 'resting'; break; }
         }
+        // A wedged body can retain tangential velocity while the sweep moves it
+        // nowhere. Sleep on sustained supported immobility as well as low speed.
+        const displacement = Math.hypot(n.x-oldX,n.y-oldY,n.z-oldZ);
+        n.stillTime = supported && displacement < .00001 ? (n.stillTime || 0) + dt : 0;
+        if(n.stillTime >= .25){n.vx=n.vy=n.vz=0;n.motion='resting';}
         return oldX !== n.x || oldY !== n.y || oldZ !== n.z;
     }
     step(dt) {

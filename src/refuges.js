@@ -30,9 +30,9 @@
     }
     obstacles() { return this.nodes.map(n => [n.x - SIZE[0] / 2, n.y - SIZE[1] / 2, n.z - SIZE[2] / 2, n.x + SIZE[0] / 2, n.y + SIZE[1] / 2, n.z + SIZE[2] / 2]); }
     remember(id) { if (this.state.known.includes(id)) return false; this.state.known.push(id); return true; }
-    update(dt, player) {
+    update(dt, player, players = [player]) {
       let changed = this.physics.update(dt); this.elapsed += dt;
-      if (this.elapsed > .35) { this.elapsed = 0; for (const n of this.nodes) if (Math.hypot(n.x - player.head.x, n.y - player.head.y, n.z - player.head.z) < 5 && this.world.density(n.x, n.y, n.z) > .05 && this.world.clearLine(player.head, n, .1)) changed = this.remember(n.id) || changed; }
+      if (this.elapsed > .35) { this.elapsed = 0; for (const n of this.nodes) if (players.some(p=>Math.hypot(n.x - p.head.x, n.y - p.head.y, n.z - p.head.z) < 5 && this.world.density(n.x, n.y, n.z) > .05 && this.world.clearLine(p.head, n, .1))) changed = this.remember(n.id) || changed; }
       return changed;
     }
     scan(head, range) { const found = this.nodes.filter(n => Math.hypot(n.x - head.x, n.y - head.y, n.z - head.z) <= range); for (const n of found) this.remember(n.id); return found; }

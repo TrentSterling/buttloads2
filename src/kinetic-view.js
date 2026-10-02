@@ -36,6 +36,8 @@
       for(const side of [-1,1]){const fork=new T.Group();fork.position.set(side*.17,.04,-.16);tool.add(fork);this.box(fork,0,.09,-.045,.08,.33,.12,this.palette.yellow);this.box(fork,-side*.045,.24,-.045,.13,.06,.12,this.palette.steel);this.slingForks.push(fork);}
       const core=this.slingToolCore=new T.Mesh(new T.IcosahedronGeometry(.063,1),new T.MeshStandardMaterial({color:'#a0f6db',emissive:'#73caaa',emissiveIntensity:1.2,metalness:.35,roughness:.25}));core.position.set(0,.12,-.16);tool.add(core);
     }
+    for(const m of this.workshopCoils)B.WorkshopShapes.mergeRigid(m.coil,new Set([m.core]));
+    B.WorkshopShapes.mergeRigid(prize);B.WorkshopShapes.mergeRigid(root);
     this.renderKinetics(game,0);
   };
   B.View.prototype.renderKinetics=function(game,time){

@@ -1,0 +1,37 @@
+{
+  "name": "buttloads2",
+  "version": "2.48.0",
+  "private": true,
+  "description": "First-person excavation and instant global co-op",
+  "scripts": {
+    "test": "node tools/test.mjs",
+    "test:crew": "node tools/test-multiplayer.mjs",
+    "test:crew-spawn": "node tools/test-crew-spawn.mjs",
+    "audit:global-lobby": "node tools/network-idle-audit.mjs",
+    "test:net": "node tools/network-gauntlet.mjs",
+    "polish": "node tools/polish-gauntlet.mjs after",
+    "build": "node tools/build.mjs",
+    "vendor": "esbuild node_modules/@trystero-p2p/torrent/dist/index.mjs --bundle --minify --format=iife --global-name=ButtloadsTrystero --platform=browser --target=es2020 --outfile=vendor/trystero.min.js",
+    "test:art": "node tools/test-art.mjs",
+    "art": "node tools/art-gauntlet.mjs final",
+    "perf": "node tools/perf-gauntlet.mjs release",
+    "test:movement": "node tools/test-movement.mjs",
+    "test:mouse-entry": "node tools/test-mouse-entry.mjs",
+    "test:coop-controller": "node tools/test-coop-controller.mjs",
+    "movement": "node tools/movement-gauntlet.mjs",
+    "test:surface": "node tools/test-surface-art.mjs",
+    "surface": "node tools/surface-gauntlet.mjs final",
+    "test:latency": "node tools/test-latency.mjs",
+    "test:landscape": "node tools/test-landscape.mjs",
+    "landscape": "node tools/landscape-gauntlet.mjs final-2",
+    "test:world-art": "node tools/test-world-art.mjs",
+    "world-art": "node tools/landscape-gauntlet.mjs world-final"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "ws": "8.22.0"
+  },
+  "dependencies": {
+    "@trystero-p2p/torrent": "0.24.0"
+  }
+}

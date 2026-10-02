@@ -94,7 +94,7 @@
     movingContact(p, player, bodies) {
       const h = FREIGHT.size / 2;
       if (player && Math.abs(player.x - p.x) < h + player.radius && Math.abs(player.z - p.z) < h + player.radius && player.y < p.y + h && player.y + player.height > p.y - h) return 'Stand clear of the cage';
-      for (const b of bodies || []) if (!b.collected && Math.abs(b.x - p.x) < h + b.size[0] / 2 && Math.abs(b.y - p.y) < h + b.size[1] / 2 && Math.abs(b.z - p.z) < h + b.size[2] / 2) return 'Salvage blocks the cage';
+      for (const b of bodies || []) if (!b.collected && Math.abs(b.x - p.x) < h + b.size[0] / 2 && Math.abs(b.y - p.y) < h + b.size[1] / 2 && Math.abs(b.z - p.z) < h + b.size[2] / 2) return b.crew?'A crew miner blocks the cage. Stand clear.':'Salvage blocks the cage';
       return '';
     }
     update(dt, player, bodies) {

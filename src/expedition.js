@@ -51,8 +51,9 @@
       this.bodies = SALVAGE.map(s => ({ ...s, radius: 1.5, kind: 0, collected: this.state.recovered.includes(s.id), offsets: boxOffsets(s.size) }));
       this.physics = new B.OreSystem(world, this.bodies, saved || this.state.bodies);
       this.physics.accelerate = (n, dt) => {
-        if (n.id !== this.tether || !this.toward) { n.vy = Math.max(-12, n.vy - 18 * dt); return; }
-        const p = this.toward, dx = p.x - n.x, dy = p.y - n.y, dz = p.z - n.z, distance = Math.hypot(dx, dy, dz);
+        const remote=this.tetherOwner?.(n);
+        if (!remote && (n.id !== this.tether || !this.toward)) { n.vy = Math.max(-12, n.vy - 18 * dt); return; }
+        const p = remote || this.toward, dx = p.x - n.x, dy = p.y - n.y, dz = p.z - n.z, distance = Math.hypot(dx, dy, dz);
         if (distance > 8 || !world.clearLine(n, p, .15)) { this.snagged = true; n.vx *= .8; n.vz *= .8; n.vy = Math.max(-12, n.vy - 18 * dt); return; }
         const speed = Math.min(this.state.awakened ? 9 : 4.5, Math.max(0, distance - 2.5) * 3), blend = 1 - Math.exp(-dt * 12);
         for (const [v, delta] of [['vx', dx], ['vy', dy], ['vz', dz]]) n[v] += (delta / (distance || 1) * speed - n[v]) * blend;
@@ -83,7 +84,7 @@
       return contact.density < -.004 ? contact : null;
     }
     reward(value) { const s = this.economy.state; s.cash += value; s.earned += value; }
-    update(dt, player, held, ore) {
+    update(dt, player, held, ore, simulate = true) {
       this.cooldown = Math.max(0, this.cooldown - dt); this.toward = player.head; this.snagged = false;
       if (this.tether !== null) {
         const n = this.bodies[this.tether];
@@ -91,13 +92,13 @@
         else { this.physics.awake.add(n); n.motion = 'falling'; }
       }
       const n = this.tether === null ? null : this.bodies[this.tether], before = n ? { x: n.x, y: n.y, z: n.z } : null;
-      let changed = this.physics.update(dt);
+      let changed = simulate ? this.physics.update(dt) : false;
       if (n && Math.hypot(n.x - this.toward.x, n.y - this.toward.y, n.z - this.toward.z) > 2.8 && Math.hypot(n.x - before.x, n.y - before.y, n.z - before.z) < dt * .1) this.snagged = true;
       const obstruction = n && this.snagged ? this.findObstruction(n) : null;
       if (obstruction) { this.obstruction = obstruction; this.obstructionTime = .3; }
       else if ((this.obstructionTime -= dt) <= 0) this.obstruction = null;
       this.snagged ||= !!this.obstruction;
-      for (const body of this.bodies) if (!body.collected && body.y - body.size[1] / 2 > .15) {
+      for (const body of this.bodies) if (simulate && !body.collected && body.y - body.size[1] / 2 > .15) {
         body.collected = true; this.physics.awake.delete(body); this.physics.loose.delete(body); this.physics.index.remove(body); this.state.recovered.push(body.id);
         if (this.tether === body.id) this.detach(); this.reward(body.reward); changed = true;
         this.events.push({ title: body.unlock + ' unlocked', text: body.id === 0 ? 'The yard crew recovered the flywheel. B plants a lit survey anchor in your tunnel; G returns you to it from the surface. Your haul stays with you.' : 'The recovered engine drives a resonator. Press 4, then hold the trigger to charge a pulse. It breaks rock and wakes the stones below.', reward: body.reward });

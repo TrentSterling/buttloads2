@@ -68,7 +68,7 @@
       if(!this.state.unlocked || this.state.flights.length>=6)return null;
       const h=player.head,d=player.direction;let found=null,best=Infinity;
       for(const n of this.ore.index.query(h.x,h.y,h.z,8)) {
-        if(n.collected || n.motion==='embedded' || n.slingFlight || this.ore.contact(n).density<-.004)continue;
+        if(n.collected || n.motion==='embedded' || n.slingHeld || n.slingFlight || this.ore.contact(n).density<-.004)continue;
         const dx=n.x-h.x,dy=n.y-h.y,dz=n.z-h.z,along=dx*d.x+dy*d.y+dz*d.z;
         const off=Math.max(0,dx*dx+dy*dy+dz*dz-along*along);
         if(along<.3 || off>Math.pow(n.radius+.14*Math.max(1,along),2) || !this.world.clearLine(h,n,.05))continue;
@@ -84,6 +84,7 @@
     }
     fire(player) {
       const n=this.ore.nodes.find(n=>n.id===this.state.held);if(!n)return false;
+      if(this.state.flights.length>=6){this.cancel();return false;}
       const d=player.direction,speed=12+12*this.state.charge;
       n.slingHeld=false;n.slingFlight=true;n.vx=d.x*speed;n.vy=d.y*speed;n.vz=d.z*speed;
       n.motion='falling';this.ore.awake.add(n);this.state.flights.push({id:n.id,remaining:3});
@@ -131,11 +132,18 @@
       if(hit && speed>5) { this.combat.hit(hit,Math.min(78,speed*3),'kinetic',dir);this.events.push({kind:'sling-hit',point:point(hit)}); }
       this.endFlight(n);n.vx*=-.12;n.vy=Math.min(3,Math.max(0,-n.vy*.12));n.vz*=-.12;return t;
     }
-    update(dt,player,fire,active,expedition,obstacles=[]) {
+    update(dt,player,fire,active,expedition,obstacles=[],players=[player]) {
       const before=this.revision;this.player=player;this.obstacles=obstacles;
       if(this.physics.update(dt))this.revision++;
       const n=this.bench;
-      if(n && distance(player.head,n)<8 && this.world.clearLine(player.head,n,.05) && !this.state.known){this.state.known=true;this.revision++;}
+      if(n && players.some(p=>distance(p.head,n)<8 && this.world.clearLine(p.head,n,.05)) && !this.state.known){this.state.known=true;this.revision++;}
+      this.consumePulse(expedition);
+      for(const f of [...this.state.flights]) { f.remaining=Math.max(0,f.remaining-dt);const ore=this.ore.nodes[f.id];if(!f.remaining || ore.collected || ore.motion==='resting')this.endFlight(ore); }
+      this.control(player,fire,active);
+      this.save();return this.revision!==before;
+    }
+    consumePulse(expedition) {
+      const n=this.bench;
       if(expedition.pulseSerial!==this.pulseSerial) {
         this.pulseSerial=expedition.pulseSerial;const pulse=expedition.lastPulse;
         if(n && pulse && !pulse.magic && this.progress.expedition.deep?.open)for(let i=0;i<2;i++){
@@ -145,14 +153,14 @@
           }
         }
       }
-      for(const f of [...this.state.flights]) { f.remaining=Math.max(0,f.remaining-dt);const ore=this.ore.nodes[f.id];if(!f.remaining || ore.collected || ore.motion==='resting')this.endFlight(ore); }
+    }
+    control(player,fire,active) {
       if(!active || !this.state.unlocked)this.cancel();
       else {
         if(!fire && this.wasHeld && this.state.held!==null)this.fire(player);
         if(fire && this.state.held===null){const ore=this.candidate(player);if(ore){this.state.held=ore.id;this.state.charge=0;ore.slingHeld=true;ore.motion='falling';this.ore.awake.add(ore);this.revision++;}}
         this.wasHeld=fire;
       }
-      this.save();return this.revision!==before;
     }
     hint() { return this.state.held!==null?this.obstruction?'Mineral caught. Lift or clear the rock around it.':`Release to throw / ${Math.round(this.state.charge*100)}% power`:'Hold on a loose mineral to lift it. Release to throw.'; }
     save() { this.state.bodies=this.physics.snapshot(); }

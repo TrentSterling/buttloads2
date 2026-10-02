@@ -31,7 +31,9 @@
       ctx.fillText(text, 512, c.height * (sub ? .38 : .5), 940);
       if (sub) { ctx.font = `600 ${c.height * .18}px Arial`; ctx.fillText(sub, 512, c.height * .8, 940); }
       const tex = new T.CanvasTexture(c); tex.encoding = T.sRGBEncoding; tex.anisotropy = 4;
-      const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: '#ffffff', emissiveIntensity: .18, roughness: .85 })); m.position.set(x, y, z); m.rotation.y = rotation; group.add(m); return m;
+      const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: '#ffffff', emissiveIntensity: .18, roughness: .85 }));
+      m.material.userData.signSource = { key: JSON.stringify([text, sub, c.height, bg, fg]), canvas: c };
+      m.position.set(x, y, z); m.rotation.y = rotation; group.add(m); return m;
     }
     makeYard() {
       const g = new T.Group(), p = this.palette; this.scene.add(g);
@@ -48,39 +50,71 @@
         if (i > -4 && i < 4) continue;
         box(i, .95, -21, .14, 1.9, .14, p.wood); for (const h of [.6, 1.25]) box(i, h, -21, 2.1, .15, .09, p.wood);
       }
-      // Salvage shed and service apron.
-      box(-4, 2, 21.3, 15, 4, 2.5, p.dark); box(-4, 4.08, 19.3, 16.3, .18, 6.8, p.red);
-      for (let i = 0; i < 38; i++) box(-11.8 + i * .42, 4.21, 19.3, .045, .13, 6.8, p.red);
-      for (const x of [-11.5, 3.5]) box(x, 2, 16.4, .18, 4, .18, p.yellow);
-      for (let i = 0; i < 32; i++) box(-11.4 + i * .48, 2, 19.98, .04, 3.8, .05, p.metal);
-      this.sign(g, 'BUTTLOADS', 'SALVAGE & SUPPLY', -4, 3.13, 19.91, 7, 1.1);
-      box(-7, .65, 17.7, 4.1, 1.3, 2.3, p.yellow); box(-7, 1.32, 17.7, 3.65, .08, 1.85, p.black);
-      for (let i = 0; i < 12; i++) box(-8.65 + i * .3, 1.39, 17.7, .055, .035, 1.85, p.metal);
-      this.sign(g, 'SELL YOUR HAUL', 'E  /  ORE HOPPER', -7, 2.27, 18.5, 3.8, .76);
-      box(0, .72, 17.6, 3, 1.44, 1.5, p.dark); box(0, 1.5, 17.6, 3.25, .12, 1.8, p.wood);
-      box(0, 2.03, 18.06, 2, .96, .16, p.black); this.sign(g, 'GEAR & RECOVERY', 'E  /  WORKSHOP', 0, 2.04, 17.95, 1.94, .87);
+      this.makeSalvageYard(g);
       this.obstacles.push([-9.1, 0, 16.5, -4.9, 1.5, 19], [-1.7, 0, 16.6, 1.7, 2.5, 18.5], [-12, 0, 20, 4, 5, 23]);
-      for (const x of [5.6, 7]) { cylinder(x, .65, 19.5, .52, .52, 1.3, p.red); for (const h of [.18, 1.1]) cylinder(x, h, 19.5, .54, .54, .07, p.metal); }
-      for (let i = 0; i < 5; i++) { const x = -14.8 + (i % 2) * 1.4, y = .5 + Math.floor(i / 2) * 1.04; box(x, y, 19, 1.25, 1, 1.2, p.wood); for (const dx of [-.45, .45]) box(x + dx, y, 18.38, .09, .93, .025, p.pale); }
-      // Headframe, hanging cable and a landmark visible from the excavation.
-      for (const x of [8.5, 12]) { const leg = box(x, 4, 15.5, .28, 8, .3, p.yellow); leg.rotation.z = x < 10 ? -.08 : .08; }
-      box(10.25, 8, 15.5, 4.6, .4, .4, p.yellow); box(10.25, 4.8, 15.5, 4, .17, .23, p.black);
-      cylinder(10.25, 7.8, 15.5, .4, .4, .22, p.metal).rotation.x = Math.PI / 2;
-      cylinder(10.25, 5.5, 15.5, .025, .025, 4.2, p.black, 5);
-      this.sign(g, 'CLAIM 02', 'KEEP GOING DOWN', 10.25, 3.1, 15.28, 3.2, .9);
       for (const x of [-17, 17]) { cylinder(x, 4.7, -18, .15, .2, 9.4, p.wood); box(x, 8.5, -18, 2.5, .16, .15, p.wood); }
       for (const dx of [-.8, .8]) { const curve = new T.CatmullRomCurve3([new V(-17 + dx, 8.6, -18), new V(dx, 6.6, -18), new V(17 + dx, 8.6, -18)]); g.add(new T.Mesh(new T.TubeGeometry(curve, 20, .028, 4, false), p.black)); }
-      this.merge(g); this.renderer.shadowMap.needsUpdate = true;
+      this.merge(g,true);for(const mesh of g.children)if(mesh.material===this.palette.concrete||mesh.material===this.yardArtMaterials.stone||mesh.material===this.yardArtMaterials.glass)mesh.castShadow=false;this.renderer.shadowMap.needsUpdate = true;
     }
-    merge(group) {
+    prepareSignAtlas(group) {
+      // Static direct children only. Stateful office signs and interiors retain
+      // their own roots. Original bitmaps are copied without changing font size.
+      const faces = group.children.filter(mesh => {
+        const m = mesh.material, source = m?.userData?.signSource;
+        return mesh.isMesh && mesh.visible && source && m.map?.image === source.canvas && m.map === m.emissiveMap &&
+          source.canvas.width === 1024 && source.canvas.height > 0 && source.canvas.height <= 2016 &&
+          m.color.getHex() === 0xffffff && m.emissive.getHex() === 0xffffff && m.emissiveIntensity === .18 &&
+          m.roughness === .85 && m.metalness === 0 && !m.transparent && m.opacity === 1 && m.side === T.FrontSide &&
+          m.depthWrite && m.depthTest && !m.polygonOffset && !m.vertexColors && !m.alphaTest && !m.normalMap && !m.bumpMap &&
+          !m.alphaMap && !m.aoMap && !m.lightMap && !m.roughnessMap && !m.metalnessMap && !m.displacementMap && !m.envMap &&
+          m.map.encoding === T.sRGBEncoding && m.map.flipY && m.map.rotation === 0 &&
+          m.map.offset.x === 0 && m.map.offset.y === 0 && m.map.repeat.x === 1 && m.map.repeat.y === 1 &&
+          m.map.wrapS === T.ClampToEdgeWrapping && m.map.wrapT === T.ClampToEdgeWrapping;
+      });
+      if (faces.length < 2) return;
+      const tiles = new Map(), pages = [], gutter = 16;
+      for (const mesh of faces) {
+        const source = mesh.material.userData.signSource;
+        if (!tiles.has(source.key)) tiles.set(source.key, { ...source, height: source.canvas.height });
+      }
+      for (const tile of [...tiles.values()].sort((a, b) => b.height - a.height)) {
+        let page = pages.find(p => p.used + tile.height + gutter * 2 <= 2048);
+        if (!page) { page = { used: 0, tiles: [] }; pages.push(page); }
+        tile.page = page; tile.y = page.used + gutter; page.tiles.push(tile); page.used += tile.height + gutter * 2;
+      }
+      if (pages.length >= faces.length) return;
+      for (const page of pages) {
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = T.MathUtils.ceilPowerOfTwo(page.used);
+        const ctx = canvas.getContext('2d');
+        for (const tile of page.tiles) {
+          ctx.drawImage(tile.canvas, 0, tile.y);
+          ctx.drawImage(tile.canvas, 0, 0, 1024, 1, 0, tile.y - gutter, 1024, gutter);
+          ctx.drawImage(tile.canvas, 0, tile.height - 1, 1024, 1, 0, tile.y + tile.height, 1024, gutter);
+        }
+        const texture = new T.CanvasTexture(canvas); texture.encoding = T.sRGBEncoding; texture.anisotropy = 4;
+        page.material = faces[0].material.clone(); page.material.map = page.material.emissiveMap = texture;
+        page.material.userData = { signAtlas: { tiles: page.tiles.map(t => ({ key: t.key, y: t.y, height: t.height })) } };
+      }
+      const retired = new Set();
+      for (const mesh of faces) {
+        const old = mesh.material, tile = tiles.get(old.userData.signSource.key), uv = mesh.geometry.attributes.uv, height = tile.page.material.map.image.height;
+        for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - (tile.y + (1 - uv.getY(i)) * tile.height) / height);
+        uv.needsUpdate = true; mesh.material = tile.page.material; retired.add(old);
+      }
+      const textures = new Set();
+      for (const m of retired) { textures.add(m.map); m.dispose(); }
+      for (const texture of textures) texture.dispose();
+    }
+    merge(group, includeMapped=false) {
+      if (includeMapped) this.prepareSignAtlas(group);
       const buckets = new Map();
-      for (const m of [...group.children]) { if (!m.isMesh || m.material.map) continue; if (!buckets.has(m.material)) buckets.set(m.material, []); buckets.get(m.material).push(m); }
+      for (const m of [...group.children]) { if (!m.isMesh || (!includeMapped && m.material.map)) continue; if (!buckets.has(m.material)) buckets.set(m.material, []); buckets.get(m.material).push(m); }
       for (const [mat, meshes] of buckets) {
-        const arrays = { position: [], normal: [], uv: [] };
-        for (const mesh of meshes) { mesh.updateMatrixWorld(true); const geo = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld); for (const key of Object.keys(arrays)) if (geo.attributes[key]) arrays[key].push(geo.attributes[key].array); geo.dispose(); mesh.geometry.dispose(); group.remove(mesh); }
+        const arrays = { position: [], normal: [], uv: [] };if(mat.vertexColors)arrays.color=[];
+        for (const mesh of meshes) { mesh.updateMatrixWorld(true); const geo = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld); for (const key of Object.keys(arrays)) {if (geo.attributes[key]) arrays[key].push(geo.attributes[key].array);else if(key==='color')arrays.color.push(new Float32Array(geo.attributes.position.count*3).fill(1));} geo.dispose(); mesh.geometry.dispose(); group.remove(mesh); }
         const geo = new T.BufferGeometry();
         for (const [key, values] of Object.entries(arrays)) { const data = new Float32Array(values.reduce((n, a) => n + a.length, 0)); let offset = 0; for (const a of values) { data.set(a, offset); offset += a.length; } geo.setAttribute(key, new T.BufferAttribute(data, key === 'uv' ? 2 : 3)); }
-        const mesh = new T.Mesh(geo, mat); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+        const mesh = new T.Mesh(geo, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.matrixAutoUpdate=false; group.add(mesh);
       }
     }
     bindWorld(world) {
@@ -90,9 +124,10 @@
         for (const [key, data] of [['position', s.positions], ['normal', s.normals], ['color', s.colors]]) geo.setAttribute(key, new T.BufferAttribute(data, 3).setUsage(T.DynamicDrawUsage));
         geo.setIndex(new T.BufferAttribute(s.indices, 1).setUsage(T.DynamicDrawUsage)); geo.setDrawRange(0, s.count * 6);
         geo.boundingBox = new T.Box3(new V(rec.cx * 8 - .5, rec.cy * 8 - .5, rec.cz * 8 - .5), new V(rec.cx * 8 + 8, rec.cy * 8 + 8, rec.cz * 8 + 8)); geo.boundingSphere = new T.Sphere(geo.boundingBox.getCenter(new V()), 7.5);
-        const mesh = new T.Mesh(geo, this.terrainMaterial); mesh.castShadow = true; mesh.receiveShadow = true; this.terrain.add(mesh); rec.view = mesh;
+        const mesh = new T.Mesh(geo, this.terrainMaterial); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate=false; this.terrain.add(mesh); rec.view = mesh;
         this.renderer.shadowMap.needsUpdate = true;
       };
+      world.onRemove=rec=>{if(rec.view){rec.view.geometry.dispose();this.terrain.remove(rec.view);}};
       world.onChange = rec => {
         const s = rec.mesh, geo = rec.view.geometry;
         const range = (attr, lo, hi) => { if (!Number.isFinite(lo) || hi <= lo) return; if (attr.updateRange.count > 0) { hi = Math.max(hi, attr.updateRange.offset + attr.updateRange.count); lo = Math.min(lo, attr.updateRange.offset); } attr.updateRange.offset = lo; attr.updateRange.count = hi - lo; attr.needsUpdate = true; };
@@ -101,23 +136,62 @@
       };
     }
     setDeposits(deposits) {
-      for (const m of [...this.resources.children]) { m.geometry.dispose(); m.material.dispose(); this.resources.remove(m); }
+      const disposedMaterials = new Set();
+      for (const m of [...this.resources.children]) { m.geometry.dispose(); if (!disposedMaterials.has(m.material)) { disposedMaterials.add(m.material); m.material.dispose(); } this.resources.remove(m); }
       const count = deposits.nodes.length; this.oreDummy = new T.Object3D(); this.ghostSlots = new Map();
-      this.oreMesh = new T.InstancedMesh(new T.DodecahedronGeometry(1, 0), new T.MeshStandardMaterial({ roughness: .55, metalness: .28, flatShading: true }), count);
-      this.oreMesh.instanceMatrix.setUsage(T.DynamicDrawUsage); this.oreMesh.frustumCulled = false;
-      for (const o of deposits.nodes) { this.updateOre(o); this.oreMesh.setColorAt(o.id, new T.Color(B.ORES[o.kind].color).convertSRGBToLinear()); }
-      this.resources.add(this.oreMesh);
+      this.oreSlots = new Map(); this.oreBatches = []; this.oreBoundsPoint = new V();
+      const buckets = new Map(), material = new T.MeshStandardMaterial({ roughness: .55, metalness: .28, flatShading: true });
+      this.oreMesh = count ? new T.InstancedMesh(new T.DodecahedronGeometry(1, 0), material, count) : null;
+      this.oreFrustum = new T.Frustum(); this.oreProjection = new T.Matrix4();
+      if (this.oreMesh) { this.oreMesh.instanceMatrix.setUsage(T.DynamicDrawUsage); this.oreMesh.frustumCulled = false; this.oreMesh.visible = false; this.oreMesh.name = 'ore-dense-view'; this.resources.add(this.oreMesh); }
+      for (const node of deposits.nodes) {
+        const key = [node.x, node.y, node.z].map(v => Math.floor(v / 16)).join(',');
+        if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(node);
+      }
+      for (const nodes of buckets.values()) {
+        // Three r137 culls instances through geometry bounds, so each batch
+        // owns its small geometry while sharing the ore material.
+        const geo = new T.DodecahedronGeometry(1, 0), mesh = new T.InstancedMesh(geo, material, nodes.length);
+        geo.boundingBox = new T.Box3(); geo.boundingSphere = new T.Sphere();
+        mesh.instanceMatrix.setUsage(T.DynamicDrawUsage); mesh.frustumCulled = true; mesh.name = 'ore-cell';
+        nodes.forEach((node, index) => { this.oreSlots.set(node.id, { mesh, index }); });
+        this.oreBatches.push(mesh); this.resources.add(mesh);
+        for (const node of nodes) { this.updateOre(node); const color = new T.Color(B.ORES[node.kind].color).convertSRGBToLinear(); mesh.setColorAt(this.oreSlots.get(node.id).index, color); this.oreMesh.setColorAt(node.id, color); }
+      }
+      if (!count) material.dispose();
       this.ghosts = new T.InstancedMesh(new T.IcosahedronGeometry(.2, 0), new T.MeshBasicMaterial({ transparent: true, opacity: .65, depthTest: false, depthWrite: false, blending: T.AdditiveBlending }), count + 18 + B.MYSTERIES.length + B.THUNDERSTONES.length);
       this.ghosts.count = 0; this.ghosts.frustumCulled = false; this.ghosts.renderOrder = 10; this.resources.add(this.ghosts);
     }
     updateOre(node) {
       const dummy = this.oreDummy, r = node.collected ? 0 : node.radius;
       dummy.position.set(node.x, node.y, node.z); dummy.scale.set(r * (node.kind === 4 ? .65 : 1.15), r * (node.kind === 4 ? 1.9 : .8), r); dummy.rotation.set(node.id, node.id * .7, node.id * .3); dummy.updateMatrix();
+      const { mesh, index } = this.oreSlots.get(node.id);
+      mesh.setMatrixAt(index, dummy.matrix); mesh.instanceMatrix.needsUpdate = true;
       this.oreMesh.setMatrixAt(node.id, dummy.matrix); this.oreMesh.instanceMatrix.needsUpdate = true;
+      // Loose minerals retain their slots. Grow bounds on movement so throws,
+      // falling bodies and restored remote positions cannot leave the batch.
+      const extent = node.radius * (node.kind === 4 ? 1.9 : 1.15) + 1e-5 * Math.max(1, Math.abs(node.x), Math.abs(node.y), Math.abs(node.z));
+      const box = mesh.geometry.boundingBox, point = this.oreBoundsPoint;
+      box.expandByPoint(point.set(node.x - extent, node.y - extent, node.z - extent));
+      box.expandByPoint(point.set(node.x + extent, node.y + extent, node.z + extent));
+      box.getBoundingSphere(mesh.geometry.boundingSphere);
       const slot = this.ghostSlots.get(node.id);
       if (slot !== undefined) { dummy.scale.setScalar(node.collected ? 0 : 1.1); dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); this.ghosts.setMatrixAt(slot, dummy.matrix); this.ghosts.instanceMatrix.needsUpdate = true; }
     }
     collect(node) { this.updateOre(node); }
+    selectOreBatches() {
+      if (!this.oreMesh) return;
+      this.camera.updateMatrixWorld(); this.resources.updateWorldMatrix(true, false);
+      this.oreProjection.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse).multiply(this.resources.matrixWorld);
+      this.oreFrustum.setFromProjectionMatrix(this.oreProjection);
+      let cells = 0, instances = 0;
+      for (const mesh of this.oreBatches) { mesh.visible = this.oreFrustum.intersectsSphere(mesh.geometry.boundingSphere); if (mesh.visible) { cells++; instances += mesh.count; } }
+      // Dense views can admit nearly every cell. Preserve the original single
+      // draw instead of paying dozens of draws for a small triangle reduction.
+      const dense = cells > 16 || (cells > 8 && instances > this.oreMesh.count * .6);
+      this.oreMesh.visible = dense; if (dense) for (const mesh of this.oreBatches) mesh.visible = false;
+      this.oreCullPolicy = { mode: dense ? 'merged' : 'cells', visibleCells: cells, visibleInstances: instances };
+    }
     scan(nodes, relic) {
       const dummy = new T.Object3D(); let i = 0; this.ghostSlots.clear();
       for (const n of [...nodes, ...(relic ? [relic] : [])]) { if (n.collected) continue; if (n.kind !== undefined) this.ghostSlots.set(n.id, i); else if (n.scanKey) this.ghostSlots.set(n.scanKey, i); dummy.position.set(n.x, n.y, n.z); dummy.scale.setScalar(n.kind === undefined ? 3 : 1.1); dummy.updateMatrix(); this.ghosts.setMatrixAt(i, dummy.matrix); this.ghosts.setColorAt(i++, new T.Color(n.color || (n.kind === undefined ? '#ffdc89' : B.ORES[n.kind].color))); }
@@ -164,7 +238,8 @@
     render(game, dt, time) {
       const p = game.player, title = game.screen === 'title';
       if (title) { this.camera.position.set(25 + Math.sin(time * .04) * 2, 19, 29); this.camera.lookAt(-1, -1, 0); }
-      else { this.camera.position.set(p.x, p.y + p.eye, p.z); this.camera.rotation.set(p.pitch, p.yaw, 0, 'YXZ'); }
+      else { const pose=p.cameraPose(game.running?game.accumulator*120:1);this.camera.position.set(pose.x,pose.y+p.eye,pose.z);this.camera.rotation.set(pose.pitch,pose.yaw,0,'YXZ'); }
+      this.renderCrew?.(game,dt);
       const depth = Math.max(0, -this.camera.position.y), daylight = Math.exp(-depth * .24);
       this.hemi.intensity = .04 + .48 * daylight; this.sun.intensity = 1.85 * daylight;
       this.lamp.position.copy(this.camera.position); this.lamp.intensity = title ? 0 : .2 + 1.6 * (1 - daylight); this.lamp.distance = 22 + game.economy.state.gear.scanner * 3;
@@ -180,6 +255,7 @@
       if (this.ghosts) { this.ghosts.material.opacity = B.clamp(game.scanUntil - game.clock, 0, 1) * (.45 + Math.sin(time * 8) * .15); if (game.scanUntil <= game.clock) this.ghosts.count = 0; }
       if (this.relicModels?.[3]) this.relicModels[3].artifact.rotation.y = time * .35;
       if(this.renderer.shadowMap.needsUpdate)this.sun.shadow.needsUpdate=true;
+      this.selectOreBatches();
       this.renderer.autoClear = true; this.renderer.render(this.scene, this.camera);
       if (!title && game.ready && game.screen !== 'town') { this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.toolScene, this.toolCamera); }
       this.gameUI.render(game,dt);

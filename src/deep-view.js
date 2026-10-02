@@ -11,11 +11,9 @@
     const mat = (color, glow = 0) => new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: glow, roughness: .65, metalness: .35 });
     const steel = mat('#697771'), iron = mat('#283b36'), brass = mat('#b59959'), rubber = mat('#1a2423');
     const gate = this.rootway = new T.Group(); gate.position.set(B.DEEP_GATE.x, B.DEEP_GATE.y, B.DEEP_GATE.z); group.add(gate);
-    const rune = mat('#74cbb0', .4);
-    for (const radius of [.7, 1.12]) { const ring = new T.Mesh(new T.TorusGeometry(radius, .045, 6, 32), brass); ring.rotation.x = Math.PI / 2; gate.add(ring); }
-    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, tooth = this.box(gate, Math.cos(a) * .9, .015, Math.sin(a) * .9, .16, .05, .25, rune); tooth.rotation.y = -a; }
+    B.MineAssetArt.rootway(gate,B.MineAssetArt.kit());
     for (const n of game.deep.nodes) {
-      const model=this.makeStationMachine(n);model.root.position.set(n.x,n.y,n.z);group.add(model.root);this.deepModels.push(model);
+      const model=this.makeStationMachine(n);B.WorkshopShapes.mergeRigid(model.wheel);model.root.position.set(n.x,n.y,n.z);group.add(model.root);this.deepModels.push(model);
     }
     const baseline = Object.create(B.World.prototype); baseline.density = (x, y, z) => game.world.base(x, y, z);
     const rng = B.random(game.world.seed ^ 0x318614);
@@ -25,10 +23,13 @@
         const a = rng() * Math.PI * 2, r = 1 + rng() * 2.4, p = { x: room.x + Math.cos(a) * r, y: room.y, z: room.z + Math.sin(a) * r }, ceiling = i % 3 === 0;
         const hit = baseline.ray(p, { x: 0, y: ceiling ? 1 : -1, z: 0 }, 6); if (!hit) continue;
         const height = .28 + rng() * 1.1, root = new T.Group(); root.position.set(hit.x, hit.y, hit.z); group.add(root);
-        const crystal = new T.Mesh(new T.ConeGeometry(.12 + rng() * .18, height, 5), growth); crystal.position.y = height / 2 * (ceiling ? -1 : 1); if (ceiling) crystal.rotation.z = Math.PI; root.add(crystal);
+        const crystal = new T.Mesh(B.CaveForms.ordinary(.12 + rng() * .18, height,room.id*2.31+i*.83,ceiling?'drop':'prism',!ceiling), growth); crystal.position.y = height / 2 * (ceiling ? -1 : 1); if (ceiling) crystal.rotation.z = Math.PI; root.add(crystal);
+        B.CaveForms.growthColors(root);
+        B.CaveForms.mountGrowth(root,game.world,hit,ceiling);
         this.deepGrowth.push({ root, anchor: { x: hit.x, y: hit.y + (ceiling ? .15 : -.15), z: hit.z } });
       }
     }
+    this.deepSupportBatches=B.WorkshopShapes.batchSupported(group,this.deepGrowth);
     this.deepLight = new T.PointLight('#f6dca0', 0, 17, 1.7); group.add(this.deepLight); this.deepSupportRevision = -1;
   };
   B.View.prototype.renderDeep = function (game, time) {
@@ -37,6 +38,7 @@
     if (this.deepSupportRevision !== game.world.revision) {
       this.deepSupportRevision = game.world.revision;
       for (const n of this.deepGrowth) n.root.visible = game.world.density(n.anchor.x, n.anchor.y, n.anchor.z) < -.015;
+      if(this.deepSupportBatches.sync())this.renderer.shadowMap.needsUpdate=true;
     }
     let nearest = null, distance = 18;
     for (const m of this.deepModels) {

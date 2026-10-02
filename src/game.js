@@ -1,30 +1,34 @@
 'use strict';
 (function (B) {
+  const D = B.DOM;
   const $ = id => document.getElementById(id), money = value => '$' + Math.round(value).toLocaleString('en-US');
   class Game {
     constructor() {
       this.settings = { sound: true, tips: true, sensitivity: 1, quality: 1.5, motion: !matchMedia('(prefers-reduced-motion:reduce)').matches };
       this.store = new B.Saves.SaveStore(); this.input = { keys: new Set(), fire: false, lookPointer: null, lookX: 0, lookY: 0 }; this.audio = new B.AudioEngine(this.settings);
-      this.economy = new B.Economy(); this.screen = 'title'; this.ready = false; this.running = false; this.clock = 0; this.scanUntil = 0; this.scanCooldown = 0; this.recallTime = 0; this.lastSave = 0; this.dirty = false; this.revision = 0; this.saving = false; this.accumulator = 0; this.pickupUntil = 0; this.toastTimer = null; this.scanFocus = 'ore'; this.pointerHint = false;
+      this.economy = new B.Economy(); this.screen = 'title'; this.ready = false; this.running = false; this.clock = 0; this.scanUntil = 0; this.scanCooldown = 0; this.recallTime = 0; this.lastSave = 0; this.dirty = false; this.revision = 0; this.saving = false; this.accumulator = 0; this.pickupUntil = 0; this.toastTimer = null; this.scanFocus = 'ore'; this.pointerHint = false; this.mouseCaptureUnavailable = false;
       this.audit = { frames: 0, frameMs: [], recoveries: 0, pickups: 0, saves: 0 };
       this.fieldKit = new B.FieldKit(this); this.townUI = new B.TownUI(this);
       this.bindUI(); this.bindInput();
+      this.net = B.Crew ? new B.Crew(this,globalThis.BUTTLOADS_NET_OPTIONS||{}) : null; B.installCrewControls?.(this);
     }
     async boot() {
       try {
         this.view = new B.View($('view'), this.settings); this.view.gameUI.attach(this);
         let data;
-        try { const saved = await this.store.read(); if (saved) data = B.Saves.validate(saved); }
+        try { const saved = B.Crew?.enabled() ? await this.store.read(B.CREW_SAVE_KEY) || await this.store.read('crew-global-v2') || await this.store.read('crew-global-v1') || await this.store.read() : await this.store.read(); if (saved) data = B.Saves.validate(saved); }
         catch (error) { this.toast('Local save unavailable: ' + error.message, 6500); $('save-status').textContent = 'Use Export save to keep your claim.'; }
         await this.install(data);
         $('save-note').textContent = data ? 'Your claim is right where you left it. The deep has changed.' : 'Dig. Detonate. Recover. Awaken.';
         $('start-button').textContent = data ? 'Continue digging' : 'Start digging'; $('start-button').disabled = false;
         this.setScreen('title');
-        let previous = performance.now(), visualTime = 0;
+        if(B.Crew?.enabled()) this.net.start();
+        this.simulationAt = this.renderAt = performance.now();
+        let previous = this.simulationAt, visualTime = 0;
         const frame = now => {
-          requestAnimationFrame(frame); const raw = (now - previous) / 1000; previous = now; const dt = Math.min(.05, raw); visualTime += dt;
+          requestAnimationFrame(frame); const raw = Math.max(0,(now - previous) / 1000); previous = now; const dt = Math.min(.05, raw); visualTime += dt;
           this.audit.frames++; if (this.audit.frameMs.length > 599) this.audit.frameMs.shift(); this.audit.frameMs.push(raw * 1000);
-          if (this.running && this.ready) this.update(dt);
+          this.renderAt = now; this.advanceSimulation(now);
           if (this.player) this.view.render(this, dt, visualTime);
         };
         requestAnimationFrame(frame);
@@ -48,13 +52,14 @@
       this.deep = new B.DeepExpedition(world, state); this.foreman = new B.Foreman(world, state, this.combat); this.rescue = new B.Rescue(world, state); this.crawlers = new B.Crawlers(world, state, this.combat); this.kinetics = new B.Kinetics(world,state,this.orePhysics,this.combat); this.fossil = new B.Fossil(world,state);
       this.expedition.damageTarget = (head, dir, reach) => B.enemyTarget(world, this.combat.targets(), head, dir, reach);
       this.expedition.structureTarget = (head,dir,reach) => this.kinetics.pulseTarget(head,dir,reach);
-      this.player.obstacles = [...this.view.obstacles, ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.freight.obstacles(), ...this.rescue.obstacles(), ...this.town.residentObstacles(), ...this.crawlers.obstaclesForPlayer(), ...this.kinetics.obstaclesForPlayer(), ...this.fossil.obstacles()];
+      this.refreshPlayerObstacles();
       // Older common-land saves stood on a flat plane. Raise those positions to
       // the new shared surface when the capsule fits, preserving their location.
       if (data && B.COMMON.outside(this.player.x,this.player.z) && this.player.y>=-.1 && this.player.y<B.COMMON.height(this.player.x,this.player.z)) {
         const y=B.COMMON.height(this.player.x,this.player.z)+.16;
         if(!this.player.blocked(this.player.x,y,this.player.z))this.player.teleport(this.player.x,y,this.player.z);
       }
+      this.player.recoverOverlap();this.player.resetView();
       if (this.player.blocked(this.player.x, this.player.y, this.player.z)) { this.player.teleport(0, .1, 12); this.toast('Saved position was inside rock. Returned to the claim entrance.'); }
       this.view.bindWorld(world); for (const rec of world.chunks.values()) world.onChunk(rec);
       this.view.setDeposits(deposits); this.view.makeExpedition(this.expedition); this.view.makeMysteries(); this.view.makeThunderstone(this.thunder); this.view.makeFreight(this); this.view.makeCaverns(this); this.view.makeCombat(this); this.view.makeDeep(this); this.view.makeForeman(this); this.view.makeRescue(this); this.view.makeCrawlers(this); this.view.makeKinetics(this); this.view.makeParcel(this); this.view.makeFossil(this); this.view.resize();
@@ -76,13 +81,50 @@
       } finally {this.parcelPurchase=false;this.ready=true;$('loading').hidden=true;}
     }
     changed() { this.dirty = true; this.revision++; }
+    advanceSimulation(now = performance.now(), crewWake = false) {
+      if (this.advancingSimulation || !Number.isFinite(now)) return;
+      // Let an active render loop own foreground work. Incoming input and the
+      // existing heartbeat wake authority when painting has stopped or slowed.
+      if (crewWake && now - (this.renderAt ?? -Infinity) < 50 - 1e-6) return;
+      const previous = this.simulationAt ?? now;
+      if (now <= previous) return;
+      this.simulationAt = now;
+      if (!this.ready) return;
+      this.advancingSimulation = true;
+      try {
+        const elapsed = (now - previous) / 1000;
+        // Rendering and accepted crew input share this watermark. Resume after a
+        // long stall with bounded physics work, while network expiry uses real time.
+        let remaining = Math.min(.25, elapsed);
+        const skipped = elapsed - remaining;
+        if (skipped > 0 && this.net) this.net.time += skipped;
+        while (remaining > 1e-8) {
+          const dt = Math.min(.05, remaining);
+          if (this.net) this.net.time += dt;
+          if (this.net?.guest) this.net.updateGuest(dt);
+          else if (this.running || this.net?.active) this.update(dt);
+          // Publish after simulation so the capture time describes this pose.
+          this.net?.tick(0);
+          remaining -= dt;
+        }
+      } finally { this.advancingSimulation = false; }
+    }
+    refreshPlayerObstacles() {
+      const boxes=[...(this.view?.obstacles||[]),...(this.refuges?.obstacles()||[]),...(this.deep?.obstacles()||[]),...(this.foreman?.obstacles()||[]),...(this.rescue?.obstacles()||[]),...(this.crawlers?.obstaclesForPlayer()||[]),...(this.kinetics?.obstaclesForPlayer()||[]),...(this.fossil?.obstacles()||[]),...(this.town?.residentObstacles()||[]),...(this.freight?.obstacles()||[]),...(this.expedition?.bodies||[]).filter(b=>!b.collected).map(b=>[b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
+      this.player.obstacles=boxes;return boxes;
+    }
+    playerLiftSpeed(player=this.player,tether=this.expedition?.tether) {
+      const base=Math.max(B.GEAR.lift.values[this.economy.state.gear.lift],player.y<-80&&this.deep?.state.repaired.includes(1)?16:0);
+      return tether!=null?Math.min(base,this.expedition.state.awakened?7:3.5):base;
+    }
     update(dt) {
       this.clock += dt; const state = this.economy.state; state.seconds += dt;
-      if (this.expedition && this.view) this.player.obstacles = [...this.view.obstacles, ...(this.refuges?.obstacles() || []), ...(this.deep?.obstacles() || []), ...(this.foreman?.obstacles() || []), ...(this.rescue?.obstacles() || []), ...(this.crawlers?.obstaclesForPlayer() || []), ...(this.kinetics?.obstaclesForPlayer() || []), ...(this.fossil?.obstacles() || []), ...(this.town?.residentObstacles() || []), ...(this.freight?.obstacles() || []), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x - b.size[0] / 2, b.y - b.size[1] / 2, b.z - b.size[2] / 2, b.x + b.size[0] / 2, b.y + b.size[1] / 2, b.z + b.size[2] / 2])];
+      this.refreshPlayerObstacles();
       this.accumulator += dt;
-      const baseLift = Math.max(B.GEAR.lift.values[state.gear.lift], this.player.y < -80 && this.deep?.state.repaired.includes(1) ? 16 : 0);
-      const liftSpeed = this.expedition?.tether != null ? Math.min(baseLift, state.expedition.awakened ? 7 : 3.5) : baseLift;
+      const liftSpeed = this.playerLiftSpeed();
       while (this.accumulator >= 1 / 120) { this.player.step(1 / 120, this.input.keys, liftSpeed); this.accumulator -= 1 / 120; }
+      this.net?.stepRemotes(dt);
+      const crewPlayers=this.net?.host?this.combat.crewPlayers():[this.player];
       state.deepest = Math.max(state.deepest, Math.max(0, -this.player.y));
       const mode = state.expedition.tool, mechanical = ['cutter', 'scoop', 'lance'].includes(mode);
       if (this.actions) this.actions.update(dt, this.player, state, this.input.fire && !this.input.aim);
@@ -94,12 +136,12 @@
         if (chapter > this.lastChapter) { this.lastChapter = chapter; this.chapterUntil = this.clock + 7; const c = B.STRATA[chapter]; $('chapter-number').textContent = `STRATUM 0${chapter + 1} / ${c.depth} METERS`; $('chapter-name').textContent = c.name; $('chapter-copy').textContent = c.subtitle; $('chapter-unlock').textContent = c.unlock; this.audio.note(220 + chapter * 90, .7, .04); this.changed(); }
         this.expeditionEvents();
       }
-      if (this.refuges?.update(dt, this.player)) this.changed();
-      if (this.deep?.update(dt, this.player)) this.changed();
-      if (this.fossil) { if(this.fossil.update(dt,this.player))this.changed(); this.expedition.events.push(...this.fossil.events.splice(0)); }
+      if (this.refuges?.update(dt, this.player, crewPlayers)) this.changed();
+      if (this.deep?.update(dt, this.player, crewPlayers)) this.changed();
+      if (this.fossil) { if(this.fossil.update(dt,this.player,crewPlayers))this.changed(); this.expedition.events.push(...this.fossil.events.splice(0)); }
       if (this.kinetics) {
         const boxes=[...this.view.obstacles,...this.town.residentObstacles(),...this.rescue.obstacles(),...this.foreman.obstacles(),...this.crawlers.nodes.filter(n=>n.hp<=0).map(n=>this.crawlers.box(n)),...this.deep.obstacles(),...this.refuges.obstacles(),...this.freight.obstacles(),...this.kinetics.obstaclesForPlayer(),...this.fossil.obstacles(),...this.expedition.bodies.filter(n=>!n.collected).map(n=>[n.x-n.size[0]/2,n.y-n.size[1]/2,n.z-n.size[2]/2,n.x+n.size[0]/2,n.y+n.size[1]/2,n.z+n.size[2]/2])];
-        if(this.kinetics.update(dt,this.player,this.input.fire,mode==='sling' && !this.input.aim,this.expedition,boxes))this.changed();
+        if(this.kinetics.update(dt,this.player,this.input.fire,mode==='sling' && !this.input.aim,this.expedition,boxes,crewPlayers))this.changed();
       }
       if (this.orePhysics.update(dt)) this.changed();
       if (this.gadgets?.update(dt, this.orePhysics, this.expedition.physics, this.player)) this.changed();
@@ -120,11 +162,14 @@
           this.changed();
         }
         if (this.combat.needsRescue) {
+          if(this.net?.host&&this.net.count>1){this.combat.state.health=100;this.combat.state.grace=3;this.combat.state.rescues++;this.combat.needsRescue=false;this.recall();this.toast('The yard crew pulled you out. The crew haul is safe.');}
+          else {
           this.combat.rescue(this.player); this.recall();
           $('discovery-name').textContent = 'The yard crew found your tether.';
           $('discovery-text').textContent = 'You are back at the surface with your equipment. Lost minerals wait in a marked recovery cache on M. Clear some cargo space, then return and collect them with E. Placed lights keep cinder moths at bay.';
           $('discovery-reward').textContent = 'No money or upgrades lost. Cleared creatures stay cleared.';
           this.setScreen('discovery'); this.save(); return;
+          }
         }
       }
       if(this.kinetics && this.kinetics.revision!==this.kineticRevision){this.kineticRevision=this.kinetics.revision;this.changed();}
@@ -134,10 +179,10 @@
         if (this.mysteries.update(dt, this.player, this.gadgets)) this.changed();
         this.expedition.events.push(...this.mysteries.events.splice(0));
       }
-      if (this.freight) { if (this.freight.update(dt, this.player, [...this.expedition.bodies, ...this.kinetics.nodes, ...(this.fossil?.nodes || []), ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
+      if (this.freight) { if (this.freight.update(dt, this.player, [...(this.net?.blockingBodies||[]), ...this.expedition.bodies, ...this.kinetics.nodes, ...(this.fossil?.nodes || []), ...(this.crawlers?.nodes || []).filter(n => n.phase !== 'buried').map(n => ({ ...n, size: B.CRAWLER_SIZE }))])) this.changed(); this.expedition.events.push(...this.freight.events.splice(0)); }
       if (this.rescue) {
         const boxes = [...this.view.obstacles, ...this.freight.obstacles(), ...this.refuges.obstacles(), ...this.deep.obstacles(), ...this.foreman.obstacles(), ...this.expedition.bodies.filter(b => !b.collected).map(b => [b.x-b.size[0]/2,b.y-b.size[1]/2,b.z-b.size[2]/2,b.x+b.size[0]/2,b.y+b.size[1]/2,b.z+b.size[2]/2])];
-        if (this.rescue.update(dt, this.player, boxes)) this.changed();
+        if (this.rescue.update(dt, this.player, boxes, crewPlayers)) this.changed();
         this.expedition.events.push(...this.rescue.events.splice(0));
       }
       if (this.survey?.update(dt, this.player)) this.changed();
@@ -159,7 +204,8 @@
       for (const o of this.index.query(p.x, p.y, p.z, 3)) {
         if (this.economy.count >= this.economy.capacity) break;
         if (this.kinetics?.reserve(o) || !this.orePhysics.collect(o, this.economy, p)) continue;
-        this.audit.pickups++; this.pickupUntil = this.clock + 1.6; this.changed();
+        this.audit.pickups++; this.changed();
+        if(this.net?.remoteContext){const peer=this.net.remoteContext;peer.pickup={seq:(peer.pickup?.seq||0)+1,kind:o.kind,x:o.x,y:o.y,z:o.z};continue;}this.pickupUntil = this.clock + 1.6;
         $('pickup').textContent = `+ ${B.ORES[o.kind].name}  ${money(B.ORES[o.kind].value)}`; if (this.audio.pickup) this.audio.pickup(o.kind); else this.audio.note(560 + o.kind * 140, .09, .025); this.feedback?.collect(o);
       }
     }
@@ -327,24 +373,24 @@
     updateCombatHUD() {
       if (!this.combat) return;
       const c = this.combat, hp = Math.ceil(c.state.health), p = this.player.head;
-      $('vitals').hidden = hp === 100 && !c.enemies.some(n => n.known) && !this.foreman.state.known && !this.crawlers.nodes.some(n => n.known); $('health').textContent = hp; $('health-bar').style.width = hp + '%';
-      $('hurt-shade').style.opacity = String(c.hurtFlash * .65); $('crosshair').classList.toggle('hit-confirm', c.hitFlash > 0);
+      D.prop($('vitals'), 'hidden', hp === 100 && !c.enemies.some(n => n.known) && !this.foreman.state.known && !this.crawlers.nodes.some(n => n.known)); D.text($('health'), hp); D.style($('health-bar'), 'width', hp + '%');
+      D.style($('hurt-shade'), 'opacity', String(c.hurtFlash * .65)); D.klass($('crosshair'), 'hit-confirm', c.hitFlash > 0);
       const near = c.enemies.filter(n => n.hp > 0 && n.phase !== 'buried' && Math.hypot(n.x - p.x, n.y - p.y, n.z - p.z) < 7 && this.world.clearLine(p, n, .05)).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) - Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z))[0];
       const furnace = this.foreman.state.active && Math.hypot(this.player.x - this.foreman.core.x, this.player.y - this.foreman.core.y, this.player.z - this.foreman.core.z) < 26;
-      $('foreman-hud').hidden = !furnace; $('foreman-health').style.width = (this.foreman.core?.hp || 0) / 420 * 100 + '%'; $('foreman-hint').textContent = this.foreman.hint(); $('foreman-locks').textContent = `${this.foreman.broken}/3 pressure locks broken`;
+      D.prop($('foreman-hud'), 'hidden', !furnace); D.style($('foreman-health'), 'width', (this.foreman.core?.hp || 0) / 420 * 100 + '%'); D.text($('foreman-hint'), this.foreman.hint()); D.text($('foreman-locks'), `${this.foreman.broken}/3 pressure locks broken`);
       const crawler = this.crawlers.nodes.filter(n => n.hp > 0 && n.known && n.phase !== 'buried' && Math.hypot(n.x-p.x,n.y-p.y,n.z-p.z)<9 && this.world.clearLine(p,n,.05)).sort((a,b) => Math.hypot(a.x-p.x,a.y-p.y,a.z-p.z)-Math.hypot(b.x-p.x,b.y-p.y,b.z-p.z))[0];
-      $('threat').hidden = !(near || crawler) || furnace; $('threat-name').textContent = crawler ? 'SHALE CRAWLER' : 'CINDER MOTH'; $('enemy-armor').hidden = !crawler;
-      if (crawler) { $('enemy-armor').textContent = crawler.shell > 0 ? `Shell ${Math.ceil(crawler.shell)} / 90` : 'Shell broken'; $('enemy-health').style.width = crawler.hp / B.CRAWLER_HP * 100 + '%'; $('threat-action').textContent = this.crawlers.hint(crawler); }
-      $('touch-foundry').hidden = !this.foreman.state.defeated; $('kit-foundry').hidden = !this.foreman.state.defeated; $('foundry-charge').textContent = this.foreman.state.forgeCooldown > 0 ? `${this.foreman.state.forgeCooldown.toFixed(1)} s` : 'Ready';
-      if (near && !crawler) { $('enemy-health').style.width = near.hp / 60 * 100 + '%'; $('threat-action').textContent = near.phase === 'windup' ? 'Lunge incoming. Move sideways or lift.' : near.phase === 'stunned' ? 'Staggered. Keep pressure on it.' : c.lightAt({ x: this.player.x, y: this.player.y + 1.1, z: this.player.z }) ? 'Your work light keeps it back.' : 'Drill to fight. 6 equips the axe. V places a light.'; }
+      D.prop($('threat'), 'hidden', !(near || crawler) || furnace); D.text($('threat-name'), crawler ? 'SHALE CRAWLER' : 'CINDER MOTH'); D.prop($('enemy-armor'), 'hidden', !crawler);
+      if (crawler) { D.text($('enemy-armor'), crawler.shell > 0 ? `Shell ${Math.ceil(crawler.shell)} / 90` : 'Shell broken'); D.style($('enemy-health'), 'width', crawler.hp / B.CRAWLER_HP * 100 + '%'); D.text($('threat-action'), this.crawlers.hint(crawler)); }
+      D.prop($('touch-foundry'), 'hidden', !this.foreman.state.defeated); D.prop($('kit-foundry'), 'hidden', !this.foreman.state.defeated); D.text($('foundry-charge'), this.foreman.state.forgeCooldown > 0 ? `${this.foreman.state.forgeCooldown.toFixed(1)} s` : 'Ready');
+      if (near && !crawler) { D.style($('enemy-health'), 'width', near.hp / 60 * 100 + '%'); D.text($('threat-action'), near.phase === 'windup' ? 'Lunge incoming. Move sideways or lift.' : near.phase === 'stunned' ? 'Staggered. Keep pressure on it.' : c.lightAt({ x: this.player.x, y: this.player.y + 1.1, z: this.player.z }) ? 'Your work light keeps it back.' : 'Drill to fight. 6 equips the axe. V places a light.'); }
     }
     updateHUD() {
       if (!this.player) return;
       const e = this.economy, s = e.state, full = e.count >= e.capacity;
       this.updateCombatHUD();
       const cavern = this.world.caverns.networks.find(n => Math.hypot(this.player.x - n.x, this.player.head.y - n.y, this.player.z - n.z) < 4);
-      $('cash').textContent = money(s.cash); $('cargo').innerHTML = `${e.count} <small>/ ${e.capacity}</small>`; $('cargo-value').textContent = money(e.value); $('cargo-bar').style.width = `${e.count / e.capacity * 100}%`;
-      document.body.classList.toggle('cargo-full', full); $('depth').innerHTML = `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`; $('depth-marker').style.top = `${B.clamp(-this.player.y / -this.world.floor, 0, 1) * 100}%`; $('layer').textContent = (B.Town.region(this.player,this.world) || cavern?.name || B.geology(this.player.y).name).toUpperCase();
+      D.text($('cash'), money(s.cash)); D.html($('cargo'), `${e.count} <small>/ ${e.capacity}</small>`); D.text($('cargo-value'), money(e.value)); D.style($('cargo-bar'), 'width', `${e.count / e.capacity * 100}%`);
+      D.klass(document.body, 'cargo-full', full); D.html($('depth'), `${Math.max(0, -this.player.y).toFixed(1)} <small>m</small>`); D.style($('depth-marker'), 'top', `${B.clamp(-this.player.y / -this.world.floor, 0, 1) * 100}%`); D.text($('layer'), (B.Town.region(this.player,this.world) || cavern?.name || B.geology(this.player.y).name).toUpperCase());
       const exp = this.expedition, target = this.mysteries.target() || this.deep.target() || exp.target(), t = B.TOOLS[exp.state.tool];
       let title = this.mysteries.target() ? 'UNUSUAL SIGNAL' : exp.state.awakened ? 'AFTER THE AWAKENING' : 'RECOVERY LEAD', objective = `${target.name} · ${Math.max(0, Math.round(-target.y))} m down · F to prospect`;
       if (exp.tether !== null) { title = exp.snagged ? 'LOAD CAUGHT' : 'HEAVY LIFT'; objective = exp.snagged ? exp.obstruction ? 'Cut the rock at the orange marker. E releases the tether.' : 'Widen the shaft around the load. E releases the tether.' : 'Lift the machine above ground. Keep the cable route clear.'; }
@@ -357,32 +403,30 @@
       if (this.foreman.state.defeated && exp.tether === null && !full) { title = 'THE FURNACE IS YOURS'; objective = 'Z melts a 12 m passage. Ridge Common has power again.'; }
       if (this.thunder?.nodes.some(n => !n.collected && n.fuse >= 0 && Math.hypot(n.x - this.player.x, n.y - this.player.head.y, n.z - this.player.z) < 6)) { title = 'CHAIN REACTION'; objective = 'Thunderstone ignited. Stand clear of the flashing crystals.'; }
       if (this.rescue.state.known && !this.rescue.rescued && Math.hypot(this.player.x - B.BELL.x, this.player.y - this.rescue.state.y, this.player.z - B.BELL.z) < 10 && !full) { title = 'BRING INEZ HOME'; objective = this.rescue.status(); }
-      $('mission-label').textContent = title; $('mission').textContent = objective;
-      $('chapter-banner').hidden = !this.chapterUntil || this.clock > this.chapterUntil;
-      $('tool-name').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Impact axe' : t.name; $('tool-hint').textContent = exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Basalt edge / 52 damage / double rock cutting' : t.hint; $('tool-readout').style.setProperty('--tool-color', t.color);
+      D.text($('mission-label'), title); D.text($('mission'), objective);
+      D.prop($('chapter-banner'), 'hidden', !this.chapterUntil || this.clock > this.chapterUntil);
+      D.text($('tool-name'), exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Impact axe' : t.name); D.text($('tool-hint'), exp.state.tool === 'sling' ? this.kinetics.hint() : exp.state.tool === 'axe' && this.crawlers.state.impactHead ? 'Basalt edge / 52 damage / double rock cutting' : t.hint); D.style($('tool-readout'), '--tool-color', t.color);
       const charge = exp.cooldown > 0 ? 1 - exp.cooldown / (exp.state.tool === 'gravity' ? 2.4 : 1.3) : exp.charge;
-      $('tool-charge').style.width = `${B.clamp(exp.state.tool==='sling'?this.kinetics.state.charge:charge, 0, 1) * 100}%`;
-      if(exp.state.tool==='sling')$('tool-hint').textContent=this.kinetics.hint();
+      D.style($('tool-charge'), 'width', `${B.clamp(exp.state.tool==='sling'?this.kinetics.state.charge:charge, 0, 1) * 100}%`);
       const available = exp.tools();
-      for (const [key, info] of Object.entries(B.TOOLS)) { const button = $('tool-' + key); button.classList.toggle('selected', key === exp.state.tool); button.classList.toggle('locked', !available.includes(key)); button.setAttribute('aria-pressed', String(key === exp.state.tool)); button.title = available.includes(key) ? info.hint : info.depth ? `Unlock at ${info.depth} m` : info.magic ? 'Wake the heart' : 'Recover the resonance engine'; }
-      $('anchor-status').textContent = exp.state.anchor ? `B Replace anchor / G Return · ${Math.round(-exp.state.anchor.y)} m` : exp.state.recovered.includes(0) ? 'B Plant a return anchor in your tunnel' : '';
-      $('freight-status').hidden = !this.freight.state.owned; $('freight-status').textContent = `Freight: ${this.freight.status()} / ${this.freight.stockCount} at yard`; $('touch-freight').hidden = !this.freight.state.owned || !!this.freight.state.dock;
-      $('bomb-count').textContent = exp.state.supplies.bombs; $('light-count').textContent = exp.state.supplies.lights;
-      $('touch-rift').hidden = !exp.state.awakened;
+      for (const [key, info] of Object.entries(B.TOOLS)) { const button = $('tool-' + key); D.klass(button, 'selected', key === exp.state.tool); D.klass(button, 'locked', !available.includes(key)); D.attr(button, 'aria-pressed', String(key === exp.state.tool)); D.prop(button, 'title', available.includes(key) ? info.hint : info.depth ? `Unlock at ${info.depth} m` : info.magic ? 'Wake the heart' : 'Recover the resonance engine'); }
+      D.text($('anchor-status'), exp.state.anchor ? `B Replace anchor / G Return · ${Math.round(-exp.state.anchor.y)} m` : exp.state.recovered.includes(0) ? 'B Plant a return anchor in your tunnel' : '');
+      D.prop($('freight-status'), 'hidden', !this.freight.state.owned); D.text($('freight-status'), `Freight: ${this.freight.status()} / ${this.freight.stockCount} at yard`); D.prop($('touch-freight'), 'hidden', !this.freight.state.owned || !!this.freight.state.dock);
+      D.text($('bomb-count'), exp.state.supplies.bombs); D.text($('light-count'), exp.state.supplies.lights);
+      D.prop($('touch-rift'), 'hidden', !exp.state.awakened);
       const chargeSpec = this.gadgets.spec(), chargeModes = this.gadgets.modes();
-      $('charge-name').textContent = chargeSpec.name; $('charge-description').textContent = chargeSpec.hint;
-      for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key); button.classList.toggle('selected', key === exp.state.chargeMode); button.classList.toggle('locked', !chargeModes.includes(key)); button.setAttribute('aria-pressed', String(key === exp.state.chargeMode)); button.title = chargeModes.includes(key) ? this.gadgets.spec(key).hint : `Unlock at ${B.CHARGES[key].depth} m`; }
-      $('remote-trigger').hidden = this.gadgets.remoteCount === 0; $('remote-trigger').textContent = `H Detonate ${this.gadgets.remoteCount}`;
-      $('touch-detonate').hidden = this.gadgets.remoteCount === 0; $('touch-charge-mode').hidden = chargeModes.length < 2;
-      $('throw-hint').hidden = this.input.aim !== 'bomb'; $('throw-hint').textContent = this.aimPreview?.reason || (exp.state.chargeMode === 'sticky' ? 'Release to plant / H detonates' : exp.state.chargeMode === 'bore' ? `Release to bore / ${chargeSpec.length} m tunnel / 2 charges` : 'Release to throw / 2.6 s fuse');
-      if (this.input.aim === 'freight') { $('throw-hint').hidden = false; $('throw-hint').textContent = this.freightPreview?.reason || (this.freightPreview?.obstruction ? 'Release to place / shaft needs excavation' : 'Release to place / freight route clear'); }
-      document.body.classList.toggle('awakened', exp.state.awakened);
-      const action = this.interaction(); $('interaction').hidden = !action || !!this.recallTime; if (action) $('interaction').innerHTML = `${action.locked ? '' : '<kbd>E</kbd>'}${action.label}`;
-      $('contact').textContent = this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.floorAt(this.cutter.contact.x,this.cutter.contact.z) + .3 ? this.world.parcelVersion && this.cutter.contact.x>=14 ? 'Eastcut bedrock / Claim 02 continues deeper' : this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '';
-      $('crosshair').classList.toggle('cutting', this.cutter.edited); $('scanner').hidden = this.scanUntil <= this.clock;
-      if(exp.state.tool==='sling' && this.kinetics.state.held!==null && this.kinetics.obstruction)$('contact').textContent=this.kinetics.hint();
+      D.text($('charge-name'), chargeSpec.name); D.text($('charge-description'), chargeSpec.hint);
+      for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key); D.klass(button, 'selected', key === exp.state.chargeMode); D.klass(button, 'locked', !chargeModes.includes(key)); D.attr(button, 'aria-pressed', String(key === exp.state.chargeMode)); D.prop(button, 'title', chargeModes.includes(key) ? this.gadgets.spec(key).hint : `Unlock at ${B.CHARGES[key].depth} m`); }
+      D.prop($('remote-trigger'), 'hidden', this.gadgets.remoteCount === 0); D.text($('remote-trigger'), `H Detonate ${this.gadgets.remoteCount}`);
+      D.prop($('touch-detonate'), 'hidden', this.gadgets.remoteCount === 0); D.prop($('touch-charge-mode'), 'hidden', chargeModes.length < 2);
+      const freightAim = this.input.aim === 'freight';
+      D.prop($('throw-hint'), 'hidden', this.input.aim !== 'bomb' && !freightAim); D.text($('throw-hint'), freightAim ? this.freightPreview?.reason || (this.freightPreview?.obstruction ? 'Release to place / shaft needs excavation' : 'Release to place / freight route clear') : this.aimPreview?.reason || (exp.state.chargeMode === 'sticky' ? 'Release to plant / H detonates' : exp.state.chargeMode === 'bore' ? `Release to bore / ${chargeSpec.length} m tunnel / 2 charges` : 'Release to throw / 2.6 s fuse'));
+      D.klass(document.body, 'awakened', exp.state.awakened);
+      const action = this.interaction(); D.prop($('interaction'), 'hidden', !action || !!this.recallTime); if (action) D.html($('interaction'), `${action.locked ? '' : '<kbd>E</kbd>'}${action.label}`);
+      D.text($('contact'), exp.state.tool === 'sling' && this.kinetics.state.held !== null && this.kinetics.obstruction ? this.kinetics.hint() : this.cutter.contact ? this.cutter.contact.protected ? this.cutter.contact.y <= this.world.floorAt(this.cutter.contact.x,this.cutter.contact.z) + .3 ? this.world.parcelVersion && this.cutter.contact.x>=14 ? 'Eastcut bedrock / Claim 02 continues deeper' : this.world.deepOpen ? 'Bedrock / explore the furnace chamber above' : 'Sealed floor / the living heart opens the rootway' : 'Unowned ground / stay inside the claim markers' : this.cutter.contact.layer : '');
+      D.klass($('crosshair'), 'cutting', this.cutter.edited); D.prop($('scanner'), 'hidden', this.scanUntil <= this.clock);
       this.fieldKit?.sync();
-      $('recall').hidden = this.recallTime <= 0; $('recall-bar').style.width = `${this.recallTime / 1.25 * 100}%`; $('pickup').hidden = this.pickupUntil <= this.clock;
+      D.prop($('recall'), 'hidden', this.recallTime <= 0); D.style($('recall-bar'), 'width', `${this.recallTime / 1.25 * 100}%`); D.prop($('pickup'), 'hidden', this.pickupUntil <= this.clock);
     }
     updateShop() {
       const s = this.economy.state; $('shop-cash').textContent = money(s.cash); $('shop-sell').textContent = `Sell cargo · ${money(this.economy.saleValue)}`;
@@ -438,8 +482,9 @@
       this.setScreen('journal');
     }
     toast(text, duration = 3300) { clearTimeout(this.toastTimer); $('toast').textContent = text; $('toast').classList.add('visible'); this.toastTimer = setTimeout(() => $('toast').classList.remove('visible'), duration); }
-    clearInput() { this.mining?.reset(); this.kinetics?.cancel(); this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
+    clearInput() { this.mining?.reset(); this.kinetics?.cancel(); this.input.keys.clear(); this.input.fire = false; this.input.aim = null; this.aimPreview = null; this.freightPreview = null; this.input.lookPointer = null; this.recallTime = 0; this.accumulator = 0; this.player?.resetView(); if (this.combat) this.combat.state.swing = 0; if (this.cutter) this.cutter.edited = false; this.audio.drill(false, false, 0); this.audio.silence?.(); }
     setScreen(name) {
+      if(this.net?.remoteContext) return;
       this.clearInput(); this.screen = name; this.running = name === null; document.body.classList.toggle('in-menu', !this.running);
       for (const screen of document.querySelectorAll('.screen')) screen.hidden = screen.id !== name + '-screen';
       if (name) $('field-tip').hidden = true;
@@ -448,14 +493,23 @@
       if (this.view?.gameUI) { this.view.gameUI.dirty=true; this.view.gameUI.releaseHolds(); } else if (name) { const screen = $(name + '-screen'); requestAnimationFrame(() => screen?.querySelector('button:not([disabled])')?.focus({ preventScroll: true })); }
     }
     play() {
+      if(this.net?.remoteContext) return;
       if (!this.ready) return;
       this.setScreen(null); this.audio.start(); $('view').focus({ preventScroll: true });
       if (!matchMedia('(pointer:coarse)').matches) {
-        try { const request = $('view').requestPointerLock(); request?.catch(() => this.pointerFallback()); } catch { this.pointerFallback(); }
+        this.requestLook();
       }
     }
-    pointerFallback() { if (this.pointerHint) return; this.pointerHint = true; this.toast('Right-drag to look when mouse capture is unavailable.'); }
+    requestLook(raw = true) {
+      if(!this.running)return;
+      const attempt=this.lockRequest={raw,async:false};
+      const failed=error=>{if(this.lockRequest!==attempt)return;this.lockRequest=null;if(raw&&(error?.name==='NotSupportedError'||error?.name==='TypeError'))this.requestLook(false);else this.pointerFallback();};
+      try { const request=$('view').requestPointerLock(raw?{unadjustedMovement:true}:undefined);if(request?.then){attempt.async=true;request.then(()=>{if(this.lockRequest===attempt)this.lockRequest=null;},failed);} }
+      catch(error){failed(error);}
+    }
+    pointerFallback() { this.mouseCaptureUnavailable=true; if(this.view?.gameUI)this.view.gameUI.dirty=true; if (this.pointerHint) return; this.pointerHint = true; this.toast('Right-drag to look when mouse capture is unavailable.'); }
     async save() {
+      if(this.net?.guest || this.net?.remoteContext) return;
       if (!this.ready) return;
       this.saving = true; const revision = this.revision, data = B.Saves.snapshot(this), serial = this.saveSerial = (this.saveSerial || 0) + 1;
       try { await this.store.write(data); if (revision === this.revision) this.dirty = false; if (serial === this.saveSerial) $('save-status').textContent = 'Claim saved on this device.'; this.audit.saves++; }
@@ -467,18 +521,19 @@
       const url = URL.createObjectURL(new Blob([JSON.stringify(B.Saves.snapshot(this, true))], { type: 'application/json' })), link = document.createElement('a'); link.href = url; link.download = 'buttloads2-claim-v2.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); this.toast('Claim exported.');
     }
     async import(data) {
+      if(this.net?.guest) await this.net.leave();
       const validated = B.Saves.validate(data); this.setScreen('pause'); this.ready = false;
       try { await this.install(validated); await this.store.pending.catch(() => {}); await this.save(); this.toast('Claim restored.'); }
       finally { this.ready = true; $('loading').hidden = true; }
     }
-    async newClaim() { this.setScreen('pause'); this.ready = false; try { await this.store.pending.catch(() => {}); await this.install(null); await this.save(); this.play(); } catch (e) { this.ready = true; $('loading').hidden = true; this.toast('Could not create claim: ' + e.message); } }
+    async newClaim() { if(this.net?.guest)await this.net.leave(); this.setScreen('pause'); this.ready = false; try { await this.store.pending.catch(() => {}); await this.install(null); await this.save(); this.play(); } catch (e) { this.ready = true; $('loading').hidden = true; this.toast('Could not create claim: ' + e.message); } }
     syncSettings() { $('tips-setting').checked = this.settings.tips; $('sound-setting').checked = this.settings.sound; $('motion-setting').checked = this.settings.motion; $('sensitivity-setting').value = this.settings.sensitivity; $('quality-setting').value = this.settings.quality; }
     bindUI() {
       $('rescue-control').onclick = () => { if (this.screen !== 'rescue' || !this.rescue.control(this.player)) return; this.changed(); this.save(); this.play(); this.toast(this.rescue.status()); };
       $('touch-foundry').onclick = () => this.foundryBore();
       $('start-button').onclick = () => this.play();
       for (const key of Object.keys(B.TOOLS)) $('tool-' + key).onclick = () => { if (this.running) this.selectTool(key); };
-      $('touch-tool').onclick = () => this.cycleTool(); $('touch-rift').onclick = () => { if (this.running && this.expedition.pulse(this.player, true)) this.changed(); };
+      $('touch-tool').onclick = () => this.cycleTool(); $('touch-rift').onclick = () => { if(this.net?.guest)this.net.command('pulse');else if (this.running && this.expedition.pulse(this.player, true)) this.changed(); };
       $('touch-anchor').onclick = () => this.player.y < -.5 ? this.anchor() : this.descend();
       $('touch-light').onclick = () => this.deploy('lamp');
       $('buy-freight').onclick = () => this.buyFreight(); for (const action of ['send', 'recall', 'take', 'pack']) $('freight-' + action).onclick = () => this.freightAction(action);
@@ -528,28 +583,32 @@
         if (e.code === 'KeyX') this.cycleTool(); if (e.code === 'KeyB') this.anchor(); if (e.code === 'KeyG') this.descend();
         if (e.code === 'KeyC') this.aimBomb(); if (e.code === 'KeyV') this.deploy('lamp'); if (e.code === 'KeyM') this.openSurvey();
         if (e.code === 'KeyZ') this.foundryBore();
-        if (e.code === 'KeyQ') { if (this.expedition.state.awakened) { if (this.expedition.pulse(this.player, true)) this.changed(); } else this.toast('The power under the garden has not awakened.'); }
+        if (e.code === 'KeyQ') { if (this.net?.guest) this.net.command('pulse'); else if (this.expedition.state.awakened) { if (this.expedition.pulse(this.player, true)) this.changed(); } else this.toast('The power under the garden has not awakened.'); }
         if (e.code === 'KeyN') this.cycleCharge();
         if (e.code === 'KeyH') this.detonate(); if (e.code === 'KeyT') this.aimFreight();
       });
       window.addEventListener('keyup', e => { keys.delete(e.code); if (e.code === 'KeyC') this.releaseBomb(); if (e.code === 'KeyT') this.releaseFreight(); });
       window.addEventListener('blur', () => { if (this.running) { this.setScreen('pause'); this.save(); } else this.clearInput(); });
       document.addEventListener('visibilitychange', () => { if (document.hidden && this.ready) { if (this.running) this.setScreen('pause'); this.save(); } });
-      document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement && this.running && this.hadPointerLock) { this.setScreen('pause'); this.save(); } this.hadPointerLock = document.pointerLockElement === canvas; });
-      document.addEventListener('pointerlockerror', () => this.pointerFallback());
+      document.addEventListener('pointerlockchange', () => { this.lockRequest=null;if (!document.pointerLockElement && this.running && this.hadPointerLock) { this.setScreen('pause'); this.save(); } this.hadPointerLock = document.pointerLockElement === canvas; if(this.hadPointerLock)this.mouseCaptureUnavailable=false; if(this.view?.gameUI)this.view.gameUI.dirty=true; });
+      document.addEventListener('pointerlockerror', () => { if(this.lockRequest?.async)return;if(this.lockRequest?.raw){this.lockRequest=null;this.requestLook(false);}else this.pointerFallback(); });
       canvas.addEventListener('contextmenu', e => e.preventDefault());
       canvas.addEventListener('pointerdown', e => {
         if (!this.running) return;
         if (e.pointerType === 'touch' || e.button === 2) { this.input.lookPointer = e.pointerId; this.input.lookX = e.clientX; this.input.lookY = e.clientY; if (!document.pointerLockElement) canvas.setPointerCapture(e.pointerId); }
+        else if (e.pointerType === 'mouse' && e.button === 0 && document.pointerLockElement !== canvas && !this.mouseCaptureUnavailable) { this.audio.start(); if(!this.lockRequest)this.requestLook(); }
         else if (e.button === 0) { this.input.fire = true; this.audio.start(); }
       });
       window.addEventListener('pointercancel', () => { this.kinetics?.cancel(); this.input.fire=false; });
       window.addEventListener('pointerup', e => { if (e.button === 0 && e.pointerType !== 'touch') this.input.fire = false; if (this.input.lookPointer === e.pointerId) this.input.lookPointer = null; });
       canvas.addEventListener('pointercancel', () => this.clearInput());
+      // Locked deltas have one owner. Pointer events remain for absolute drag/touch look.
+      window.addEventListener('mousemove', e => {
+        if(this.running&&document.pointerLockElement===canvas)this.player.look(e.movementX,e.movementY,this.settings.sensitivity);
+      });
       window.addEventListener('pointermove', e => {
         if (!this.running) return;
-        if (document.pointerLockElement === canvas) this.player.look(e.movementX, e.movementY, this.settings.sensitivity);
-        else if (this.input.lookPointer === e.pointerId) { this.player.look(e.clientX - this.input.lookX, e.clientY - this.input.lookY, this.settings.sensitivity); this.input.lookX = e.clientX; this.input.lookY = e.clientY; }
+        if (document.pointerLockElement !== canvas && this.input.lookPointer === e.pointerId) { this.player.look(e.clientX - this.input.lookX, e.clientY - this.input.lookY, this.settings.sensitivity); this.input.lookX = e.clientX; this.input.lookY = e.clientY; }
       });
       const hold = (id, start, stop) => { const button = $(id); button.addEventListener('pointerdown', e => { e.preventDefault(); if (!this.running) return; button.setPointerCapture(e.pointerId); start(); }); button.addEventListener('pointerup', stop); button.addEventListener('pointercancel', stop); button.addEventListener('lostpointercapture', stop); };
       const bombButton = $('touch-bomb'); bombButton.addEventListener('pointerdown', e => { e.preventDefault(); if (!this.running) return; bombButton.setPointerCapture(e.pointerId); this.aimBomb(); }); bombButton.addEventListener('pointerup', () => this.releaseBomb());

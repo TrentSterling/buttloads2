@@ -150,7 +150,7 @@
         const distance = shape ? Math.hypot(...shape.basis.map((v, i) => (dx * v.x + dy * v.y + dz * v.z) / shape.axes[i])) : Math.hypot(dx, dy, dz); if (distance >= radius) continue;
         const field=x>=65?this.parcelField:this.field,id=x>=65?x-65+64*(y+(this.bottom+80)*2+165*z):this.index(x,y,z),target=(radius-distance)*scale,value=Math.fround(Math.max(field[id],Math.min(target,field[id]+strength)));
         if (value <= field[id] + 1e-7) continue;
-        field[id] = value; changed++;
+        field[id] = value; this.onSample?.(id,value,x>=65); changed++;
         dirty[0] = Math.min(dirty[0], x); dirty[1] = Math.min(dirty[1], y); dirty[2] = Math.min(dirty[2], z); dirty[3] = Math.max(dirty[3], x); dirty[4] = Math.max(dirty[4], y); dirty[5] = Math.max(dirty[5], z);
       }
       if (!changed) return 0;

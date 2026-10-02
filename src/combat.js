@@ -152,17 +152,18 @@
       if (n.collected) { this.physics.awake.delete(n); this.physics.loose.delete(n); this.physics.index.remove(n); this.drops.splice(this.drops.indexOf(n), 1); }
       this.save(); return true;
     }
+    hurtFor(amount, player) { return this.remoteDamage?.(amount,player) ?? this.hurt(amount); }
     step(dt, player) {
       if (this.state.grace > 0 || player.y > -.5 && this.state.health < 100) this.revision++;
       this.time += dt; this.state.grace = Math.max(0, this.state.grace - dt);
-      const target = { x: player.x, y: player.y + 1.1, z: player.z };
       if (player.y > -.5) this.state.health = Math.min(100, this.state.health + dt * 12);
       for (const n of this.enemies) {
+        const miner=this.pickPlayer?.(n,player)||player,target={x:miner.x,y:miner.y+1.1,z:miner.z};
         if (n.hp <= 0) continue;
         if (n.phase === 'buried') { if (!this.blocked(n)) { n.phase = 'idle'; this.revision++; } else continue; }
         if (n.timer > 0 || n.alert > 0) this.revision++;
         n.timer = Math.max(0, n.timer - dt); n.alert = Math.max(0, n.alert - dt);
-        const dist = distance(n, target), inTerritory = player.y < -6 && distance(target, this.homes[n.id]) < 10;
+        const dist = distance(n, target), inTerritory = miner.y < -6 && distance(target, this.homes[n.id]) < 10;
         const sees = inTerritory && dist < 7 && this.world.clearLine(n, target, .05);
         if (sees) { n.known = true; n.lastSeen = { ...point(target), y: B.clamp(target.y, this.world.floor + .4, -5.5) }; n.alert = 4; this.revision++; }
         const lamp = this.lightAt(n), sheltered = this.lightAt(target);
@@ -178,7 +179,7 @@
         }
         if (n.phase === 'lunge') {
           const moved = this.move(n, { x: n.x + n.direction.x, y: n.y + n.direction.y, z: n.z + n.direction.z }, 7, dt);
-          if (distance(n, target) < .9 && this.world.clearLine(n, target, .05)) { this.hurt(18); n.phase = 'recover'; n.timer = 1.25; }
+          if (distance(n, target) < .9 && this.world.clearLine(n, target, .05)) { this.hurtFor(18,miner); n.phase = 'recover'; n.timer = 1.25; }
           else if (!n.timer || !moved) { n.phase = 'recover'; n.timer = 1.25; }
           continue;
         }

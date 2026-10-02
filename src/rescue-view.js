@@ -10,11 +10,13 @@
     const group = this.rescueScene = new T.Group(); this.scene.add(group);
     const mat = (color, glow = 0) => new T.MeshStandardMaterial({ color, roughness: .65, metalness: .35, emissive: color, emissiveIntensity: glow });
     const metal = mat('#476d76'), trim = mat('#d0b271'), iron = mat('#263b3f');
-    const bell = this.rescueBell = new T.Group(); group.add(bell);
+    const bell = this.rescueBell = new T.Group(); group.add(bell);const seams=new Set();
     this.box(bell, 0, -1.07, 0, 1.5, .36, 1.5, iron); this.box(bell, 0, 1.1, 0, 1.5, .3, 1.5, metal);
     this.box(bell, 0, -.45, .68, 1.45, 1.5, .13, metal);
-    for (const x of [-.67, .67]) for (const z of [-.67, .67]) this.box(bell, x, 0, z, .14, 2.2, .14, trim);
-    for (const x of [-.7, .7]) this.box(bell, x, -.1, 0, .08, .12, 1.4, iron);
+    // These coplanar joints retain their original GPU transforms; baking them
+    // into separate material batches introduces visible depth ties.
+    for (const x of [-.67, .67]) for (const z of [-.67, .67]) seams.add(this.box(bell, x, 0, z, .14, 2.2, .14, trim));
+    for (const x of [-.7, .7]) seams.add(this.box(bell, x, -.1, 0, .08, .12, 1.4, iron));
     this.box(bell, .42, .15, -.685, .37, .51, .13, metal);
     for (let i = 0; i < 3; i++) this.box(bell, .42, .12 + i * .085, -.738, .22, .023, .008, iron);
     const glass = new T.MeshStandardMaterial({ color: '#aed6db', transparent: true, opacity: .12, roughness: .18, metalness: .05, depthWrite: false });
@@ -28,6 +30,7 @@
     this.rescueCable = this.box(group, 8, 0, 8, .025, 1, .025, iron);
     this.rescueStop = new T.Mesh(new T.OctahedronGeometry(.13), new T.MeshBasicMaterial({ color: '#ffb04e', depthTest: false, transparent: true, opacity: .85 })); group.add(this.rescueStop); this.rescueStop.renderOrder = 5;
     this.rescueLamp = new T.PointLight('#bcdee5', 0, 7, 1.8); group.add(this.rescueLamp);
+    B.WorkshopShapes.mergeRigid(bell,new Set([...seams,this.rescueLens,this.bellPerson.root]));
     this.renderRescue(game, 0);
   };
   B.View.prototype.renderRescue = function (game, time) {

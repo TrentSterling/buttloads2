@@ -65,7 +65,7 @@
       orb(body,-.1,.51,-.203,.042,.038,.018,brass);
     }
     // Two-link arms and palms with fingers. Forearms rest above the counter edge.
-    const arms=[],forearms=[],hands=[];
+    const arms=[],forearms=[],hands=[],accessories=[];
     for(const side of [-1,1]){
       const arm=new T.Group();arm.position.set(side*.232*width,.55,0);body.add(arm);arm.rotation.x=.32;arm.rotation.z=side*.035;
       add(arm,loft([[-.265,.063,.075],[-.08,.082,.09],[.025,.073,.086]]),coat);
@@ -114,7 +114,7 @@
       const glass=material('#456b69',.35,.24);
       for(const x of [-.055,.055]){add(head,new T.TorusGeometry(.04,.007,6,16),brass,x,.211,-.15);orb(head,x,.211,-.152,.034,.034,.008,glass);}
       // Wrench gripped by the left hand, rather than a floating cuboid.
-      const wrench=new T.Group();hands[0].add(wrench);wrench.rotation.x=-1.37;
+      const wrench=new T.Group();hands[0].add(wrench);wrench.rotation.x=-1.37;accessories.push(wrench);
       box(wrench,0,.04,-.014,.026,.27,.022,brass);
       const jaw=add(wrench,new T.TorusGeometry(.039,.013,5,10,Math.PI*1.5),brass,0,.18,-.014);jaw.rotation.z=-Math.PI*.25;
     }else if(mara){
@@ -130,7 +130,7 @@
       tube(head,[[-.152,.188,-.04],[0,.194,-.155],[.152,.188,-.04]],.016,leather);
       add(head,new T.CylinderGeometry(.039,.039,.023,12),brass,0,.20,-.166).rotation.x=Math.PI/2;
       const lamp=material('#e5cf8d');lamp.emissive.set('#ffd180');lamp.emissiveIntensity=.4;orb(head,0,.20,-.181,.03,.03,.006,lamp);
-      const book=new T.Group();hands[0].add(book);book.rotation.set(-1.1,.1,-.15);box(book,0,0,-.035,.17,.235,.026,leather);box(book,0,0,-.051,.145,.208,.006,linen);
+      const book=new T.Group();hands[0].add(book);book.rotation.set(-1.1,.1,-.15);accessories.push(book);box(book,0,0,-.035,.17,.235,.026,leather);box(book,0,0,-.051,.145,.208,.006,linen);
       for(let i=0;i<6;i++)box(book,-.018,i*.025-.07,-.057,.075+(i%2)*.025,.0025,.002,stitch);
       box(book,0,.123,-.043,.055,.035,.02,brass);
     }else if(nell){
@@ -141,7 +141,7 @@
       tube(head,[[-.014,.255,0],[0,.258,-.001],[.014,.255,0]],.009,linen);
       for(let i=0;i<5;i++)orb(head,.124,-.045-i*.045,.014,.026,.035,.026,hair);
       arms[1].rotation.x=.8;forearms[1].rotation.x=1.1;
-      const lantern=new T.Group();hands[1].add(lantern);lantern.rotation.x=-1.9;lantern.position.z=-.012;
+      const lantern=new T.Group();hands[1].add(lantern);lantern.rotation.x=-1.9;lantern.position.z=-.012;accessories.push(lantern);
       add(lantern,new T.TorusGeometry(.045,.007,5,12),brass,0,-.02,0);
       const glow=material('#a4d2b7');glow.emissive.set('#a4d2b7');glow.emissiveIntensity=.6;
       add(lantern,new T.CylinderGeometry(.05,.065,.12,8),glow,0,-.16,0);
@@ -156,6 +156,7 @@
         const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new T.Float32BufferAttribute(normals,3));add(group,geo,mat);
       }
     }
+    for(const accessory of accessories)B.WorkshopShapes.mergeRigid(accessory);
     const rest=arms.map(a=>a.rotation.clone());
     return {person,root,body,head,neck,arms,forearms,hands,eyes,pupils,rest};
   };

@@ -1,0 +1,31 @@
+// Native cave cameras and isolated landmark studies. No input or timing claim.
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+import {createHash} from 'node:crypto';
+import {launch,until} from './cdp.mjs';
+const root=path.resolve(import.meta.dirname,'..'),label=process.argv[2],build=path.resolve(root,process.argv[3]||'dist/index.html');
+assert.ok(label);const out=path.join(root,'tools/out/cave-form-'+label);fs.mkdirSync(out,{recursive:true});
+const before=label==='before'?null:JSON.parse(fs.readFileSync(path.join(root,'tools/out/cave-form-before/report.json')));
+const report={label,date:new Date().toISOString(),buildSha256:createHash('sha256').update(fs.readFileSync(build)).digest('hex'),shots:[],scope:'Fixed native art and draw observations; no gameplay, physical input, pointer lock or frame-time claim.'};
+const p=await launch({port:9516,width:1440,height:1000,gpu:true});
+try{
+ await p.goto(pathToFileURL(build).href+'?offline&seed=260923&caveArt');await until(()=>p.eval('!!window.__buttloads?.ready'),{timeout:90000});
+ report.version=await p.eval('document.querySelector("meta[name=application-version]").content');
+ await p.eval(`(()=>{const g=__buttloads;g.setScreen(null);g.running=false;g.settings.motion=false;g._caveArtRender=g.view.render;g.view.render=()=>{};g.advanceSimulation=()=>{};g.fieldKit.dismiss();g.view.renderCaverns(g);g.view.renderer.info.autoReset=false;window._caveForms=g.view.caveGrowth.filter(n=>['lantern-shelves','chalk-drapery','amethyst-fan'].includes(n.root.userData.formation));window._caveInventory=root=>{let meshes=0,triangles=0;root.traverse(m=>{if(m.isMesh){meshes++;triangles+=(m.geometry.index?.count||m.geometry.attributes.position.count)/3;}});return{meshes,triangles};};return true;})()`);
+ report.inventory=await p.eval(`(()=>{const g=__buttloads,v=g.view;return{cavern:_caveInventory(v.cavernScene),landmarks:_caveForms.map(n=>({type:n.root.userData.formation,anchor:n.anchor,position:n.root.position.toArray(),quaternion:n.root.quaternion.toArray(),..._caveInventory(n.root)})),contacts:v.obstacles,anchors:v.caveGrowth.map(n=>n.anchor),terrainHash:Array.from(new Uint8Array(g.world.field.buffer)).reduce((h,b)=>Math.imul(h^b,16777619)>>>0,2166136261),supportedBatchCount:v.caveSupportBatches.batches.length};})()`);
+ const fixtures=before?before.shots.filter(s=>s.kind==='game').map(s=>[s.name,s.camera]):await p.eval(`(()=>{const g=__buttloads,poses=[];for(let i=0;i<3;i++){const c=g.world.caverns.networks[i].chamber;poses.push(['room-'+i,{x:c.x,y:c.y-1.6,z:c.z,yaw:.65+i*.42,pitch:-.16}]);const n=_caveForms.find(n=>n.root.userData.formation===['lantern-shelves','chalk-drapery','amethyst-fan'][i]),normal=new THREE.Vector3(0,0,1).applyQuaternion(n.root.quaternion),head=n.root.position.clone().addScaledVector(normal,1.65),aim=n.root.position.clone().addScaledVector(normal,.18),d=aim.sub(head).normalize();poses.push(['close-'+i,{x:head.x,y:head.y-g.player.eye,z:head.z,yaw:Math.atan2(-d.x,-d.z),pitch:Math.asin(d.y)}]);}return poses;})()`);
+ for(const [name,pose]of fixtures){
+  const data=await p.eval(`(()=>{const g=__buttloads,v=g.view,p=${JSON.stringify(pose)};g.player.teleport(p.x,p.y,p.z);g.player.yaw=p.yaw;g.player.pitch=p.pitch;v.renderer.shadowMap.needsUpdate=true;v.renderer.info.reset();g._caveArtRender.call(v,g,0,10);const refresh={calls:v.renderer.info.render.calls,triangles:v.renderer.info.render.triangles};v.renderer.info.reset();g._caveArtRender.call(v,g,0,10);return{camera:p,cached:{calls:v.renderer.info.render.calls,triangles:v.renderer.info.render.triangles},refresh};})()`);
+  await p.shot(path.join(out,name+'.png'));report.shots.push({name,kind:'game',...data});
+ }
+ for(let i=0;i<3;i++)for(const side of ['front','side']){
+  const name='model-'+i+'-'+side,preset=before?.shots.find(s=>s.name===name).camera;
+  const data=await p.eval(`(()=>{const v=__buttloads.view,T=THREE,source=_caveForms.find(n=>n.root.userData.formation===['lantern-shelves','chalk-drapery','amethyst-fan'][${i}]).root,model=source.clone(true);model.visible=true;model.position.set(0,0,0);model.quaternion.identity();model.updateWorldMatrix(true,true);const camera=new T.PerspectiveCamera(33,1.44,.01,30),preset=${JSON.stringify(preset||null)},aim=preset?.aim||[0,.05,.12],position=preset?.position||(${JSON.stringify(side)}==='front'?[-1.2,.8,3.8]:[3.2,.65,2.4]);camera.position.fromArray(position);camera.lookAt(new T.Vector3(...aim));const scene=new T.Scene();scene.background=new T.Color('#293334');scene.add(model,new T.HemisphereLight('#d7e8e6','#41443a',.7));const key=new T.DirectionalLight('#ffe8cb',2.2);key.position.set(-3,5,4);key.castShadow=true;key.shadow.autoUpdate=false;key.shadow.needsUpdate=true;key.shadow.mapSize.set(1024,1024);Object.assign(key.shadow.camera,{left:-3,right:3,top:3,bottom:-3,near:.1,far:20});key.shadow.normalBias=.01;scene.add(key);const rim=new T.DirectionalLight('#b8c9e2',.8);rim.position.set(3,1,-2);scene.add(rim);v.renderer.autoClear=true;v.renderer.shadowMap.needsUpdate=true;v.renderer.info.reset();v.renderer.render(scene,camera);const refresh={calls:v.renderer.info.render.calls,triangles:v.renderer.info.render.triangles};v.renderer.info.reset();v.renderer.render(scene,camera);return{camera:{position,aim},model:_caveInventory(model),refresh,cached:{calls:v.renderer.info.render.calls,triangles:v.renderer.info.render.triangles}};})()`);
+  await p.shot(path.join(out,name+'.png'));report.shots.push({name,kind:'model',...data});
+ }
+ if(before)for(const s of report.shots)assert.deepEqual(s.camera,before.shots.find(t=>t.name===s.name).camera);
+ report.errors=p.logs.filter(s=>/EXCEPTION|error:/i.test(s));report.input=await p.eval('({pointerLock:!!document.pointerLockElement,keys:__buttloads.input.keys.size,fire:__buttloads.input.fire})');assert.deepEqual(report.errors,[]);assert.deepEqual(report.input,{pointerLock:false,keys:0,fire:false});
+ console.log(JSON.stringify({label,version:report.version,inventory:report.inventory.cavern,shots:report.shots.map(s=>({name:s.name,...s.cached}))}));console.log('COMPLETE twelve guarded native cave formation views '+label);
+}finally{fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));p.kill();}

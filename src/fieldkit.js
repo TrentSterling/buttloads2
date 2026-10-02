@@ -1,6 +1,7 @@
 /* Progressive controls and optional advice. Uses the same equipment actions as hotkeys. */
 'use strict';
 (function (B) {
+  const D = B.DOM;
   const $ = id => document.getElementById(id);
   const TIPS = [
     { id: 'scan', key: 'F', title: 'Follow a vein', text: 'Scan to see nearby minerals and buried signals. M keeps a map of what you find.', touch: 'Tap Scan to find minerals. Open Survey to inspect recorded signals.', ready: g => g.economy.state.mined > 0 },
@@ -67,24 +68,24 @@
       const e = g.expedition.state, available = g.expedition.tools(), modes = g.gadgets.modes(), spec = g.gadgets.spec();
       if (g.guide.observe(g)) g.changed();
       for (const [key, row] of this.rows) {
-        const owned = available.includes(key); row.hidden = !owned; row.disabled = !owned; row.setAttribute('aria-pressed', String(key === e.tool));
-        $('tool-' + key).hidden = !owned; $('tool-' + key).disabled = !owned;
+        const owned = available.includes(key); D.prop(row, 'hidden', !owned); D.prop(row, 'disabled', !owned); D.attr(row, 'aria-pressed', String(key === e.tool));
+        D.prop($('tool-' + key), 'hidden', !owned); D.prop($('tool-' + key), 'disabled', !owned);
       }
-      $('tool-slots').hidden = available.length < 2;
-      $('tool-meter').hidden = !['resonance', 'gravity', 'sling'].includes(e.tool);
-      $('hud-charge-name').textContent = spec.short[0] + spec.short.slice(1).toLowerCase();
-      $('hud-charge-cycle').hidden = modes.length < 2;
-      $('kit-equipped').textContent = e.tool === 'axe' && e.crawlers?.impactHead ? 'Impact axe / 52 damage / double rock cutting' : B.TOOLS[e.tool].name; $('kit-bombs').textContent = e.supplies.bombs; $('kit-lights').textContent = e.supplies.lights;
-      const useLabel = e.tool === 'sling' ? 'Sling' : e.tool === 'gravity' ? 'Draw' : e.tool === 'resonance' ? 'Pulse' : e.tool === 'axe' ? 'Swing' : 'Cut'; $('touch-cut').textContent = useLabel; $('primary-use-label').textContent = useLabel;
-      $('kit-remote-count').textContent = g.gadgets.remoteCount ? `${g.gadgets.remoteCount} remote ${g.gadgets.remoteCount === 1 ? 'satchel' : 'satchels'} waiting / H detonates` : 'Hold C to aim. Release to throw.';
-      for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key), unlocked = modes.includes(key); button.disabled = !unlocked; button.textContent = unlocked ? B.CHARGES[key].short : `${B.CHARGES[key].depth} m`; }
-      const next = B.STRATA.find(s => s.depth > g.economy.state.deepest); $('kit-next').textContent = next ? `Next stratum at ${next.depth} m: ${next.unlock}.` : 'Every stratum reached. Your equipment and discoveries stay with this mine.';
-      $('kit-anchor').hidden = !e.recovered.includes(0); $('kit-freight').hidden = !g.freight.state.owned; $('kit-rift').hidden = !e.awakened;
-      $('touch-anchor').hidden = !e.recovered.includes(0); $('touch-tool').hidden = available.length < 2;
-      const action = g.interaction(); $('touch-use').disabled = !action || action.locked;
-      $('kit-summary').textContent = `${available.length} ${available.length === 1 ? 'tool' : 'tools'} / ${modes.length} ${modes.length === 1 ? 'charge type' : 'charge types'} / ${g.economy.capacity} mineral capacity`;
-      this.tip = g.guide.hint(g); $('field-tip').hidden = !this.tip;
-      if (this.tip) { $('tip-key').textContent = matchMedia('(pointer:coarse)').matches ? 'FIELD TIP' : this.tip.key; $('tip-title').textContent = this.tip.title; $('tip-text').textContent = matchMedia('(pointer:coarse)').matches ? this.tip.touch : this.tip.text; }
+      D.prop($('tool-slots'), 'hidden', available.length < 2);
+      D.prop($('tool-meter'), 'hidden', !['resonance', 'gravity', 'sling'].includes(e.tool));
+      D.text($('hud-charge-name'), spec.short[0] + spec.short.slice(1).toLowerCase());
+      D.prop($('hud-charge-cycle'), 'hidden', modes.length < 2);
+      D.text($('kit-equipped'), e.tool === 'axe' && e.crawlers?.impactHead ? 'Impact axe / 52 damage / double rock cutting' : B.TOOLS[e.tool].name); D.text($('kit-bombs'), e.supplies.bombs); D.text($('kit-lights'), e.supplies.lights);
+      const useLabel = e.tool === 'sling' ? 'Sling' : e.tool === 'gravity' ? 'Draw' : e.tool === 'resonance' ? 'Pulse' : e.tool === 'axe' ? 'Swing' : 'Cut'; D.text($('touch-cut'), useLabel); D.text($('primary-use-label'), useLabel);
+      D.text($('kit-remote-count'), g.gadgets.remoteCount ? `${g.gadgets.remoteCount} remote ${g.gadgets.remoteCount === 1 ? 'satchel' : 'satchels'} waiting / H detonates` : 'Hold C to aim. Release to throw.');
+      for (const key of Object.keys(B.CHARGES)) { const button = $('charge-' + key), unlocked = modes.includes(key); D.prop(button, 'disabled', !unlocked); D.text(button, unlocked ? B.CHARGES[key].short : `${B.CHARGES[key].depth} m`); }
+      const next = B.STRATA.find(s => s.depth > g.economy.state.deepest); D.text($('kit-next'), next ? `Next stratum at ${next.depth} m: ${next.unlock}.` : 'Every stratum reached. Your equipment and discoveries stay with this mine.');
+      D.prop($('kit-anchor'), 'hidden', !e.recovered.includes(0)); D.prop($('kit-freight'), 'hidden', !g.freight.state.owned); D.prop($('kit-rift'), 'hidden', !e.awakened);
+      D.prop($('touch-anchor'), 'hidden', !e.recovered.includes(0)); D.prop($('touch-tool'), 'hidden', available.length < 2);
+      const action = g.interaction(); D.prop($('touch-use'), 'disabled', !action || action.locked);
+      D.text($('kit-summary'), `${available.length} ${available.length === 1 ? 'tool' : 'tools'} / ${modes.length} ${modes.length === 1 ? 'charge type' : 'charge types'} / ${g.economy.capacity} mineral capacity`);
+      this.tip = g.guide.hint(g); D.prop($('field-tip'), 'hidden', !this.tip);
+      if (this.tip) { D.text($('tip-key'), matchMedia('(pointer:coarse)').matches ? 'FIELD TIP' : this.tip.key); D.text($('tip-title'), this.tip.title); D.text($('tip-text'), matchMedia('(pointer:coarse)').matches ? this.tip.touch : this.tip.text); }
     }
   }
   Object.assign(B, { FieldKit, FieldGuide });

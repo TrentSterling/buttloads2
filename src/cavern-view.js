@@ -19,9 +19,12 @@
         const hit = baseline.ray(origin, { x: 0, y: ceiling ? 1 : -1, z: 0 }, 5); if (!hit) continue;
         const height = .2 + rng() * (ceiling ? 1.2 : .45), root = new T.Group(); root.position.set(hit.x, hit.y, hit.z); g.add(root);
         this.makeFormation(root,network.id,ceiling,height,.1+rng()*.17,growth,glow);
+        B.CaveForms.growthColors(root);
+        B.CaveForms.mountGrowth(root,world,hit,ceiling);
         this.caveGrowth.push({ root, anchor: { x: hit.x, y: hit.y + (ceiling ? .12 : -.12), z: hit.z } });
       }
     }
+    this.caveSupportBatches=B.WorkshopShapes.batchSupported(g,this.caveGrowth);
     this.makeCaveLandmarks(game);
     this.refugeLights = Array.from({ length: 2 }, () => { const light = new T.PointLight('#ffddb0', 0, 13, 1.7); g.add(light); return light; });
     this.caveSupportRevision = -1;
@@ -31,6 +34,7 @@
     if (this.caveSupportRevision !== game.world.revision) {
       this.caveSupportRevision = game.world.revision;
       for (const growth of this.caveGrowth) { const p = growth.anchor; growth.root.visible = game.world.density(p.x, p.y, p.z) < -.015; }
+      if(this.caveSupportBatches.sync())this.renderer.shadowMap.needsUpdate=true;
     }
     for (const m of this.refugeModels) {
       const n = m.node; m.root.position.set(n.x, n.y, n.z); m.lens.material.emissiveIntensity = game.refuges.state.lit.includes(n.id) ? 1.5 : .1;

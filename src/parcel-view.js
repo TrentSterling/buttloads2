@@ -17,6 +17,7 @@
     const glow=new T.MeshStandardMaterial({color:owned?'#baf0cb':'#dec38c',emissive:owned?'#84d3a5':'#000000',emissiveIntensity:owned?1:.0});
     this.cylinder(root,35.6,2.65,-.6,.12,.14,.35,glow,8);box(35.6,2.87,-.6,.42,.1,.42,p.dark);
     this.parcelLight=new T.PointLight('#c5ecc0',0,9,1.7);this.parcelLight.position.set(35.6,2.65,-.4);root.add(this.parcelLight);
+    B.WorkshopShapes.mergeRigid(root,new Set([this.parcelCap]));
     this.renderer.shadowMap.needsUpdate=true;
   };
   B.View.prototype.renderParcel=function(game){if(this.parcelLight)this.parcelLight.intensity=game.world.parcelVersion && game.player.y>-4 && Math.hypot(game.player.x-35.6,game.player.z+.6)<14?.8:0;};

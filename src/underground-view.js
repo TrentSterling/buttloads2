@@ -70,12 +70,6 @@
   for(let j=0;j<=node.id;j++)box((j-node.id/2)*.07,-.9,-.88,.032,.07,.012,brass);
   root.traverse(n=>{if(n.isMesh)n.castShadow=n.receiveShadow=true;});this.merge(root);return {root,lens,wheel,node};
  };
- function shelf(radius){
-  const pos=[],idx=[],steps=24,rings=5;
-  for(let j=0;j<=rings;j++)for(let i=0;i<=steps;i++){const t=j/rings,a=i/steps*Math.PI,r=radius*t;pos.push(Math.cos(a)*r,.13*Math.sin(t*Math.PI)*radius+.03*Math.sin(a*7)*t,Math.sin(a)*r*.8);}
-  for(let j=0;j<rings;j++)for(let i=0;i<steps;i++){const a=j*(steps+1)+i,b=a+1,c=a+steps+1,d=c+1;idx.push(a,b,d,a,d,c);}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();return geo;
- }
  B.View.prototype.makeCaveLandmarks=function(game){
   const world=game.world,base=Object.create(B.World.prototype);base.density=(x,y,z)=>world.base(x,y,z);
   const rng=B.random(world.seed^0x241991),mats=[
@@ -93,26 +87,23 @@
     const anchor={x:hit.x-normal.x*.21,y:hit.y-normal.y*.21,z:hit.z-normal.z*.21};
     const root=new T.Group(),{add,tube}=helpers(this,root),[body,edge,light]=mats[network.id];
     root.userData.formation=['lantern-shelves','chalk-drapery','amethyst-fan'][network.id];
+    for(const m of [body,edge,light])m.vertexColors=true;
     if(network.id===0){
+     // Keep the same random draw per shelf, preserving later anchors.
      for(let k=0;k<4;k++){
-      const r=.32+rng()*.3,px=(k%2?-.27:.21),py=(k-1.5)*.29;
-      const cap=add(shelf(r),k%2?body:edge,px,py,0);cap.material.side=T.DoubleSide;
-      const gill=add(shelf(r*.94),light,px,py-.035,.004);gill.material.side=T.DoubleSide;
-      for(let n=1;n<8;n++){const angle=n/8*Math.PI;tube([[px,py-.04,.01],[px+Math.cos(angle)*r*.48,py-.04,Math.sin(angle)*r*.37],[px+Math.cos(angle)*r*.86,py-.055,Math.sin(angle)*r*.69]],.006,edge,3);}
+      const r=.32+rng()*.3,px=(k%2?-.27:.21),py=(k-1.5)*.29,seed=network.id*17+j*.73+k*1.21;
+      const cap=B.CaveForms.shelf(r,seed);add(cap,k%2?body:edge,px,py,0);
+      for(const rib of cap.userData.gills)tube(rib.map(([x,y,z])=>[px+x,py+y,z]),.006,light,3);
      }
     }else if(network.id===1){
-     const pos=[],idx=[],cols=28,rows=12;
-     for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){const u=x/cols,v=y/rows,fade=Math.sin(u*Math.PI)*Math.sin(v*Math.PI);pos.push((u-.5)*(1.4-.2*v),.82-v*(1.15+.26*Math.sin(u*7)+.12*Math.sin(u*19)),.014+fade*(.11+(.12+.06*Math.cos(v*4))*Math.sin(u*22)**2));}
-     for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const a=y*(cols+1)+x;idx.push(a,a+1,a+cols+2,a,a+cols+2,a+cols+1);}
-     const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();body.side=T.DoubleSide;add(geo,body);
-     for(let k=0;k<5;k++){const r=.10+rng()*.12;const petal=add(new T.SphereGeometry(r,10,6),k%2?edge:light,(k-2)*.17,-.50, .14);petal.scale.set(1,.27,1.6);}
+     const drops=Array.from({length:5},()=>.10+rng()*.12);add(B.CaveForms.drapery(j*.83,drops),body);
     }else{
      for(let k=0;k<8;k++){
-      const length=.38+rng()*.67,gem=new T.Group();root.add(gem);gem.position.set((k-3.5)*.115,Math.sin(k*1.4)*.17,.02);gem.rotation.set(.6+(k%3)*.18,0,(k-3.5)*-.13);
-      const shaft=new T.Mesh(new T.CylinderGeometry(.07,.12,length,6),k%3?edge:body);shaft.position.y=length/2;gem.add(shaft);
-      const tip=new T.Mesh(new T.ConeGeometry(.071,.2,6),light);tip.position.y=length+.1;gem.add(tip);
+      const length=.38+rng()*.67,seed=j*.79+k*1.17,gem=new T.Group();root.add(gem);gem.position.set((k-3.5)*.115+.035*Math.sin(seed),Math.sin(k*1.4)*.09,.035+.055*Math.sin(seed)**2);gem.rotation.set(.4+(k%3)*.21+.10*Math.sin(seed),.12*Math.sin(seed*2),(k-3.5)*-.13+.09*Math.cos(seed));
+      const shaft=new T.Mesh(B.CaveForms.crystal(.042+.055*Math.sin(seed)**2,length*(.83+.17*Math.cos(seed)**2),seed),edge);gem.add(shaft);
+      if(k%3===0){const chip=new T.Mesh(B.CaveForms.crystal(.022,length*.45,seed+2),light);chip.position.set(.052,length*.08,.02);chip.rotation.z=.3;gem.add(chip);}
      }
-     const foot=add(new T.DodecahedronGeometry(.47,0),body,0,-.08,0);foot.scale.set(1.35,.5,.55);
+     for(let k=0;k<4;k++){const foot=add(new T.DodecahedronGeometry(.22,0),body,(k-1.5)*.24,-.10+.025*Math.sin(j+k),.045);foot.scale.set(1.05,.65,1.05);foot.rotation.set(.24*k,.39*j,.21*k);}
     }
     // Conform the attachment plane to the actual curved wall. A tangent-plane
     // decoration otherwise leaves its outer edges hanging in air on rounded caves.
@@ -125,10 +116,16 @@
     for(const object of root.children){
      if(object.isGroup){object.position.z+=wallOffset(object.position.x,object.position.y);continue;}
      object.updateMatrix();const geo=object.geometry.clone().applyMatrix4(object.matrix),positions=geo.attributes.position;
-     for(let i=0;i<positions.count;i++)positions.setZ(i,positions.getZ(i)+wallOffset(positions.getX(i),positions.getY(i))-.035);
+     if(geo.userData.chalkParts){
+      // The shoulder follows rock, while each pendant keeps its solid section.
+      // Projecting every pendant vertex follows the retreating cave wall and
+      // stretches mineral drops into blades rather than hanging bodies.
+      for(const part of geo.userData.chalkParts){const offset=part.mount?wallOffset(...part.mount):null;for(let i=part.start;i<part.start+part.count;i++)positions.setZ(i,positions.getZ(i)+(offset??wallOffset(positions.getX(i),positions.getY(i)))-.035);}
+      geo.computeBoundingBox();geo.computeBoundingSphere();
+     }else for(let i=0;i<positions.count;i++)positions.setZ(i,positions.getZ(i)+wallOffset(positions.getX(i),positions.getY(i))-.035);
      geo.computeVertexNormals();object.geometry.dispose();object.geometry=geo;object.position.set(0,0,0);object.rotation.set(0,0,0);object.scale.set(1,1,1);
     }
-    root.traverse(n=>{if(n.isMesh)n.castShadow=n.receiveShadow=true;});this.merge(root);root.position.set(hit.x,hit.y,hit.z);root.quaternion.copy(rotation);this.cavernScene.add(root);
+    root.traverse(n=>{if(!n.isMesh)return;n.castShadow=n.receiveShadow=true;if(!n.geometry.attributes.color)n.geometry.setAttribute('color',new T.Float32BufferAttribute(new Float32Array(n.geometry.attributes.position.count*3).fill(1),3));});B.WorkshopShapes.mergeRigid(root,new Set(),true);root.position.set(hit.x,hit.y,hit.z);root.quaternion.copy(rotation);this.cavernScene.add(root);
     root.visible=world.density(anchor.x,anchor.y,anchor.z)<-.015;
     this.caveGrowth.push({root,anchor});
     if(j%3===0){const point=new V(0,network.id===0?.1:-.28,.48).applyQuaternion(root.quaternion).add(root.position);this.caveAccentSites.push({root,point,color:['#d6ad67','#96cdbb','#af9fcb'][network.id]});}
@@ -143,13 +140,24 @@
  };
  B.View.prototype.makeHeadlamp=function(){
   this.headlamp=new T.SpotLight('#ffe8bf',0,19,.64,.75,1.35);this.headlamp.castShadow=true;this.headlamp.shadow.mapSize.set(768,768);this.headlamp.shadow.camera.near=.12;this.headlamp.shadow.bias=-.00008;this.headlamp.shadow.normalBias=.018;
-  this.scene.add(this.headlamp,this.headlamp.target);this.renderer.shadowMap.autoUpdate=true;this.sun.shadow.autoUpdate=false;
+  this.scene.add(this.headlamp,this.headlamp.target);this.renderer.shadowMap.autoUpdate=true;this.sun.shadow.autoUpdate=false;this.headlamp.shadow.autoUpdate=false;
  };
  B.View.prototype.renderHeadlamp=function(game,daylight){
   const on=game.screen!=='title',amount=on?1-daylight:0,d=game.player.direction;
   this.headlamp.position.copy(this.camera.position);this.headlamp.target.position.set(this.camera.position.x+d.x*8,this.camera.position.y+d.y*8,this.camera.position.z+d.z*8);
   this.headlamp.color.copy(this.lamp.color);this.headlamp.intensity=2.4*amount;this.headlamp.castShadow=amount>.1&&this.settings.quality>=1;
   this.headlamp.distance=19+game.economy.state.gear.scanner*1.5;
+  const cache=this.headlampPose,p=game.player;
+  if(this.headlamp.castShadow&&(!cache||cache.world!==game.world||cache.terrain!==game.world.revision||cache.state!==game.revision||this.renderer.shadowMap.needsUpdate||Math.hypot(p.x-cache.x,p.y-cache.y,p.z-cache.z)>.02||Math.abs(p.yaw-cache.yaw)>.004||Math.abs(p.pitch-cache.pitch)>.004||cache.range!==this.headlamp.distance)){
+   this.headlamp.shadow.needsUpdate=true;
+   this.headlampPose={world:game.world,terrain:game.world.revision,state:game.revision,x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,range:this.headlamp.distance};
+  }
+  // Wing beats and articulated creatures do not increment the save revision.
+  // Refresh their nearby moving shadows at the same cadence as the crew.
+  if(this.headlamp.castShadow&&this.settings.motion&&game.clock-(this.headlampDynamicAt||0)>.1){
+   const moving=(game.combat?.enemies||[]).concat(game.foreman?.nodes||[],game.crawlers?.nodes||[]).some(n=>n.hp>0&&n.phase!=='buried'&&Math.hypot(n.x-p.x,n.y-p.y,n.z-p.z)<this.headlamp.distance);
+   if(moving){this.headlamp.shadow.needsUpdate=true;this.headlampDynamicAt=game.clock;}
+  }
   this.lamp.intensity=on ? .20+.30*amount : 0;this.lamp.distance=on?8+game.economy.state.gear.scanner:8;
  };
 })(B2);

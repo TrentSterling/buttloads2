@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import {loadCrew,latencyReplay} from './latency-fixture.mjs';
+const label=process.argv[2]||'after';if(!['before','after','trial'].includes(label))throw Error('Invalid replay label');
+const source=fs.readFileSync(new URL(label==='before'?'out/latency-before/multiplayer.js':'../src/multiplayer.js',import.meta.url),'utf8'),B=loadCrew(source);
+const options=[['turn-0',{rtt:0}],['turn-100',{rtt:100}],['turn-250',{rtt:250}],['turn-500',{rtt:500}],['turn-clock-offset',{clockOffset:37}],['turn-jitter',{jitter:35}],['stop-250',{turn:false,stop:true}],['wall-250',{turn:false,wall:true}],['gap-turn',{gap:[.5,3]}],['fresh-turn-250',{fresh:true}],['fresh-turn-500',{fresh:true,rtt:500}],['real-error',{warp:.8}]];
+const cases=Object.fromEntries(options.map(([name,options])=>[name,latencyReplay(B,options)]));
+const report={label,version:label==='before'?'2.28.4':JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url))).version,sourceSha256:crypto.createHash('sha256').update(source).digest('hex'),date:new Date().toISOString(),method:'Production Crew tick/receive/members/stepRemotes/updateGuest and actual Player contact. Simulated packets and latency at 144Hz with 20Hz producer deadlines. Nonmovement world systems and transport/presentation are inert. No browser, internet or physical mouse input.',cases};
+fs.writeFileSync(new URL('out/latency-'+label+'.json',import.meta.url),JSON.stringify(report,null,2));
+for(const [name,c]of Object.entries(cases))console.log(JSON.stringify({name,correctionDistance:c.correctionDistance,corrections:c.corrections,teleports:c.teleports,aligned:c.aligned,poses:c.poses,blockedFrames:c.blockedFrames,end:c.end}));

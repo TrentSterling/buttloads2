@@ -58,7 +58,7 @@
     }
     buyLenses(economy){if(!this.state.recovered||this.state.lenses||economy.state.cash<350)return false;economy.state.cash-=350;this.state.lenses=true;return true;}
     obstacles(){const n=this.body;if(!n)return [];const boxes=bones.map(({a,b,r})=>[Math.min(a[0],b[0])-r+n.x,Math.min(a[1],b[1])-r+n.y,Math.min(a[2],b[2])-r+n.z,Math.max(a[0],b[0])+r+n.x,Math.max(a[1],b[1])+r+n.y,Math.max(a[2],b[2])+r+n.z]);boxes.push(...[skull].map(s=>[...s.p.map((v,i)=>v-s.size[i]+[n.x,n.y,n.z][i]),...s.p.map((v,i)=>v+s.size[i]+[n.x,n.y,n.z][i])]));return boxes;}
-    update(dt,player){let changed=this.physics.update(dt);this.elapsed+=dt;if(this.body&&!this.state.known&&this.elapsed>.4){this.elapsed=0;for(let i=0;i<3;i++){const p=this.point(i);if(distance(player.head,p)<6&&this.world.clearLine(player.head,p,.05)){this.state.known=true;changed=true;break;}}}return changed;}
+    update(dt,player,players=[player]){let changed=this.physics.update(dt);this.elapsed+=dt;if(this.body&&!this.state.known&&this.elapsed>.4){this.elapsed=0;for(let i=0;i<3;i++){const p=this.point(i);if(players.some(miner=>distance(miner.head,p)<6&&this.world.clearLine(miner.head,p,.05))){this.state.known=true;changed=true;break;}}}return changed;}
     markers(){return this.body&&this.state.known?[{...point(this.body),type:'fossil',name:this.state.recovered?'Lantern leviathan / studied':`Lantern leviathan / ${this.state.plates.length}/3 markings`,color:'#e8d5ae'}]:[];}
     save(){this.state.bodies=this.physics.snapshot();}
     static validate(s,world,progress){

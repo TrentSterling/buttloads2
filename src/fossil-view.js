@@ -35,6 +35,8 @@
     }
     this.sign(cart,'LIVING LENSES','RECOVER AN EMBER / LIGHT THE MINE',0,2.26,-.18,2.5,.36,Math.PI,'#293b39','#bceacf');
     this.keeperLight=new T.PointLight('#c6ecd0',0,10,1.8);this.keeperLight.position.set(-6,2.1,50);root.add(this.keeperLight);
+    const independent=new Set([...this.fossilPlates,this.fossilEmber,...this.keeperLanterns]);
+    B.WorkshopShapes.mergeRigid(bone,independent);B.WorkshopShapes.mergeRigid(cart,independent);
     this.renderFossil(game,0);this.renderer.shadowMap.needsUpdate=true;
   };
   B.View.prototype.renderFossil=function(game,time){

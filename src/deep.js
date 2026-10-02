@@ -65,9 +65,9 @@
       if (!p || !this.state.repaired.includes(id) || player.y < -.5 || expedition.tether !== null || player.blocked(p.x, p.y, p.z)) return false;
       player.teleport(p.x, p.y, p.z); player.yaw = p.yaw; player.pitch = p.pitch; return true;
     }
-    update(dt, player) {
+    update(dt, player, players = [player]) {
       let changed = this.physics.update(dt); this.elapsed += dt;
-      if (this.elapsed > .35) { this.elapsed = 0; for (const n of this.nodes) if (!this.state.known.includes(n.id) && distance(player.head, n) < 6 && this.world.clearLine(player.head, n, .15)) { this.state.known.push(n.id); changed = true; } }
+      if (this.elapsed > .35) { this.elapsed = 0; for (const n of this.nodes) if (!this.state.known.includes(n.id) && players.some(p=>distance(p.head, n) < 6 && this.world.clearLine(p.head, n, .15))) { this.state.known.push(n.id); changed = true; } }
       return changed;
     }
     scan(head, range) { const nodes = this.nodes.filter(n => distance(head, n) <= range); for (const n of nodes) if (!this.state.known.includes(n.id)) this.state.known.push(n.id); return nodes; }

@@ -21,7 +21,10 @@
     attach(game){this.game=game;this.present();}
     resize(){
       this.w=innerWidth;this.h=innerHeight;this.ratio=Math.min(devicePixelRatio||1,2,2048/Math.max(1,this.w));
-      this.canvas.width=Math.max(1,Math.round(this.w*this.ratio));this.canvas.height=Math.max(1,Math.round(this.h*this.ratio));this.dirty=true;
+      const width=Math.max(1,Math.round(this.w*this.ratio)),height=Math.max(1,Math.round(this.h*this.ratio)),changed=this.canvas.width!==width||this.canvas.height!==height;
+      this.canvas.width=width;this.canvas.height=height;this.dirty=true;
+      // r140 retains an uploaded canvas source at its old dimensions. Recreate it.
+      if(changed&&this.texture){this.texture.dispose();this.texture=new THREE.CanvasTexture(this.canvas);this.texture.encoding=THREE.sRGBEncoding;this.texture.minFilter=THREE.LinearFilter;this.texture.generateMipmaps=false;this.material.map=this.texture;this.material.needsUpdate=true;}
     }
     present(){if(!this.game)return;this.draw();this.view.renderer.autoClear=true;this.view.renderer.render(this.scene,this.camera);}
     render(game,dt){
@@ -32,7 +35,7 @@
     }
     text(text,x,y,size=16,color=C.paper,font='sans-serif',align='left'){
       const c=this.ctx;c.fillStyle=color;c.font=`600 ${size}px ${font==='monospace'?'Consolas, monospace':'Arial, sans-serif'}`;c.textAlign=align;c.textBaseline='top';
-      if(this.game?.running){c.strokeStyle='rgba(7,18,22,.75)';c.lineWidth=3;c.lineJoin='round';c.strokeText(clean(text),x,y);}
+      if(this.game?.running&&color!==C.ink){c.strokeStyle='rgba(7,18,22,.65)';c.lineWidth=2;c.lineJoin='round';c.strokeText(clean(text),x,y);}
       c.fillText(clean(text),x,y);
     }
     fit(text,width,size=16,font='Arial, sans-serif'){
@@ -58,7 +61,7 @@
       const h=options.h||44,active=this.hit(id,x,y,w,h,action,options.disabled,options.hold),color=options.disabled?'#718079':options.primary?C.ink:C.paper;
       if(!options.disabled)this.hits[this.hits.length-1].label=label;
       this.plate(x,y,w,h,options.primary?(active?C.white:C.gold):active?'#385051':C.ink,options.selected?C.gold:active?C.paper:C.edge);
-      this.text(this.fit(label,w-28,options.font||16),x+14,y+(h-18)/2,options.font||16,color);if(active)this.line(x+8,y+10,x+8,y+h-10,C.gold,3);
+      const pad=options.pad??14;this.text(this.fit(label,w-pad*2,options.font||16),x+pad,y+(h-18)/2,options.font||16,color);if(active)this.line(x+8,y+10,x+8,y+h-10,C.gold,3);
     }
     control(id,x,y,w,label){const el=$(id);this.button(id,label||value(id),x,y,w,()=>{if(!el.disabled)el.onclick?.();},{disabled:!!el.disabled});}
     slider(id,label,x,y,w,value,min,max,step,set){
@@ -267,8 +270,8 @@
     }
     touch(){
       const g=this.game,h=this.h,w=this.w,e=g.expedition.state;
-      const rows=this.touchPage?[['mode','Type',()=>g.cycleCharge()],['remote','Fire',()=>g.detonate()],['freight','Crane',()=>g.aimFreight(),()=>g.releaseFreight()],['anchor','Anchor',()=>g.player.y<-.5?g.anchor():g.descend()],['rift','Rift',()=>{if(e.awakened&&g.expedition.pulse(g.player,true))g.changed();}],['foundry','Bore',()=>g.foundryBore()],['notes','Notes',()=>g.journal()],['kit','Kit',()=>g.fieldKit.open()],['recall','Return',()=>g.input.keys.add('KeyR'),()=>g.input.keys.delete('KeyR')],['more','Back',()=>{this.touchPage=0;}]]:[['cut','Cut',()=>{g.input.fire=true;},()=>{g.input.fire=false;}],['lift','Lift',()=>g.input.keys.add('Space'),()=>g.input.keys.delete('Space')],['use','E Use',()=>g.use()],['scan','Scan',()=>g.scan()],['lamp','Light',()=>g.deploy('lamp')],['bomb','Charge',()=>g.aimBomb(),()=>g.releaseBomb()],['kit','Kit',()=>g.fieldKit.open()],['map','Map',()=>g.openSurvey()],['recall','Return',()=>g.input.keys.add('KeyR'),()=>g.input.keys.delete('KeyR')],['more','More',()=>{this.touchPage=1;}]];
-      rows.forEach(([id,label,start,stop],i)=>this.button('touch-'+id,label,w-206+(i%3)*66,h-205+Math.floor(i/3)*49,60,stop?()=>{}:start,{h:43,font:12,hold:stop?{start,stop}:null}));
+      const rows=this.touchPage?[['mode','Type',()=>g.cycleCharge()],['remote','Fire',()=>g.detonate()],['freight','Crane',()=>g.aimFreight(),()=>g.releaseFreight()],['anchor','Anchor',()=>g.player.y<-.5?g.anchor():g.descend()],['rift','Rift',()=>{if(g.net?.guest)g.net.command('pulse');else if(e.awakened&&g.expedition.pulse(g.player,true))g.changed();}],['foundry','Bore',()=>g.foundryBore()],['notes','Notes',()=>g.journal()],['kit','Kit',()=>g.fieldKit.open()],['recall','Return',()=>g.input.keys.add('KeyR'),()=>g.input.keys.delete('KeyR')],['more','Back',()=>{this.touchPage=0;}]]:[['cut','Cut',()=>{g.input.fire=true;},()=>{g.input.fire=false;}],['lift','Lift',()=>g.input.keys.add('Space'),()=>g.input.keys.delete('Space')],['use','E Use',()=>g.use()],['scan','Scan',()=>g.scan()],['lamp','Light',()=>g.deploy('lamp')],['bomb','Charge',()=>g.aimBomb(),()=>g.releaseBomb()],['kit','Kit',()=>g.fieldKit.open()],['map','Map',()=>g.openSurvey()],['recall','Return',()=>g.input.keys.add('KeyR'),()=>g.input.keys.delete('KeyR')],['more','More',()=>{this.touchPage=1;}]];
+      rows.forEach(([id,label,start,stop],i)=>this.button('touch-'+id,label,w-206+(i%3)*66,h-205+Math.floor(i/3)*49,60,stop?()=>{}:start,{h:43,font:12,pad:7,hold:stop?{start,stop}:null}));
       this.gauge(64,h-82,45,0,'MOVE','',C.edge);this.hit('stick',12,h-134,104,104,()=>{},false,{start:()=>{},stop:()=>{for(const k of ['KeyW','KeyA','KeyS','KeyD'])g.input.keys.delete(k);},move:(x,y)=>{const dx=x-64,dy=y-(h-82);for(const [key,on] of [['KeyW',dy<-15],['KeyS',dy>15],['KeyA',dx<-15],['KeyD',dx>15]])on?g.input.keys.add(key):g.input.keys.delete(key);}});
     }
     at(x,y){return [...this.hits].reverse().find(r=>x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h);}
@@ -279,12 +282,13 @@
       const point=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*this.w/rect.width,y:(e.clientY-rect.top)*this.h/rect.height};};
       canvas.addEventListener('pointerdown',e=>{
         if(!this.game||document.pointerLockElement===canvas)return;
+        if(this.game.running&&e.pointerType==='mouse'&&e.button===2)return;
         const p=point(e),hit=this.at(p.x,p.y);this.pointer=p;
         if(!hit&&!this.game.screen)return;
         stop(e);canvas.focus({preventScroll:true});if(e.button!==0&&e.pointerType!=='touch')return;
         if(hit?.hold){this.held.set(e.pointerId,hit);canvas.setPointerCapture(e.pointerId);hit.hold.start();hit.hold.move?.(p.x,p.y);}else this.activate(hit);
       },true);
-      canvas.addEventListener('pointermove',e=>{const p=point(e);this.pointer=p;const h=this.held.get(e.pointerId);if(h){stop(e);h.hold.move?.(p.x,p.y);}const hover=this.at(p.x,p.y)?.id||null;if(hover!==this.hover){this.hover=hover;this.dirty=true;}},true);
+      canvas.addEventListener('pointermove',e=>{if(document.pointerLockElement===canvas||this.game?.running&&this.game.input.lookPointer===e.pointerId&&!this.held.has(e.pointerId))return;const p=point(e);this.pointer=p;const h=this.held.get(e.pointerId);if(h){stop(e);h.hold.move?.(p.x,p.y);}const hover=this.at(p.x,p.y)?.id||null;if(hover!==this.hover){this.hover=hover;this.dirty=true;}},true);
       for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,e=>{const h=this.held.get(e.pointerId);if(h){stop(e);this.held.delete(e.pointerId);if(type==='pointerup')h.hold.stop();else {this.game.clearInput();this.releaseHolds();}this.dirty=true;}},true);
       canvas.addEventListener('wheel',e=>{if(!this.game?.screen)return;stop(e);this.page=B.clamp(this.page+Math.sign(e.deltaY),0,this.pages-1);this.focus=-1;this.dirty=true;},{capture:true,passive:false});
       window.addEventListener('keydown',e=>{

@@ -111,15 +111,16 @@
         if (this.fall(n, dt)) { this.revision++; continue; }
         if (n.hp <= 0 || !this.progress.expedition.deep?.open) continue;
         n.timer = Math.max(0, n.timer - dt); n.alert = Math.max(0, n.alert - dt); n.vx = n.vz = 0;
-        const target = { x: player.x, y: player.y + .65, z: player.z }, d = dist(n, target), home = this.homes[n.id - 200];
-        const territory = player.y < -80 && Math.hypot(player.x - home.x, player.z - home.z) < 11 && Math.abs(player.y - n.y) < 4;
+        const miner=this.combat.pickPlayer?.(n,player)||player;
+        const target = { x: miner.x, y: miner.y + .65, z: miner.z }, d = dist(n, target), home = this.homes[n.id - 200];
+        const territory = miner.y < -80 && Math.hypot(miner.x - home.x, miner.z - home.z) < 11 && Math.abs(miner.y - n.y) < 4;
         const sees = territory && d < 9 && this.world.clearLine(n, target, .05);
         if (sees) { n.known = true; n.alert = 4; n.lastSeen = pos(target); }
         if (['recover', 'stunned'].includes(n.phase)) { if (!n.timer) n.phase = 'idle'; }
         else if (n.phase === 'windup') { if (!n.timer) { n.phase = 'lunge'; n.timer = .42; } }
         else if (n.phase === 'lunge') {
           const moved = this.walk(n, n.direction, 6, dt);
-          if (dist(n, target) < 1.65 && this.world.clearLine(n, target, .05)) { this.combat.hurt(24); n.phase = 'recover'; n.timer = 1.35; }
+          if (dist(n, target) < 1.65 && this.world.clearLine(n, target, .05)) { this.combat.hurtFor(24,miner); n.phase = 'recover'; n.timer = 1.35; }
           else if (!n.timer || !moved) { n.phase = 'recover'; n.timer = 1.35; }
         } else if (sees && d < 3.4 && Math.abs(target.y - n.y) < 1.2) {
           n.phase = 'windup'; n.timer = .95; n.direction = direction(n, target); n.yaw = Math.atan2(n.direction.x, n.direction.z); this.events.push({ kind: 'crawler-warn', point: pos(n) });

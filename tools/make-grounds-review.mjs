@@ -1,0 +1,45 @@
+// Preserve the established comparison deck and replace its evidence payload.
+import fs from 'node:fs';import path from 'node:path';
+const out=path.join(import.meta.dirname,'out'),read=file=>JSON.parse(fs.readFileSync(path.join(out,file),'utf8'));
+const b=fs.readFileSync(path.join(out,'system-grounds.log')),log=b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8');
+const checks=Number(log.match(/COMPLETE (\d+) system checks passed/)?.[1]),capture=read('grounds-final-2/capture.json');
+const reports=[read('perf-grounds-before/report.json'),read('perf-grounds-after/report.json'),read('perf-grounds-detail-before/report.json'),read('perf-grounds-detail-after/report.json')];
+if(!checks||capture.version!=='2.28.1'||capture.runtimeErrors.length||capture.pointerLocked||reports.some(r=>r.errors.length||r.scenes.some(s=>s.pointerLocked)))throw Error('Missing passing final evidence');
+for(const r of [reports[1],reports[3]])if(r.version!==capture.version||r.buildSha256!==capture.buildSha256)throw Error('Measured build differs from art capture');
+const pic=file=>'data:image/png;base64,'+fs.readFileSync(path.join(out,file)).toString('base64');
+const slides=[],pair=(title,shot,caption)=>slides.push({title,caption,kind:'pair',before:pic('grounds-before/'+shot+'.png'),after:pic('grounds-final-2/'+shot+'.png'),beforeLabel:'BEFORE / 2.28.0',afterLabel:'AFTER / 2.28.1',receipt:'Actual portable game renders. Same camera, seed, sunlight, HUD and 1440 x 1000 viewport. The well-interior camera is elevated; the powered state is an explicitly set inspection fixture.'});
+pair('The well square: replace the capped cylinder','well-close','Three staggered masonry courses, separate cap stones and recessed water replace the solid cylinder. The liner sits behind the block faces. The first two rounds failed because the liner formed a triangle and then hid the exterior masonry.');
+pair('An actual opening, with matching contact','well-interior','The water sits below the rim. Shared collision now uses the masonry ring, so the opening has no invisible cap. The capsule can enter and lift out; each rim sector is tested. This is an elevated geometry inspection, not a normal walking camera.');
+pair('Public seating needs construction','bench-front','Separate bevelled seat and back slats, curved frames, armrests, feet and bolts replace the plank on sticks. Wood reuses the original depot texture. The same assembly appears on all three benches; collision and remote boot placement match it.');
+pair('Bench side view: connections and stance','bench-side','Inspect the reclined back, seat spacing, frame and ground contact. The benches now block normal walking and support standing for both host and guest. The square has a compacted bed beneath the flagstones instead of bare grass joints.');
+pair('Root contact and attached planting','grove','Sharp cylindrical claws and a rejected star-shaped replacement give way to a smaller continuous flared base. Every base-ring vertex follows shared ground height. Rosette leaves connect to visible stems; they remain soft planting outside claims and public paths.');
+pair('Grove wide view: coverage remains restrained','grove-wide','Low planting gathers around tree stands instead of covering every surface. Open slopes still look sparse, conifers remain repetitive, and the nearby older outcrop is too geometric. These are remaining critic findings, not a claim that the landscape is finished.');
+pair('Reservoir bench: retain the route','reservoir','The new shared bench replaces the flat seat and back slabs. Its feet adapt to the existing slope. The seven common-ground checks retain the actual walk to the reservoir and back without lift. The water tower itself remains from the older pass.');
+pair('Powered state: an existing art failure remains','well-powered','The rebuilt basin still receives the established powered beacon. Its three bright crystals and ring wash out to white. This is retained as an explicit critic finding; the new furniture does not make this older asset acceptable. Power is set only for this rendering fixture.');
+for(const [title,folder,shot,caption]of [
+ ['Rejected liner: a triangular opening','grounds-01','well-interior','FAIL. The full ring reused the three subdivisions intended for one block. Its inner wall cut diagonally across the basin. Full-circle tessellation is now independent of block tessellation.'],
+ ['Rejected roots and detached leaves','grounds-01','grove','FAIL. Sharp buttress ribbons resembled stars, and leaves had no connecting stems. The final root base is smaller and continuous, and the planting has grounded spines.'],
+ ['Rejected exterior: the liner hid the stone','grounds-02','well-close','FAIL. The liner radius exceeded the masonry radius, hiding all three exterior courses. Its radius is now inset. Horizontal rays guard against this exact construction defect.']
+])slides.push({title,caption,kind:'pair',before:pic(folder+'/'+shot+'.png'),after:pic('grounds-final-2/'+shot+'.png'),beforeLabel:'REJECTED ROUND',afterLabel:'REINSPECTED',receipt:'Preserved failed game render beside the corrected render. Art inspection remains separate from the green behavior checks.'});
+const links=[['System log','system-grounds.log'],['Art capture','grounds-final-2/capture.json'],['Before performance','perf-grounds-before/report.json'],['After performance','perf-grounds-after/report.json'],['Well/grove before','perf-grounds-detail-before/report.json'],['Well/grove after','perf-grounds-detail-after/report.json'],['Critic record','../../docs/COMMON-GROUNDS-ART.md']];
+const cpu=s=>s.cpu.mean+s.timings.simulation.mean,fmt=n=>n.toFixed(2),rows=[];
+for(const [before,after]of [[reports[0],reports[1]],[reports[2],reports[3]]])for(const [i,s]of after.scenes.entries()){const b=before.scenes[i];rows.push({name:s.name,before:fmt(cpu(b)),after:fmt(cpu(s)),delta:fmt(cpu(s)-cpu(b)),calls:Math.round(b.calls.mean)+' / '+Math.round(s.calls.mean),frame95:fmt(b.frame.p95)+' / '+fmt(s.frame.p95)});}
+slides.push({kind:'metrics',title:'Measure the new views directly',caption:'The original yard, crew and underground scenes are supplemented by the actual well square and grove. Every pair uses the same preserved portable baseline and final build hash.',rows,links,receipt:'Mean simulation + render submission, 1920 x 1080, pixel ratio one, RTX 5070 Ti, D3D11 headless Chrome, 100 warmup frames then six-second samples. Capture intervals are near a 60 Hz limit. GPU elapsed queries vary; no GPU speedup is claimed. Crew views are rendering fixtures.'});
+slides.push({kind:'receipts',title:'Behavior receipts and open critic findings',caption:'The new art is reviewable. The whole game is not accepted by these checks; original scope remains active.',checks,inventory:capture.inventory,links,items:[
+ 'Four new common-art checks: open well and visible masonry, host/guest seat contact, actual remote boot placement, ground-conforming root bases and protected planting.',
+ 'All 371 system checks passed, including town doorways, the real walk to Inez and the reservoir route.',
+ 'Eight final views were visually inspected. Failed liner and root rounds remain in the slideshow.',
+ 'The earlier full fossil journey is retained as 2.28.0 evidence; this checkpoint does not claim a new full campaign run.',
+ 'Open art findings: washed-out powered beacon, repeated conifers, sparse open slopes, old outcrops and simplistic garden flowers.',
+ 'Physical Firefox mouse delivery and human movement feel still require play review. No desktop input or test pointer lock.'
+ ],receipt:'No push or deployment. Existing public Trystero and all-seven-weapon evidence remain in their dated review tabs.'});
+let html=fs.readFileSync(path.join(out,'surface-review.html'),'utf8');
+const start=html.indexOf('const slides='),end=html.indexOf(';let index=0',start);if(start<0||end<0)throw Error('Comparison template changed');
+html=html.slice(0,start)+'const slides='+JSON.stringify(slides).replace(/</g,'\\u003c')+html.slice(end);
+html=html.replace('<title>Buttloads 2 / surface art receipts / 2.28.0</title>','<title>Buttloads 2 / well square receipts / 2.28.1</title>').replace('BUTTLOADS 2 / SURFACE GEOMETRY / 2.28.0','BUTTLOADS 2 / WELL SQUARE AND ROOTS / 2.28.1');
+const listStart=html.indexOf('for(const text of ['),listEnd=html.indexOf('])list.append',listStart);if(listStart<0||listEnd<0)throw Error('Receipt list template changed');
+html=html.slice(0,listStart)+'for(const text of s.items'+html.slice(listEnd+1);
+const linkStart=html.indexOf('for(const [title,file]of [['),linkEnd=html.indexOf(']){const a=node',linkStart);if(linkStart<0||linkEnd<0)throw Error('Link template changed');
+html=html.slice(0,linkStart)+'for(const [title,file]of s.links'+html.slice(linkEnd+1);
+html=html.replace('window.__surfaceReview={slides,show,split}','window.__surfaceReview=window.__groundsReview={slides,show,split}');
+fs.writeFileSync(path.join(out,'grounds-review.html'),html);console.log('Grounds review: '+slides.length+' slides, eight matching pairs and three rejected rounds.');

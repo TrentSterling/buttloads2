@@ -37,7 +37,7 @@ try{
  await test('all screens and pages keep active hit regions inside desktop and phone viewports',()=>{
   for(const [w,height] of [[1440,900],[1280,720],[390,844]]){
    globalThis.innerWidth=w;globalThis.innerHeight=height;ui.resize();
-   for(const screen of ['title','pause','kit','shop','town','survey','journal','about','confirm','discovery','ending','foreman','rescue','freight']){
+   for(const screen of ['title','pause','crew','kit','shop','town','survey','journal','about','confirm','discovery','ending','foreman','rescue','freight']){
     if(screen==='shop')g.updateShop();if(screen==='journal')g.journal();g.setScreen(screen);ui.draw();
     const pages=ui.pages;for(let p=0;p<pages;p++){ui.page=p;ui.draw();for(const r of ui.hits){assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=w+.01&&r.y+r.h<=height+.01,`${screen}/${p}/${w}: ${r.id} out of viewport`);}}
    }
@@ -53,7 +53,7 @@ try{
  });
  await test('the actual surface mesh and surrounding land meet without a slit on all four sides',()=>{
   g.play();g.world.carve({x:13.2,y:-.6,z:5},3);g.view.scene.updateMatrixWorld(true);
-  const terrain=[];g.view.scene.traverseVisible(m=>{if(m.isMesh&&(m.material===g.view.terrainMaterial||m.material===g.view.palette.grass))terrain.push(m);});
+  const terrain=[];g.view.scene.traverseVisible(m=>{if(m.isMesh&&(m.material===g.view.terrainMaterial||m.material===g.view.palette.grass||g.view.surfaceGround.includes(m)))terrain.push(m);});
   const ray=new THREE.Raycaster();let count=0;
   for(const edge of [-16.25,15.75])for(const shift of [-.05,-.001,.001,.05])for(const offset of [-15,-4,0,7,15])for(const axis of ['x','z']){
    const x=axis==='x'?edge+shift:offset,z=axis==='z'?edge+shift:offset;ray.set(new THREE.Vector3(x,2,z),new THREE.Vector3(0,-1,0));

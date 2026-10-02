@@ -8,19 +8,9 @@
     const mat = color => new T.MeshStandardMaterial({ color, roughness: .72 });
     for (const n of game.combat.enemies) {
       const root = new T.Group(), body = mat('#473b35'), wing = mat('#b47b51'), light = new T.MeshStandardMaterial({ color: '#f3be7b', emissive: '#fda449', emissiveIntensity: .8 }); scene.add(root);
-      const mesh = new T.Mesh(new T.IcosahedronGeometry(.22, 1), body); mesh.scale.set(.8, .7, 1.35); root.add(mesh);
-      for (const side of [-1, 1]) {
-        const eye = new T.Mesh(new T.IcosahedronGeometry(.047, 0), light); eye.position.set(side * .075, .085, .235); root.add(eye);
-        const leg = this.box(root, side * .16, -.08, .03, .026, .035, .28, body); leg.rotation.y = side * .4;
-      }
-      wing.side = T.DoubleSide; const wings = [];
-      for (const side of [-1, 1]) {
-        const geo = new T.BufferGeometry(), vertices = [.08, 0, .14, .42, .03, .23, .4, .04, -.23, .08, 0, .14, .4, .04, -.23, .08, 0, -.12];
-        for (let i = 0; i < vertices.length; i += 3) vertices[i] *= side;
-        geo.setAttribute('position', new T.Float32BufferAttribute(vertices, 3)); geo.computeVertexNormals();
-        const w = new T.Mesh(geo, wing); root.add(w); wings.push(w);
-      }
+      const {wings}=B.CreatureArt.moth(root,body,wing,light,n.id*.71);
       const tell = new T.Mesh(new T.TorusGeometry(.7, .018, 5, 32), new T.MeshBasicMaterial({ color: '#ffc278', transparent: true, opacity: 0, depthWrite: false })); scene.add(tell);
+      B.WorkshopShapes.mergeRigid(root,new Set(wings));
       this.mothModels.push({ root, wings, tell, eye: light, node: n });
     }
     this.cacheMaterial = mat('#bfaa71'); this.huskMaterial = new T.MeshStandardMaterial({ color: '#d99151', emissive: '#9c451d', emissiveIntensity: .3, roughness: .8 });

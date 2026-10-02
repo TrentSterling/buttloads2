@@ -26,7 +26,7 @@
         const button = document.createElement('button'); button.className = 'town-service'; button.disabled = disabled;
         const label = document.createElement('strong'), copy = document.createElement('span'), cost = document.createElement('b');
         label.textContent = title; copy.textContent = detail; cost.textContent = price; button.append(label); button.append(copy); button.append(cost);
-        button.onclick = () => { if (!g.ready || g.parcelPurchase || g.screen !== 'town' || g.town.target(g.player, g.world, g.view.obstacles)?.id !== person.id) return; const result=action();if(result?.then)return result.then(()=>this.refresh());this.refresh(); };
+        button.onclick = () => { if (!g.ready || g.parcelPurchase || g.screen !== 'town' || g.town.target(g.player, g.world, g.view.obstacles)?.id !== person.id) return; if(g.net?.guest){g.net.command('service',[title,person.id]);return;}const result=action();if(result?.then)return result.then(()=>this.refresh());this.refresh(); };
         $('town-services').append(button);
       };
       if (person.id === 'mara') {

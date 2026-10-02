@@ -15,11 +15,23 @@
     this.furnaceImpact=new T.Mesh(new T.TorusGeometry(.7,.018,6,48),new T.MeshBasicMaterial({color:'#ffae5e',transparent:true,opacity:.85,depthWrite:false}));group.add(this.furnaceImpact);
     this.furnaceLight = new T.PointLight('#ffb173', 0, 18, 1.6); group.add(this.furnaceLight);
     const beacon = this.commonBeacon = new T.Group(); beacon.position.set(5, .6, 46); group.add(beacon);
-    const crystal = mat('#8effd1', 1.4, .3);
-    for (let i = 0; i < 3; i++) { const gem = new T.Mesh(new T.OctahedronGeometry(.28, 0), crystal); gem.position.set(Math.cos(i * 2.09) * .45, .4, Math.sin(i * 2.09) * .45); gem.scale.y = 1.8; beacon.add(gem); }
-    const halo = new T.Mesh(new T.TorusGeometry(.85, .035, 6, 48), crystal); halo.rotation.x = Math.PI / 2; halo.position.y = .4; beacon.add(halo);
+    const finish=(color,glow=0,metalness=0)=>new T.MeshStandardMaterial({color:new T.Color(color).convertSRGBToLinear(),emissive:new T.Color(color).convertSRGBToLinear(),emissiveIntensity:glow,roughness:.43,metalness});
+    const jade=finish('#247d68',.16,.12),facet=finish('#56bba0',.10,.08),brass=finish('#9a7a47',0,.58),inlay=finish('#4aaf99',.22,.18);
+    this.beaconMaterials={jade,facet,brass,inlay};
+    const add=(geometry,material,x,y,z)=>{const mesh=new T.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;beacon.add(mesh);return mesh;};
+    const strut=(a,b,r)=>{const start=new V(...a),end=new V(...b),delta=end.clone().sub(start),mesh=add(new T.CylinderGeometry(r,r,delta.length(),6),brass,...start.add(end).multiplyScalar(.5).toArray());mesh.quaternion.setFromUnitVectors(new V(0,1,0),delta.normalize());};
+    for(let i=0;i<3;i++){
+      const angle=i*Math.PI*2/3,cx=Math.cos(angle)*.46,cz=Math.sin(angle)*.46,cy=.56+(i===1?.12:0),points=[],buckets=[[],[]];
+      for(const [radius,y]of [[.11,-.34],[.23,-.18],[.18,.28],[0,.59]])for(let j=0;j<6;j++){const a=angle+j/6*Math.PI*2;points.push([cx+Math.cos(a)*radius,cy+y,cz+Math.sin(a)*radius]);}
+      for(let ring=0;ring<3;ring++)for(let j=0;j<6;j++){const a=ring*6+j,b=ring*6+(j+1)%6;for(const p of [points[a],points[a+6],points[b],points[b],points[a+6],points[b+6]])buckets[j%3===0?1:0].push(...p);}
+      for(const [j,pos]of buckets.entries()){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.computeVertexNormals();add(geo,j?facet:jade,0,0,0);}
+      add(new T.CylinderGeometry(.16,.20,.09,10),brass,cx,cy-.28,cz);
+      for(const side of [-1,1]){const a=angle+side*.28;strut([Math.cos(a)*1.06,.385,Math.sin(a)*1.06],[cx+Math.cos(a)*.10,cy-.30,cz+Math.sin(a)*.10],.017);}
+    }
+    for(const [radius,y,r,material]of [[1.08,.385,.036,brass],[.97,.42,.014,inlay]]){const ring=add(new T.TorusGeometry(radius,r,6,64),material,0,y,0);ring.rotation.x=Math.PI/2;}
     this.commonLight = new T.PointLight('#a6f9cd', 0, 13, 1.7); this.commonLight.position.set(5, 1.5, 46); group.add(this.commonLight);
-    for (const [x, z, w, d] of [[8.8, 38, .055, 14], [11.2, 38, .055, 14], [5, 29.5, 42, .055]]) this.box(beacon, x - 5, -.54, z - 46, w, .016, d, crystal);
+    for (const [x, z, w, d] of [[8.8, 38, .055, 14], [11.2, 38, .055, 14], [5, 29.5, 42, .055]]) {this.box(beacon,x-5,-.543,z-46,w*2,.013,d,brass);this.box(beacon,x-5,-.533,z-46,w,.010,d,inlay);}
+    this.merge(beacon);
   };
   B.View.prototype.furnaceTube = function (mesh, a, b, radius) {
     const start = new V(a.x, a.y, a.z), end = new V(b.x, b.y, b.z), delta = end.clone().sub(start);

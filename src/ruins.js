@@ -12,9 +12,12 @@
     this.echoModels = B.ECHO_SEALS.map((p, i) => {
       const g = group(p), toward = new V(7 - p.x, 0, 6 - p.z).normalize(); g.quaternion.setFromUnitVectors(new V(0, 0, 1), toward);
       mesh(g, new T.CylinderGeometry(.6, .68, .28, 12), metal).rotation.x = Math.PI / 2;
-      const face = mesh(g, new T.TorusGeometry(.39, .065, 6, 28), copper.clone(), 0, 0, .18);
+      let face = mesh(g, new T.TorusGeometry(.39, .065, 6, 28), copper.clone(), 0, 0, .18);
       for (let n = 0; n <= i; n++) mesh(g, new T.BoxGeometry(.055, .25, .06), face.material, (n - i / 2) * .15, 0, .2);
       const halo = mesh(g, new T.TorusGeometry(.72, .018, 4, 40), face.material); halo.visible = false;
+      const faceMaterial=face.material;
+      B.WorkshopShapes.mergeRigid(g,new Set([halo]));
+      face=g.children.find(n=>n.isMesh&&n.material===faceMaterial);
       return { g, face, halo };
     });
     const vault = group(B.MYSTERIES[0]); this.echoCore = mesh(vault, new T.OctahedronGeometry(.38), copper);
@@ -29,6 +32,7 @@
       const arrow = new T.Group(); g.add(arrow);
       mesh(arrow, new T.BoxGeometry(.45, .04, .055), ring.material, .52, .53, 0);
       mesh(arrow, new T.ConeGeometry(.12, .22, 4), ring.material, .83, .53, 0).rotation.z = -Math.PI / 2;
+      B.WorkshopShapes.mergeRigid(arrow);
       arrow.visible = i < 3;
       if (i === 0) optic.rotation.z = -Math.PI / 2;
       return { g, ring, optic, arrow };

@@ -36,6 +36,9 @@
     this.freightPreview = new T.Group(); this.discovery.add(this.freightPreview);
     this.freightGhost = this.box(this.freightPreview, 0, .8, 0, 1.4, 1.6, 1.4, new T.MeshBasicMaterial({ color: '#87eac1', wireframe: true, transparent: true, opacity: .65, depthWrite: false }));
     this.freightPreview.visible = root.visible = false; this.freightCargoKey = ''; this.freightDrawRevision = -1;
+    B.WorkshopShapes.mergeRigid(this.craneRail,new Set([this.craneTrolley]));
+    B.WorkshopShapes.mergeRigid(this.freightDock,new Set([this.freightLamp]));
+    B.WorkshopShapes.mergeRigid(this.freightCage,new Set([this.freightCargo]));
   };
   B.View.prototype.renderFreight = function (game, time) {
     const freight = game.freight, s = freight.state, root = this.freightModel;

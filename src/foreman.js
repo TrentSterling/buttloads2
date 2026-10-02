@@ -75,15 +75,16 @@
       const beam = this.beam(); if (!beam) return;
       this.state.impact = pos(beam.to);
       // Test the entire standing player against the beam before its impact excavates cover.
-      for (const h of [.3, .85, 1.4]) {
-        const p = { x: player.x, y: player.y + h, z: player.z }, dx = p.x - beam.from.x, dy = p.y - beam.from.y, dz = p.z - beam.from.z, t = dx * beam.direction.x + dy * beam.direction.y + dz * beam.direction.z;
-        if (t > 0 && t <= beam.reach && Math.hypot(dx - beam.direction.x * t, dy - beam.direction.y * t, dz - beam.direction.z * t) < .7) { this.combat.hurt(24); break; }
+      for(const miner of this.combat.crewPlayers?.()||[player])for (const h of [.3, .85, 1.4]) {
+        const p = { x: miner.x, y: miner.y + h, z: miner.z }, dx = p.x - beam.from.x, dy = p.y - beam.from.y, dz = p.z - beam.from.z, t = dx * beam.direction.x + dy * beam.direction.y + dz * beam.direction.z;
+        if (t > 0 && t <= beam.reach && Math.hypot(dx - beam.direction.x * t, dy - beam.direction.y * t, dz - beam.direction.z * t) < .7) { this.combat.hurtFor(24,miner); break; }
       }
       if (beam.hit) this.world.carve(beam.hit, .8);
       this.events.push({ kind: 'jet', point: beam.to });
     }
     step(dt, player) {
       const s = this.state, n = this.core; if (!n) return;
+      player=this.combat.pickPlayer?.(n,player)||player;
       if (s.forgeCooldown > 0) { s.forgeCooldown = Math.max(0, s.forgeCooldown - dt); this.revision++; }
       this.flash = Math.max(0, this.flash - dt); if (s.defeated) return;
       const near = player.y < -264 && distance(player.head, n) < 24;
@@ -97,7 +98,7 @@
       else if (s.phase === 'quake-windup' && s.timer === 0) { s.phase = 'quake'; s.timer = 2.4; this.events.push({ kind: 'quake', point: pos(n) }); }
       else if (s.phase === 'quake') {
         const r = this.quakeRadius();
-        if (player.grounded && Math.abs(Math.hypot(player.x - n.x, player.z - n.z) - r) < .6 && this.quakeReaches(player)) this.combat.hurt(20);
+        for(const miner of this.combat.crewPlayers?.()||[player])if (miner.grounded && Math.abs(Math.hypot(miner.x - n.x, miner.z - n.z) - r) < .6 && this.quakeReaches(miner)) this.combat.hurtFor(20,miner);
         if (s.timer === 0) { s.phase = 'rest'; s.timer = this.broken === 3 ? .9 : 1.5; }
       } else if (s.phase === 'jet' && s.timer === 0) { s.phase = 'rest'; s.timer = this.broken === 3 ? .9 : 1.5; }
     }

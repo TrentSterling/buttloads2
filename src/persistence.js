@@ -136,7 +136,7 @@
     return { format: FORMAT, version: VERSION, generation: game.world.generation || 0, depthVersion: game.world.depthVersion || 0, parcelVersion: game.world.parcelVersion || 0, parcelField: game.world.parcelField ? portable ? encode(game.world.parcelField) : game.world.parcelField.slice() : null, savedAt: new Date().toISOString(), state: structuredClone(game.economy.state), player: { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch }, collected: game.deposits.nodes.filter(n => n.collected).map(n => n.id), loose: game.orePhysics ? game.orePhysics.snapshot() : [], settings: { ...game.settings }, field: portable ? encode(game.world.field) : game.world.field.slice() };
   }
   class SaveStore {
-    constructor() { this.db = null; this.pending = Promise.resolve(); }
+    constructor() { this.db = null; this.pending = Promise.resolve(); this.key = 'current'; }
     open() {
       if (this.db) return this.db;
       this.db = new Promise((resolve, reject) => {
@@ -147,12 +147,13 @@
       });
       return this.db;
     }
-    async read() { const db = await this.open(); return new Promise((resolve, reject) => { const request = db.transaction('saves').objectStore('saves').get('current'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
+    async read(key = this.key) { const db = await this.open(); return new Promise((resolve, reject) => { const request = db.transaction('saves').objectStore('saves').get(key); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
     write(data) {
       // Serialize immutable snapshots so a late old write cannot overwrite a new claim.
+      const key = this.key;
       const job = this.pending.catch(() => {}).then(async () => {
         const db = await this.open();
-        await new Promise((resolve, reject) => { const tx = db.transaction('saves', 'readwrite'); tx.objectStore('saves').put(data, 'current'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Save transaction aborted.')); });
+        await new Promise((resolve, reject) => { const tx = db.transaction('saves', 'readwrite'); tx.objectStore('saves').put(data, key); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Save transaction aborted.')); });
       });
       this.pending = job; return job;
     }

@@ -91,6 +91,17 @@
    const split=result.split=new T.Group();root.add(split);
    for(let i=0;i<4;i++){const b=box(split,(i%2?1:-1)*.11,-.29+i*.135,.537,.14,.027,.018,dark);b.rotation.z=i%2?.65:-.4;}
   }
-  merge(frame);return result;
+  merge(frame);
+  const independent=new Set([...result.shutters,...result.indicators]);
+  if(result.ram){
+   B.WorkshopShapes.mergeRigid(result.ram);
+   for(const part of [result.ram,result.head,result.shock])independent.add(part);
+   for(const needle of result.indicators)independent.add(needle.userData.lamp);
+  }else{
+   for(const part of [result.valve,result.needle,result.split])independent.add(part);
+   B.WorkshopShapes.mergeRigid(result.split);
+  }
+  B.WorkshopShapes.mergeRigid(root,independent,true);
+  return result;
  };
 })(B2);

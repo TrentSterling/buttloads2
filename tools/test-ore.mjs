@@ -30,6 +30,16 @@ test('sleeping ore falls again when its landing surface is excavated', () => {
   const y = node.y; world.carve({ x: node.x, y: y - 1, z: node.z }, 2);
   assert.equal(node.motion, 'falling'); simulate(system, .5); assert.ok(node.y < y - .5);
 });
+test('a mineral wedged between sloping faces sleeps, performs no idle sweeps and wakes when support changes', () => {
+  let cut=0,calls=0;
+  const w=field((x,y,z)=>{calls++;return Math.min(y+.6*x,y-.6*x)+cut;});w.onEdit=()=>{};
+  const n=ore(0,2,0,1),s=new B.OreSystem(w,[n]);simulate(s,3);
+  assert.equal(n.motion,'resting');assert.equal(s.awake.size,0);
+  assert.ok(s.contact(n).density>=-.0041);
+  const asleepCalls=calls,y=n.y;simulate(s,2);assert.equal(calls,asleepCalls);assert.equal(n.y,y);
+  cut=2;w.onEdit({x:n.x,y:n.y,z:n.z},2);assert.equal(n.motion,'falling');assert.equal(n.stillTime,0);
+  simulate(s,.3);assert.ok(n.y<y-.5);
+});
 test('pickup and scanner spatial queries track new positions across cell boundaries', () => {
   assert.ok(system.index.query(node.x, node.y, node.z, .1).includes(node));
   assert.ok(!system.index.query(0, -2, 0, 1).includes(node));
@@ -86,17 +96,18 @@ const require = createRequire(import.meta.url); globalThis.THREE = require(path.
 vm.runInThisContext(fs.readFileSync(path.join(root, 'src/render.js'), 'utf8'));
 const view = Object.create(B.View.prototype); view.resources = new THREE.Group(); const renderNodes = [ore(0, 1, 0), ore(1, 2, 0, 1, 4), ore(2, 3, 0, 2, 2)]; view.setDeposits({ nodes: renderNodes });
 test('collision support points match rendered ore geometry, including elongated prisms', () => {
-  const vertices = view.oreMesh.geometry.attributes.position, matrix = new THREE.Matrix4(), v = new THREE.Vector3();
+  const matrix = new THREE.Matrix4(), v = new THREE.Vector3();
   for (const n of renderNodes) {
-    view.oreMesh.getMatrixAt(n.id, matrix); const offsets = B.oreOffsets(n);
+    const {mesh,index}=view.oreSlots.get(n.id),vertices=mesh.geometry.attributes.position;
+    mesh.getMatrixAt(index, matrix); const offsets = B.oreOffsets(n);
     for (let i = 0; i < vertices.count; i++) { v.fromBufferAttribute(vertices, i).applyMatrix4(matrix); assert.ok(offsets.some(p => Math.hypot(v.x - n.x - p[0], v.y - n.y - p[1], v.z - n.z - p[2]) < 1e-6), 'collision vertex differs from instance geometry'); }
   }
 });
 test('ore and scanner instance buffers follow falling ore and hide collected ore', () => {
   const n = renderNodes[0], matrix = new THREE.Matrix4(); view.scan(renderNodes, null); n.y = -7; view.updateOre(n);
-  view.oreMesh.getMatrixAt(n.id, matrix); assert.equal(matrix.elements[13], -7);
+  const slot=view.oreSlots.get(n.id);slot.mesh.getMatrixAt(slot.index, matrix); assert.equal(matrix.elements[13], -7);
   view.ghosts.getMatrixAt(view.ghostSlots.get(n.id), matrix); assert.equal(matrix.elements[13], -7);
-  n.collected = true; view.updateOre(n); view.oreMesh.getMatrixAt(n.id, matrix); assert.equal(matrix.determinant(), 0);
+  n.collected = true; view.updateOre(n); slot.mesh.getMatrixAt(slot.index, matrix); assert.equal(matrix.determinant(), 0);
   view.ghosts.getMatrixAt(view.ghostSlots.get(n.id), matrix); assert.equal(matrix.determinant(), 0);
   view.scan(renderNodes, null); assert.equal(view.ghosts.count, 2); assert.ok(!view.ghostSlots.has(n.id));
 });

@@ -90,7 +90,7 @@ try{
    g.settings.motion=false;v.render(g,1/60,2);assert.equal(mode==='scoop'?v.scoopHead.rotation.x:v.lanceStriker.position.z,0);g.settings.motion=true;
   }
   assert.deepEqual([g.player.yaw,g.player.pitch],look);
-  for(const root of [v.scoopHead,v.lanceHead]){let count=0;root.traverse(n=>{if(n.geometry){count++;assert.ok([...n.geometry.attributes.position.array,...n.geometry.attributes.normal.array].every(Number.isFinite));}});assert.ok(count>=10);}
+  for(const root of [v.scoopHead,v.lanceHead]){let triangles=0;root.traverse(n=>{if(n.geometry){triangles+=(n.geometry.index?.count||n.geometry.attributes.position.count)/3;assert.ok([...n.geometry.attributes.position.array,...n.geometry.attributes.normal.array].every(Number.isFinite));}});assert.ok(triangles>=200,'attachment geometry must retain its formed surfaces after material batching');}
   g.clearInput();g.setScreen('pause');v.render(g,0,2);assert.equal(v.miningMarks.visible,false);
  });
  await test('cut percussion is bounded and distinct at standard audio device rates',()=>{

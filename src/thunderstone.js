@@ -70,10 +70,13 @@
       const action = this.interaction(player); if (!action || action.id !== id || action.locked) return false;
       this.consume(this.nodes[id]); this.progress.expedition.supplies.bombs++; this.save(); return true;
     }
+    consumePulse(expedition) {
+      if (expedition.pulseSerial !== this.lastPulse) { this.lastPulse = expedition.pulseSerial; if (expedition.lastPulse) this.ignite(expedition.lastPulse); }
+    }
     update(dt, game) {
       const before = this.revision, gadgets = game.gadgets;
       for (const b of gadgets.blasts) if (b.serial > this.lastBlast) { this.lastBlast = b.serial; this.ignite(b); }
-      if (game.expedition.pulseSerial !== this.lastPulse) { this.lastPulse = game.expedition.pulseSerial; if (game.expedition.lastPulse) this.ignite(game.expedition.lastPulse); }
+      this.consumePulse(game.expedition);
       this.accumulator += Math.min(.1, dt);
       while (this.accumulator + 1e-10 >= 1 / 120) {
         this.accumulator -= 1 / 120; this.time += 1 / 120;

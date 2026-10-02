@@ -43,16 +43,16 @@
       if (this.state.phase === 'held') return 'Winch held. E at the intercom resumes the lift.';
       return this.blockedBy || 'Winch lifting. Keep the shaft clear and stand beside the bell.';
     }
-    update(dt, player, boxes = []) {
+    update(dt, player, boxes = [], players = [player]) {
       const s = this.state; let changed = false;
-      if (!s.known && distance(player.head, this.position) < 6 && this.world.clearLine(player.head, this.position, .1)) { s.known = true; changed = true; }
+      if (!s.known && players.some(p=>distance(p.head, this.position) < 6 && this.world.clearLine(p.head, this.position, .1))) { s.known = true; changed = true; }
       if (s.phase !== 'hoisting') { this.accumulator = 0; this.obstruction = null; this.blockedBy = ''; return changed; }
       this.accumulator += Math.min(.1, dt); this.obstruction = null; this.blockedBy = '';
       while (this.accumulator + 1e-10 >= 1 / 120) {
         this.accumulator -= 1 / 120;
         const y = Math.min(BELL.top, s.y + BELL.speed / 120), hit = this.contact(y);
         if (hit.density < -.004) { this.obstruction = hit; this.blockedBy = 'Rock above the bell. Cut at the orange marker.'; break; }
-        if (Math.abs(player.x - BELL.x) < .75 + player.radius && Math.abs(player.z - BELL.z) < .75 + player.radius && player.y < y + 1.25 && player.y + player.height > y - 1.25) { this.blockedBy = 'Stand clear of the rising bell.'; break; }
+        if (players.some(p=>Math.abs(p.x - BELL.x) < .75 + p.radius && Math.abs(p.z - BELL.z) < .75 + p.radius && p.y < y + 1.25 && p.y + p.height > y - 1.25)) { this.blockedBy = 'Stand clear of the rising bell.'; break; }
         if (boxes.some(b => BELL.x + .75 > b[0] && BELL.x - .75 < b[3] && y + 1.25 > b[1] && y - 1.25 < b[4] && BELL.z + .75 > b[2] && BELL.z - .75 < b[5])) { this.blockedBy = 'Equipment blocks the bell. Move it or widen another route.'; break; }
         s.y = y; changed = true;
         if (y >= BELL.top) {

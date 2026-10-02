@@ -45,7 +45,7 @@
   this.palette.leaf.color.set('#526e49').convertSRGBToLinear();
   this.palette.leafLight=this.palette.leaf.clone();this.palette.leafLight.color.set('#7e9254').convertSRGBToLinear();
   this.palette.leafShade=this.palette.leaf.clone();this.palette.leafShade.color.set('#3c5846').convertSRGBToLinear();
-  this.sun.position.set(-38,52,12);this.sun.target.position.set(0,0,22);this.scene.add(this.sun.target);
+  this.sun.position.set(-38,52,-18);this.sun.target.position.set(0,0,22);this.scene.add(this.sun.target);
   Object.assign(this.sun.shadow.camera,{left:-66,right:66,top:66,bottom:-66,near:1,far:155});this.sun.shadow.camera.updateProjectionMatrix();
   const color=x=>new T.Color(x).convertSRGBToLinear();
   const mat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,uniforms:{zenith:{value:color(B.SKY_LOOK.zenith)},horizon:{value:color(B.SKY_LOOK.horizon)},sunColor:{value:color(B.SKY_LOOK.sun)},sunDirection:{value:this.sun.position.clone().sub(this.sun.target.position).normalize()},daylight:{value:1},deepFog:{value:new T.Color()}},
@@ -79,13 +79,14 @@
   root.userData.formation=theme===0&&!ceiling?'lantern-cap':theme===1&&ceiling?'chalk-roots':'mineral-cluster';
   const add=(geometry,material,x,y,z)=>{const m=new T.Mesh(geometry,material);m.position.set(x,y,z);root.add(m);return m;};
   if(theme===0&&!ceiling){
-   add(new T.CylinderGeometry(radius*.18,radius*.28,height*.7,7),growth,0,height*.35,0);
-   const cap=add(new T.SphereGeometry(radius*1.6,10,5,0,Math.PI*2,0,Math.PI/2),glow,0,height*.7,0);cap.scale.y=.42;
-   add(new T.CylinderGeometry(radius*1.5,radius*.9,.045,10),growth,0,height*.69,0);
+   const forms=B.CaveForms.fungus(radius,height,root.position.x*.73+root.position.z*1.17);
+   add(forms.stem,growth,0,height*.35,0);
+   const cap=add(forms.cap,glow,0,height*.7,0);cap.scale.y=.42;
+   add(forms.gills,growth,0,height*.69,0);
   }else if(theme===1&&ceiling){
    for(let i=0;i<3;i++){const points=[];for(let j=0;j<9;j++){const t=j/8;points.push(new T.Vector3(Math.sin(t*4+i)*t*radius,-t*height*(1-i*.16),Math.cos(t*3+i)*t*radius));}add(new T.TubeGeometry(new T.CatmullRomCurve3(points),12,.025+i*.006,5,false),growth,0,0,0);}
   }else{
-   for(let i=0;i<3;i++){const h=height*(1-i*.23),m=add(new T.ConeGeometry(radius*(i? .58:1),h,theme===2?6:5),i===0?growth:glow,(i-1)*radius*.42,(ceiling?-1:1)*h*.45,0);m.rotation.z=(ceiling?Math.PI:0)+(i-1)*.16;}
+   for(let i=0;i<3;i++){const h=height*(1-i*.23),seed=root.position.x*.73+root.position.z*1.17+i*2.8,m=add(B.CaveForms.ordinary(radius*(i? .58:1),h,seed,ceiling?'drop':'prism'),i===0?growth:glow,(i-1)*radius*.42,(ceiling?-1:1)*h*.45,0);m.rotation.z=(ceiling?Math.PI:0)+(i-1)*.16;}
   }
  };
 })(B2);

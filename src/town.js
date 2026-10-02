@@ -48,6 +48,22 @@
     else out.push([x0, 0, z0, b.x - 1.3, b.h, z0 + t], [b.x + 1.3, 0, z0, x1, b.h, z0 + t], [b.x - 1.3, 2.65, z0, b.x + 1.3, b.h, z0 + t]);
     return out;
   }
+  function roof(b){const rise=Math.min(1.65,b.w*.16);return {x:b.x,eave:b.h+.22,ridge:b.h+.305+rise,rise,reach:b.w/2+.48,depth:b.d+1.1};}
+  const WELL=Object.freeze({x:5,z:46,inner:.86,outer:1.3,top:.95});
+  function benches(){return [{x:5,y:0,z:42.5,width:3,depth:.64,back:-1},{x:5,y:0,z:50,width:3,depth:.64,back:1},{x:39.2,y:Math.max(height(38.2,48),height(40.2,48)),z:48,width:2.6,depth:.65,back:1}];}
+  function furnitureObstacles(){
+    const out=[];
+    for(let i=0;i<16;i++){
+      const a=i*Math.PI/8,b=(i+1)*Math.PI/8,p=[];
+      for(const r of [WELL.inner,WELL.outer])for(const t of [a,b])p.push([WELL.x+Math.cos(t)*r,WELL.z+Math.sin(t)*r]);
+      out.push([Math.min(...p.map(q=>q[0])),0,Math.min(...p.map(q=>q[1])),Math.max(...p.map(q=>q[0])),WELL.top,Math.max(...p.map(q=>q[1]))]);
+    }
+    for(const b of benches()){
+      out.push([b.x-b.width/2,b.y,b.z-b.depth/2,b.x+b.width/2,b.y+.55,b.z+b.depth/2]);
+      const z=b.z+b.back*.335;out.push([b.x-b.width/2,b.y+.55,z-.10,b.x+b.width/2,b.y+1.16,z+.10]);
+    }
+    return out;
+  }
   const FENCES = [[-21.1, 0, -21.1, -20.9, 1.9, -7], [-21.1, 0, -1, -20.9, 1.9, 21], [48.9, 0, -21, 49.1, 1.9, -1], [20.9, 0, 7, 21.1, 1.9, 21], [-21, 0, -21.1, -3, 1.9, -20.9], [3, 0, -21.1, 21, 1.9, -20.9]];
   // Segment/AABB test with open endpoints, so a target on a counter is visible.
   function blockedLine(a, b, boxes) {
@@ -70,7 +86,14 @@
       return { version: 1, met: [...s.met], heard: [...s.heard] };
     }
     static obstacles() {
-      return [...BUILDINGS.flatMap(b => [...walls(b), [b.x - b.w / 2 - .4, b.h, b.z - b.d / 2 - .6, b.x + b.w / 2 + .4, b.h + .28, b.z + b.d / 2 + .5]]), ...PEOPLE.filter(p=>p.unlock!=='fossil').flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], ...(p.unlock ? [] : [[p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]])]), ...FENCES, [30.25,0,-.8,30.55,2.5,-.4], [35.45,0,-.8,35.75,2.5,-.4], [30.2,1.05,-.7,35.8,2.3,-.5], [3.7, 0, 44.7, 6.3, .95, 47.3]];
+      const buildings=BUILDINGS.flatMap(b => {
+        const r=roof(b),front=b.z-b.d/2;
+        return [...walls(b),
+          Object.assign([b.x-r.reach,b.h,b.z-r.depth/2,b.x+r.reach,r.ridge,b.z+r.depth/2],{roof:r}),
+          [b.x-b.w/2-.24,b.h-.66,front-1.85,b.x+b.w/2+.24,b.h-.54,front+.13],
+          ...[-1,1].map(side=>{const x=b.x+side*(b.w/2-.15),z=front-.96;return [x-.10,0,z-.10,x+.10,b.h-.65,z+.10];})];
+      });
+      return [...buildings, ...PEOPLE.filter(p=>p.unlock!=='fossil').flatMap(p => [[p.x - 2.4, 0, p.z - 1.15, p.x + 2.4, 1.08, p.z - .35], ...(p.unlock ? [] : [[p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]])]), ...FENCES, [30.25,0,-.8,30.55,2.5,-.4], [35.45,0,-.8,35.75,2.5,-.4], [30.2,1.05,-.7,35.8,2.3,-.5], ...furnitureObstacles()];
     }
     people() { return PEOPLE.filter(p => !p.unlock || (p.unlock==='rescue' ? this.progress.expedition.rescue?.phase === 'rescued' : this.progress.expedition.fossil?.recovered)); }
     residentObstacles() { const boxes=this.people().filter(p => p.unlock).map(p => [p.x - .32, 0, p.z - .28, p.x + .32, 1.94, p.z + .28]); if(this.progress.expedition.fossil?.recovered)boxes.push([-8.4,0,50.25,-3.6,1.08,51.05],[-8.55,0,50.2,-8.3,2.7,51.8],[-3.7,0,50.2,-3.45,2.7,51.8],[-8.6,2.6,49.8,-3.4,2.9,52]);return boxes; }
@@ -138,5 +161,5 @@
       return s.expedition.recovered.includes(0) ? 'Crane docks need open ground below the surface. Hold T to find a spot. The cage needs a clear shaft all the way up. An orange marker shows the rock holding it back.' : 'Expose the survey flywheel on every side before attaching your tether with E. It is wider than you are. Cut a route that fits the machine, then lift it home with Space.';
     }
   }
-  Object.assign(B, { SURFACE, COMMON, Town, TOWN: { people: PEOPLE, buildings: BUILDINGS, walls, fences: FENCES, blockedLine } });
+  Object.assign(B, { SURFACE, COMMON, Town, TOWN: { people: PEOPLE, buildings: BUILDINGS, walls, roof, well:WELL, benches, furnitureObstacles, fences: FENCES, blockedLine } });
 })(B2);

@@ -3,6 +3,27 @@
 globalThis.B2 = globalThis.B2 || {};
 (function (B) {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // Compare the live model, including browser-normalized HTML/CSS. External edits
+  // still get repaired; unchanged values retain their text nodes and attributes.
+  const htmlValues = new WeakMap(), styleValues = new WeakMap();
+  const DOM = Object.freeze({
+    text(node, value) { value = String(value); if (node.textContent !== value) node.textContent = value; },
+    html(node, value) {
+      value = String(value); const current = node.innerHTML, prior = htmlValues.get(node);
+      if (current === value || prior?.requested === value && prior.applied === current) return;
+      node.innerHTML = value; htmlValues.set(node, { requested: value, applied: node.innerHTML });
+    },
+    prop(node, key, value) { value = key === 'hidden' || key === 'disabled' ? !!value : String(value); if (node[key] !== value) node[key] = value; },
+    attr(node, key, value) { value = String(value); if (node.getAttribute(key) !== value) node.setAttribute(key, value); },
+    klass(node, key, value) { value = !!value; if (node.classList.contains(key) !== value) node.classList.toggle(key, value); },
+    style(node, key, value) {
+      value = String(value); const style = node.style, custom = key.startsWith('--'), current = custom ? style.getPropertyValue(key) : style[key], prior = styleValues.get(style)?.get(key);
+      if (current === value || prior?.requested === value && prior.applied === current) return;
+      if (custom) style.setProperty(key, value); else style[key] = value;
+      let values = styleValues.get(style); if (!values) styleValues.set(style, values = new Map());
+      values.set(key, { requested: value, applied: custom ? style.getPropertyValue(key) : style[key] });
+    }
+  });
   function random(seed) {
     let s = seed >>> 0;
     return () => { s += 0x6d2b79f5; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -145,5 +166,5 @@ globalThis.B2 = globalThis.B2 || {};
       return out;
     }
   }
-  Object.assign(B, { clamp, random, WORLD, ORES, GEAR, RELICS, CONTRACTS, freshState, Economy, geology, generateDeposits, SpatialIndex });
+  Object.assign(B, { DOM, clamp, random, WORLD, ORES, GEAR, RELICS, CONTRACTS, freshState, Economy, geology, generateDeposits, SpatialIndex });
 })(B2);

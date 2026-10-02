@@ -1,5 +1,9 @@
 # Remake verification
 
+## Connected cliff shapes, 2.56.0
+
+The latest [connected cliff reconstruction](CLIFF-SHAPES.md) replaces layered wave forms with five closed fractured surfaces and quieter interrupted strata. All 570 system checks pass. Ten matched native views retain cameras, contacts and refreshed-shadow draws; five expose faces/quarters, two show skyline only and three provide context. Ridge detail adds 9,864 triangles while exact complete-record indexing reduces geometry buffers by 322,120 bytes. One mesh and the existing texture allocation remain. The nine-slide review retains failed slabs, peaks, edge topology, a fin and blotchy texture. Fresh before/after/repeated-before profiles retain frame p95 around 16.8 ms under competing work. Broad panels, angular crests, sparse hills, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.
+
 ## Nearby rock surfaces, 2.55.0
 
 The latest [nearby rock surface reconstruction](ROCK-SURFACES.md) adds rounded shoulders and irregular geometry relief to five existing outcrop groups. All 570 system checks pass. Eleven matched native pairs retain contacts, placements and refreshed-shadow draws; eight provide useful rock views, one is a yard control and two are obstructed. Complete record indexing offsets the detail: 11,936 more model triangles and 139,112 fewer common geometry bytes, with no added batch, material, texture or light. The nine-slide review retains rejected courses, a slight candidate and nonshipping diagnostics. Thin dark creases, broad faces, the wider landscape, physical Firefox feel, quiet-machine FPS and separate-network co-op remain open.

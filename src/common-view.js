@@ -615,45 +615,80 @@
   const strataCanvas=document.createElement('canvas');strataCanvas.width=128;strataCanvas.height=256;
   const strataContext=strataCanvas.getContext('2d'),strataRandom=B.random(581302),strataPixels=strataContext.createImageData(128,256);
   for(let z=0;z<256;z++)for(let x=0;x<128;x++){
-   const warp=3*Math.sin(x*.052)+1.6*Math.sin(x*.13+z*.01),beds=[3,23,61,112,159,203,237];
-   const seam=Math.max(...beds.map((bed,n)=>Math.exp(-Math.pow((z+warp+Math.sin(x*.021+n)*2-bed)/(n%3?1.2:2.1),2))));
-   const tone=Math.round(231-29*seam+4*Math.sin(z*.09)+(strataRandom()-.5)*12),i=(z*128+x)*4;
-   strataPixels.data.set([tone,tone,tone,255],i);
+   const warp=.8*Math.sin(x*.052)+.4*Math.sin(x*.13+z*.01),beds=[3,23,61,112,159,203,237];
+   const seam=Math.max(...beds.map((bed,n)=>Math.exp(-Math.pow((z+warp+Math.sin(x*.021+n)*2-bed)/(n%3?1.2:2.1),2))*(.28+.72*fade(.20,.75,groundNoise(x*.032+n*7,z*.02+13)))));
+   const patina=fade(.36,.85,groundNoise(x*.07,z*.016)*.7+groundNoise(x*.12,z*.04)*.3),oxide=fade(.65,.88,groundNoise(x*.05+17,z*.08+4));
+   const tone=Math.round(224-13*patina-15*seam+(strataRandom()-.5)*18),i=(z*128+x)*4;
+   strataPixels.data.set([tone+6*oxide,tone-3*oxide,tone-11*oxide,255],i);
   }
   strataContext.putImageData(strataPixels,0,0);const strataTexture=new T.CanvasTexture(strataCanvas);strataTexture.wrapS=strataTexture.wrapT=T.RepeatWrapping;strataTexture.encoding=T.sRGBEncoding;
   ridgeMaterial.map=strataTexture;ridgeMaterial.bumpMap=strataTexture;ridgeMaterial.bumpScale=.055;
+  const cliffCells=12,cliffStride=cliffCells+1,cliffTetrahedra=[[0,1,3,7],[0,1,5,7],[0,2,3,7],[0,2,6,7],[0,4,5,7],[0,4,6,7]];
   for(const [variant,[cx,cz,rx,rz,rise,phase]]of [[-99,25,18,23,17,.3],[-47,-101,27,19,19,1.8],[92,-48,23,16,22,3.1],[58,108,31,16,14,.8],[-80,98,19,15,18,2.2]].entries()){
-   const bands=[0,.24,.43,.53,.62,.65,.66,.72,.75,.82,.91,1],levels=[0,.55,.94,1,1,.61,.60,.56,.22,.13,.05,0],surfaceBands=[0,0,0,1,2,3,3,4,5,5,5];
-   const rows=bands.length-1,cols=72,points=[],towardX=-cx/Math.hypot(cx,cz),towardZ=-cz/Math.hypot(cx,cz);
-   const crestNoise=t=>{const i=Math.floor(t),f=t-i;return 2*(groundNoise(i*1.7+phase*19,phase*3.1)*(1-f)+groundNoise((i+1)*1.7+phase*19,phase*3.1)*f)-1;};
-   const erosion=B.random(284831+variant*197),ravines=Array.from({length:[3,1,4,2,3][variant]},()=>({s:-.62+erosion()*1.24,width:.04+erosion()*.09,depth:.13+erosion()*.24,bend:(erosion()-.5)*.10}));
-   for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++){
-    const s=i/cols*2-1;let qmin=-Infinity,qmax=Infinity;
-    for(const [axis,offset]of [[towardX,-s*towardZ],[towardZ,s*towardX]]){if(Math.abs(axis)<1e-8)continue;const a=(-1-offset)/axis,b=(1-offset)/axis;qmin=Math.max(qmin,Math.min(a,b));qmax=Math.min(qmax,Math.max(a,b));}
-    const fraction=bands[j]+(j>2&&j<9?.025*crestNoise(s*7+phase):0),q=qmin+(qmax-qmin)*fraction,u=q*towardX-s*towardZ,v=q*towardZ+s*towardX,x=cx+u*rx,z=cz+v*rz;
-    const ends=Math.pow(Math.max(0,1-Math.pow(Math.abs(s),8)),.28);
-    const top=.84+.11*crestNoise(s*3+phase)+.055*crestNoise(s*11-phase);
-    const ravine=Math.min(.58,ravines.reduce((value,r)=>value+r.depth*Math.exp(-Math.pow((s-r.s-r.bend*Math.sin(q*3+phase))/r.width,2)),0));
-    const profile=ends*top*levels[j]*(1-ravine*(j<8?1:.5));
-    points.push([x,height(x,z)-.25+rise*profile,z]);
+   const towardX=-cx/Math.hypot(cx,cz),towardZ=-cz/Math.hypot(cx,cz),fracture=B.random(548702+variant*479);
+   // Embed the lowest face beneath the shared two-metre terrain grid. A
+   // fixed rock datum keeps hills from pulling the crest into thin blades.
+   let floor=Infinity;for(let z=Math.floor((cz-rz)/2)*2;z<=Math.ceil((cz+rz)/2)*2;z+=2)for(let x=Math.floor((cx-rx)/2)*2;x<=Math.ceil((cx+rx)/2)*2;x+=2)floor=Math.min(floor,height(x,z));
+   const datum=floor-.5,vertical=rise+height(cx,cz)-datum;
+   const crests=[
+    [[-1,.18],[-.82,.80],[-.40,.94],[-.15,.82],[.35,.85],[.56,.63],[.83,.64],[1,.14]],
+    [[-1,.13],[-.81,.58],[-.53,.74],[-.33,.72],[.13,.94],[.58,.84],[.84,.78],[1,.18]],
+    [[-1,.20],[-.82,.78],[-.34,.93],[-.07,.77],[.31,.78],[.58,.63],[.85,.65],[1,.17]],
+    [[-1,.12],[-.83,.66],[-.42,.69],[-.14,.87],[.26,.93],[.55,.69],[.81,.58],[1,.12]],
+    [[-1,.17],[-.81,.84],[-.34,.90],[-.06,.74],[.36,.76],[.59,.60],[.85,.49],[1,.12]]
+   ][variant];
+   crests[1][1]=[.36,.30,.34,.26,.32][variant];crests[crests.length-2][1]=[.31,.45,.26,.35,.23][variant];
+   const joints=Array.from({length:2},(_,i)=>({s:-.48+i*.82+fracture()*.12,lean:(fracture()-.5)*.22,width:.08+fracture()*.055,depth:.07+fracture()*.055,floor:.20+fracture()*.22}));
+   // Sample one continuous solid. Oblique cuts erode the front and crest;
+   // the same field joins the broad foot without intersecting cap meshes.
+   const density=(u,h,v)=>{
+    const q=u*towardX+v*towardZ,s=-u*towardZ+v*towardX;
+    let k=0;while(k<crests.length-2&&s>crests[k+1][0])k++;
+    const t=B.clamp((s-crests[k][0])/(crests[k+1][0]-crests[k][0]),0,1),top=crests[k][1]*(1-t)+crests[k+1][1]*t-.035*q;
+    const weather=.025*(groundNoise(u*4+phase*5,v*4)-.5)+.010*(groundNoise(u*9+h*.6,v*9-phase*3)-.5);
+    const front=.59-.14*h+.13*Math.sin(s*4+phase)+.06*Math.sin(s*9+phase*2);
+    const footprint=Math.max(Math.abs(u)-.92,Math.abs(v)-.92,Math.abs(s)-.94,Math.abs(u)+Math.abs(v)-(1.52-.10*h),-.76-q);
+    let rock=Math.max(footprint,h-top,q-front,-.08-h)-weather;
+    for(const j of joints){const gap=j.width-Math.abs(s-j.s-j.lean*h-.09*q);rock=Math.max(rock,Math.min(gap,q-front+j.depth,h-j.floor));}
+    const foot=Math.max(footprint+.005,q-.87,h-(.08-.045*q-.015*Math.abs(s)),-.10-h)-weather*.7;
+    return Math.min(rock,foot);
+   };
+   const points=[],indices=[],cuts=new Map(),sampleCount=cliffStride**3,samples=new Float64Array(sampleCount),locations=[];
+   const sampleId=(x,y,z)=>x+(y+z*cliffStride)*cliffStride;
+   for(let z=0;z<=cliffCells;z++)for(let y=0;y<=cliffCells;y++)for(let x=0;x<=cliffCells;x++){
+    const u=x/cliffCells*2-1,h=y/cliffCells*1.3-.15,v=z/cliffCells*2-1,id=sampleId(x,y,z),d=density(u,h,v);
+    samples[id]=Math.abs(d)<1e-5?(d<0?-1e-5:1e-5):d;locations[id]=[cx+rx*u,datum+vertical*h,cz+rz*v];
    }
-   const shared=new T.BufferGeometry(),indices=[],colors=[],uv=[];shared.setAttribute('position',new T.Float32BufferAttribute(points.flat(),3));
-   for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,b,c,b,d,c);}
-   shared.setIndex(indices);shared.computeVertexNormals();const normals=shared.attributes.normal;
-   this.ridgeBounds.push([cx-rx,cz-rz,cx+rx,cz+rz]);
-   for(let k=0;k<points.length;k++){
-    ridgeColor.copy(ridgeStone).lerp(ridgeMoss,fade(.60,.91,normals.getY(k))).multiplyScalar(.94+.06*Math.sin(points[k][0]*.13+points[k][2]*.18+phase));colors.push(ridgeColor.r,ridgeColor.g,ridgeColor.b);uv.push((points[k][0]+points[k][2])*.07,points[k][1]*.085);
+   // Every cube uses the same six tetrahedra and face diagonals. Cuts on a
+   // shared sample edge retain one position through the whole closed solid.
+   const cut=(a,b)=>{
+    const key=Math.min(a,b)+sampleCount*Math.max(a,b);let id=cuts.get(key);if(id!==undefined)return id;
+    const t=samples[a]/(samples[a]-samples[b]);id=points.length/3;cuts.set(key,id);for(let k=0;k<3;k++)points.push(Math.fround(locations[a][k]+(locations[b][k]-locations[a][k])*t));return id;
+   };
+   const emit=(a,b,c,outside)=>{
+    const p=new T.Vector3(...points.slice(a*3,a*3+3)),area=new T.Vector3(...points.slice(b*3,b*3+3)).sub(p).cross(new T.Vector3(...points.slice(c*3,c*3+3)).sub(p));
+    if(area.lengthSq()===0)return;if(area.dot(new T.Vector3(...outside).sub(p))<0)[b,c]=[c,b];indices.push(a,b,c);
+   };
+   for(let z=0;z<cliffCells;z++)for(let y=0;y<cliffCells;y++)for(let x=0;x<cliffCells;x++){
+    const corners=Array.from({length:8},(_,c)=>sampleId(x+(c&1),y+((c>>1)&1),z+(c>>2)));
+    for(const tetra of cliffTetrahedra){const inside=[],outside=[];for(const c of tetra)(samples[corners[c]]<0?inside:outside).push(corners[c]);if(!inside.length||!outside.length)continue;
+     const witness=outside.reduce((v,id)=>v.map((n,k)=>n+locations[id][k]),[0,0,0]).map(n=>n/outside.length);
+     if(inside.length===1)emit(cut(inside[0],outside[0]),cut(inside[0],outside[1]),cut(inside[0],outside[2]),witness);
+     else if(outside.length===1)emit(cut(outside[0],inside[0]),cut(outside[0],inside[1]),cut(outside[0],inside[2]),witness);
+     else{const a=cut(inside[0],outside[0]),b=cut(inside[1],outside[0]),c=cut(inside[1],outside[1]),d=cut(inside[0],outside[1]);emit(a,b,d,witness);emit(b,c,d,witness);}
+    }
    }
-   shared.setAttribute('color',new T.Float32BufferAttribute(colors,3));shared.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
-   // Adjacent quads follow the actual bed boundaries. Crease only those
-   // boundaries, so grid diagonals cannot turn into false vertical ribs.
-   const adjacent=Array.from({length:points.length},()=>[]),faces=[];
-   for(let i=0;i<indices.length;i+=3){const a=new T.Vector3(...points[indices[i]]),area=new T.Vector3(...points[indices[i+1]]).sub(a).cross(new T.Vector3(...points[indices[i+2]]).sub(a)),band=surfaceBands[Math.floor(i/(cols*6))];faces.push({area,band});for(let k=0;k<3;k++)adjacent[indices[i+k]].push(i/3);}
-   const creased=shared.toNonIndexed(),creasedNormals=creased.attributes.normal;
-   for(let i=0;i<indices.length;i++){const normal=new T.Vector3(),face=faces[Math.floor(i/3)];for(const j of adjacent[indices[i]])if(face.band===faces[j].band)normal.add(faces[j].area);normal.normalize();creasedNormals.setXYZ(i,normal.x,normal.y,normal.z);}
-   shared.dispose();const mesh=new T.Mesh(creased,ridgeMaterial);mesh.receiveShadow=true;ridge.add(mesh);
+   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(points,3));geo.setIndex(indices);geo.computeVertexNormals();
+   // Preserve genuinely sharp folds. Average only incident faces that point
+   // into the same hemisphere as this face; inverted lighting is never valid.
+   const adjacent=Array.from({length:points.length/3},()=>[]),areas=[];
+   for(let i=0;i<indices.length;i+=3){const a=new T.Vector3(...points.slice(indices[i]*3,indices[i]*3+3)),area=new T.Vector3(...points.slice(indices[i+1]*3,indices[i+1]*3+3)).sub(a).cross(new T.Vector3(...points.slice(indices[i+2]*3,indices[i+2]*3+3)).sub(a));areas.push(area);for(let k=0;k<3;k++)adjacent[indices[i+k]].push(i/3);}
+   const creased=geo.toNonIndexed(),normals=creased.attributes.normal,colors=[],uv=[],unitAreas=areas.map(area=>area.clone().normalize()),averagedNormal=new T.Vector3();
+   for(let i=0;i<indices.length;i++){const id=indices[i],own=unitAreas[Math.floor(i/3)],normal=averagedNormal.set(0,0,0);for(const f of adjacent[id])if(unitAreas[f].dot(own)>.85)normal.add(areas[f]);normal.normalize();normals.setXYZ(i,normal.x,normal.y,normal.z);const x=points[id*3],y=points[id*3+1],z=points[id*3+2];ridgeColor.copy(ridgeStone).lerp(ridgeMoss,fade(.63,.95,normal.y)*.68).multiplyScalar(.76+.30*groundNoise(x*.09+phase,y*.12+z*.06));colors.push(ridgeColor.r,ridgeColor.g,ridgeColor.b);uv.push((x+z)*.07,y*.085);}
+   creased.setAttribute('color',new T.Float32BufferAttribute(colors,3));creased.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.dispose();
+   this.ridgeBounds.push([cx-rx,cz-rz,cx+rx,cz+rz]);const mesh=new T.Mesh(creased,ridgeMaterial);mesh.receiveShadow=true;ridge.add(mesh);
   }
-  this.merge(ridge,true);for(const m of ridge.children)m.castShadow=false;
+  this.merge(ridge,true);for(const m of ridge.children){m.castShadow=false;const original=m.geometry;m.geometry=B.CANOPY_ART.index(original);original.dispose();}
   this.merge(verge);this.merge(g,true);this.makeGroundCover();
   // The rock merger repeats complete static records just like the canopy.
   // Compact only identical records, retaining every normal and colour seam.

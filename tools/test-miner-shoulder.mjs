@@ -18,7 +18,7 @@ function pose(tool,pitch,lean){
 try{
  test('the shoulder construction declares its geometry cost without adding meshes, materials or textures',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:26224,geometryBytes:1431792,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:48,triangles:26512,geometryBytes:1438384,materials:25,ownedMaterials:45,textures:1});assert.equal(sleeves.length,2);
+  assert.deepEqual(inventory(rig),{meshes:48,triangles:28572,geometryBytes:1504088,materials:25,ownedMaterials:45,textures:1});assert.equal(sleeves.length,2);
  });
  test('the buried seam follows the torso and distal cuffs retain complete elbow and arm travel',()=>{
   for(const tool of ['cutter','scoop','lance','resonance','gravity','axe','sling'])for(const pitch of [-1.54,0,1.54]){

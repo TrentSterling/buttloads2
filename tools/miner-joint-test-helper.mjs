@@ -1,5 +1,8 @@
 export function unchangedWorkerMeshes(art){
  const list=[];art.root.traverse(n=>{if(!n.isMesh||n.userData.workerJoint)return;
+  // Face skin, inner detail and hair were reconstructed in 2.60; their current
+  // topology and all other head parts are checked by test-miner-face.mjs.
+  if(n.parent===art.head&&[6,7,8].includes(art.materials.indexOf(n.material)))return;
   if(art.knees.includes(n.parent)||art.legs.includes(n.parent)&&n.material===art.materials[0]||art.arms.includes(n.parent)&&n.material===art.materials[2]||art.elbows.includes(n.parent)&&n.material===art.materials[2])return;
   list.push(n);
  });return list;

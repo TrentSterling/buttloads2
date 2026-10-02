@@ -264,60 +264,7 @@
   }
   mesh.parent?.remove(mesh);source.dispose();return result;
  }
- const faceHeights=[-.151,-.146,-.137,-.125,-.111,-.101,-.097,-.094,-.090,-.087,-.084,-.081,-.076,-.068,-.060,-.052,-.044,-.034,-.024,-.012,.002,.018,.036,.058,.083,.111,.137,.154];
- const faceSpot=(x,y,cx,cy,rx,ry)=>Math.exp(-(((x-cx)/rx)**2+((y-cy)/ry)**2));
- function faceSection(y){
-  const r=Math.sqrt(Math.max(0,1-((y-.012)/.163)**2)),jaw=Math.exp(-(((y+.065)/.046)**2));
-  return{rx:.004+.162*r+.008*jaw,rz:.007+.136*r,z:-.014*Math.exp(-(((y+.142)/.035)**2))};
- }
- function faceRelief(x,y){
-  const noseWidth=.015+.013*faceSpot(x,y,0,-.039,.1,.021);
-  const bridge=.030*faceSpot(x,y,0,-.021,noseWidth,.033),tip=.025*faceSpot(x,y,0,-.038,.023,.014);
-  const wings=.010*(faceSpot(x,y,-.025,-.044,.009,.011)+faceSpot(x,y,.025,-.044,.009,.011));
-  const nostrils=.0015*(faceSpot(x,y,-.020,-.050,.005,.004)+faceSpot(x,y,.020,-.050,.005,.004));
-  const cheek=.005*(faceSpot(x,y,-.104,-.045,.039,.041)+faceSpot(x,y,.104,-.045,.039,.041));
-  const mouthY=-.090+.004*(x/.055)**2,lip=.004*faceSpot(x,y,0,mouthY-.007,.043,.006)+.002*faceSpot(x,y,0,mouthY+.006,.040,.007);
-  const crease=.003*faceSpot(x,y,0,mouthY,.044,.0028),chin=.003*faceSpot(x,y,0,-.120,.060,.025);
-  return bridge+tip+wings-nostrils+cheek+lip-crease+chin;
- }
- function faceFront(x,y){
-  const s=faceSection(y),c=Math.sqrt(Math.max(0,1-(x/s.rx)**2)),t=B.clamp((c-.15)/.75,0,1);
-  return s.z-s.rz*c-faceRelief(x,y)*t*t*(3-2*t);
- }
- function faceSeamNormals(geometry,segments,rows){
-  geometry.computeVertexNormals();const n=geometry.attributes.normal,a=new T.Vector3(),b=new T.Vector3();
-  for(let row=0;row<rows;row++){const i=row*(segments+1),j=i+segments;a.fromBufferAttribute(n,i);b.fromBufferAttribute(n,j);a.add(b).normalize();n.setXYZ(i,...a.toArray());n.setXYZ(j,...a.toArray());}
- }
- function workerFace(){
-  const rings=faceHeights.map(y=>{const s=faceSection(y);return[y,s.rx,s.rz,s.z];}),segments=64,geometry=loft(rings,segments,true),p=geometry.attributes.position,colors=[],angles=[];
-  for(let row=0;row<rings.length;row++)for(let j=0;j<=segments;j++){
-   const phi=(j/segments*2-1)*Math.PI,a=Math.PI+phi*.32+Math.sign(phi)*.68*(Math.abs(phi)/Math.PI)**2*Math.PI;
-   const i=row*(segments+1)+j,y=rings[row][0],{rx,rz,z}=faceSection(y),x=Math.sin(a)*rx,c=Math.cos(a),front=B.clamp((-c-.15)/.75,0,1);
-   p.setXYZ(i,x,y,z+c*rz-faceRelief(x,y)*front*front*(3-2*front));angles.push(a);
-   const side=B.clamp(Math.abs(x)/rx,0,1),beardLine=-.106+.067*side**3,bt=B.clamp((beardLine-y)/.024,0,1),beard=bt*bt*(3-2*bt)*B.clamp((-c+.6)/.5,0,1);
-   const mouth=.48*faceSpot(x,y,0,-.090+.004*(x/.055)**2,.043,.003),nostril=.22*(faceSpot(x,y,-.020,-.050,.006,.005)+faceSpot(x,y,.020,-.050,.006,.005))*front;
-   const warm=.055*(faceSpot(x,y,-.105,-.037,.042,.030)+faceSpot(x,y,.105,-.037,.042,.030));
-   const hairLine=-.103+.209*((1-c)*.5)**2,hair=B.clamp((y-hairLine)/.009,0,1);
-   colors.push((1-.25*beard-mouth-nostril)*(1-.89*hair),(1-.23*beard-mouth-nostril-warm)*(1-.82*hair),(1-.21*beard-mouth-nostril-warm)*(1-.72*hair));
-  }
-  colors.push(.85,.87,.89,.11,.18,.28);
-  geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));faceSeamNormals(geometry,segments,rings.length);
-  const normal=geometry.attributes.normal,a=new T.Vector3(),b=new T.Vector3(),around=new T.Vector3(),vertical=new T.Vector3();
-  const surface=(y,angle,target)=>{y=B.clamp(y,faceHeights[0],faceHeights.at(-1));const s=faceSection(y),x=Math.sin(angle)*s.rx,c=Math.cos(angle),front=B.clamp((-c-.15)/.75,0,1);return target.set(x,y,s.z+c*s.rz-faceRelief(x,y)*front*front*(3-2*front));};
-  for(let i=0;i<angles.length;i++){const y=p.getY(i),angle=angles[i];surface(y,angle+.0001,a);surface(y,angle-.0001,b);around.copy(a).sub(b);surface(y+.0001,angle,a);surface(y-.0001,angle,b);vertical.copy(a).sub(b);around.cross(vertical).normalize();normal.setXYZ(i,...around.toArray());}
-  return geometry;
- }
- function workerMoustache(){
-  const positions=[],uv=[],indices=[],segments=10,rows=19;
-  for(let row=0;row<rows;row++){
-   const x=(row/(rows-1)*2-1)*.065,u=Math.abs(x)/.065,taper=.10+.90*Math.pow(Math.max(0,1-u*u),.6),mid=-.069-.009*u*u-.004*Math.exp(-((x/.013)**2));
-   for(let j=0;j<=segments;j++){const a=(j===segments?0:j/segments)*Math.PI*2,y=mid+Math.sin(a)*.011*taper,z=faceFront(x,y)-.004*taper-Math.cos(a)*.007*taper;positions.push(x,y,z);uv.push(row/(rows-1),j/segments);}
-  }
-  for(let row=0;row<rows-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;indices.push(a,a+1,b,a+1,b+1,b);}
-  for(const row of [0,rows-1]){const at=positions.length/3,start=row*(segments+1);let y=0,z=0;for(let j=0;j<segments;j++){y+=positions[(start+j)*3+1]/segments;z+=positions[(start+j)*3+2]/segments;}positions.push(positions[start*3],y,z);uv.push(row/(rows-1),.5);for(let j=0;j<segments;j++)indices.push(at,...(row?[start+j,start+j+1]:[start+j+1,start+j]));}
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);faceSeamNormals(g,segments,rows);return g;
- }
- B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,workerFace,workerMoustache,mergeRigid,partitionRigid};
+ B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,mergeRigid,partitionRigid};
  B.buildMinerArt=function(view,color){
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
@@ -371,12 +318,18 @@
   for(const y of [1.002,1.193])add(torso,new T.CylinderGeometry(.065,.065,.018,14),rubber,.195,y,.171);
   wire(torso,rubber,[[.188,1.238,.17],[.212,1.43,.151],[.16,1.48,.09],[.114,1.515,.109]],.007);
   const head=new T.Group();head.position.y=1.51;root.add(head);
-  skin.vertexColors=true;add(head,workerFace(),skin);
-  // The nose, cheeks, lips and rounded chin share one skin surface.
+  const face=loft([[-.143,.092,.081,-.02],[-.121,.125,.11,-.01],[-.074,.158,.135],[.006,.164,.142],[.069,.151,.139],[.118,.132,.12],[.15,.09,.078]],24),fp=face.attributes.position;
+  for(let i=0;i<fp.count;i++){const x=fp.getX(i),y=fp.getY(i),z=fp.getZ(i);if(z<-.06){const cheek=Math.exp(-Math.pow((Math.abs(x)-.102)/.045,2)-Math.pow((y+.055)/.045,2));fp.setZ(i,z-.012*cheek);}}face.computeVertexNormals();add(head,face,skin);
+  // Cheeks, a formed nose, ears and jaw stubble keep the face human under the goggles.
   for(const side of [-1,1]){
    ball(head,skin,side*.157,-.005,.008,.022,.035,.021);ball(head,skinShadow,side*.173,-.003,.006,.005,.021,.013);
+   ball(head,hair,side*.138,-.04,.046,.024,.077,.067);
   }
-  add(head,workerMoustache(),hair);
+  add(head,loft([[-.054,.024,.023,-.158],[-.04,.030,.031,-.166],[-.015,.023,.023,-.151],[.021,.015,.014,-.139]],12),skin);
+  for(const side of [-1,1])ball(head,skinShadow,side*.019,-.053,-.19,.008,.005,.006);
+  add(head,loft([[-.148,.080,.063,-.027],[-.137,.115,.097,-.011],[-.115,.128,.102,-.005],[-.089,.127,.097,.002]],18),hair);
+  wire(head,hair,[[-.065,-.073,-.128],[-.036,-.068,-.148],[0,-.075,-.155],[.036,-.068,-.148],[.065,-.073,-.128]],.011);
+  wire(head,skinShadow,[[-.033,-.091,-.138],[0,-.099,-.145],[.033,-.091,-.138]],.004);
   // The goggle strap follows the skull; separate rubber seals, metal frames and dark lenses.
   add(head,loft([[.018,.169,.151],[.045,.169,.151]],24),rubber);
   for(const side of [-1,1]){

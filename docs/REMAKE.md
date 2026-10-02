@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Continuous miner face, 2.60.0
+
+The latest [continuous miner face](MINER-FACE.md) removes detached nostril pieces, fits a tapered moustache and connects nose, mouth and jaw. All 594 system checks pass; all 58 final frames were directly inspected across 29 matched native pairs. Exact cameras, rig traces and draw counts survive. The same 48 meshes, 25 main materials and one texture add 2,060 model triangles and 65,704 geometry bytes per worker. The ten-slide review retains rejected faces, a disclosed stale capture and native GPU evidence and leads the 62-section hub. The collar still reads as a bowtie. Smooth anatomy, wider art, physical Firefox feel, quiet timing and separate-network co-op remain open.
+
 ## Miner shoulder construction, 2.59.0
 
 The latest [miner shoulder construction](MINER-SHOULDERS.md) anchors the upper sleeve to the torso and keeps raised mechanical tools farther ahead of the face. All 588 system checks pass. 35 native pairs retain exact cameras and draw counts; all 70 frames have direct or exact inherited inspection provenance. The same 48 body meshes, 25 main materials and one texture add 288 model triangles and 6,592 geometry bytes per worker. The eleven-slide review retains four failed constructions, independent native/instanced GPU evidence and dated profile costs; it leads the 61-section hub. Broader character art, physical Firefox feel, quiet-machine timing and separate-network co-op remain open.

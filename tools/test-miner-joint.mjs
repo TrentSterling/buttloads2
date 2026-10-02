@@ -10,9 +10,9 @@ const old=released(v,2),rig=current(v,2),pieces=[];rig.root.traverse(n=>{if(n.us
 export let minerJointChecks=0;
 const test=(name,fn)=>{fn();minerJointChecks++;console.log('PASS miner joint: '+name);};
 try{
- test('all 38 untouched body pieces retain exact released attributes, transforms and material boundaries',()=>{
-  const a=unchangedWorkerMeshes(rig),b=unchangedWorkerMeshes(old);assert.equal(a.length,38);assert.equal(b.length,38);
-  for(let i=0;i<38;i++){
+ test('all 35 untouched body pieces retain exact released attributes, transforms and material boundaries; face reconstruction is checked separately',()=>{
+  const a=unchangedWorkerMeshes(rig),b=unchangedWorkerMeshes(old);assert.equal(a.length,35);assert.equal(b.length,35);
+  for(let i=0;i<35;i++){
    assert.deepEqual(a[i].geometry.index?.array,b[i].geometry.index?.array);assert.deepEqual(Object.keys(a[i].geometry.attributes),Object.keys(b[i].geometry.attributes));
    for(const name of Object.keys(a[i].geometry.attributes))assert.deepEqual(a[i].geometry.attributes[name].array,b[i].geometry.attributes[name].array);
    for(const name of ['position','quaternion','scale'])assert.deepEqual(a[i][name].toArray(),b[i][name].toArray());

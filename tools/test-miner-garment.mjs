@@ -36,8 +36,8 @@ try{
    for(const bend of [0,.7,1.4,2]){rig.elbows[k].rotation.x=bend;rig.root.updateMatrixWorld(true);const center=arm.localToWorld(new T.Vector3(0,-.245,0)),direction=new T.Vector3(0,-.8,.6).applyQuaternion(arm.getWorldQuaternion(new T.Quaternion())),ray=new T.Raycaster(center.clone().addScaledVector(direction,.14),direction.clone().negate());const hit=ray.intersectObject(sleeve)[0];assert.ok(hit&&hit.point.distanceTo(center)>.065);}
   }
  });
- test('head, boots, cuffs, textures, body draw inventory and released motion anchors are conserved; glove art is checked separately',()=>{
-  const compare=(a,b)=>{assert.equal(a.length,b.length);for(let j=0;j<a.length;j++){const x=a[j].geometry,y=b[j].geometry;assert.deepEqual(x.index?.array,y.index?.array);for(const n of Object.keys(x.attributes))assert.deepEqual(x.attributes[n].array,y.attributes[n].array);}};
+ test('head, boots, cuff shapes, texture count, body draw inventory and released motion anchors are conserved; fabric UVs and glove art are checked separately',()=>{
+  const compare=(a,b)=>{assert.equal(a.length,b.length);for(let j=0;j<a.length;j++){const x=a[j].geometry,y=b[j].geometry;assert.deepEqual(x.index?.array,y.index?.array);for(const n of Object.keys(x.attributes)){if(n==='uv'&&a[j].material===rig.materials[1])continue;assert.deepEqual(x.attributes[n].array,y.attributes[n].array);}}};
   compare(meshes(rig.head),meshes(old.head));for(let k=0;k<2;k++){compare(meshes(rig.feet[k]),meshes(old.feet[k]));compare(meshes(rig.elbows[k]).filter(n=>![2,3,5].includes(rig.materials.indexOf(n.material))),meshes(old.elbows[k]).filter(n=>![2,3,5].includes(old.materials.indexOf(n.material))));for(const prop of ['legs','knees','feet','arms','elbows'])assert.deepEqual(rig[prop][k].position.toArray(),old[prop][k].position.toArray());}
   assert.equal(meshes(rig.root).length,52);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,15);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),1816);
   for(const m of meshes(rig.root))assert.ok(m.castShadow&&m.receiveShadow);

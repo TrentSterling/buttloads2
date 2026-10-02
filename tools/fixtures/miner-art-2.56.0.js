@@ -15,67 +15,20 @@
   s.moveTo(-x+c,-y);s.lineTo(x-c,-y);s.quadraticCurveTo(x,-y,x,-y+c);s.lineTo(x,y-c);s.quadraticCurveTo(x,y,x-c,y);s.lineTo(-x+c,y);s.quadraticCurveTo(-x,y,-x,y-c);s.lineTo(-x,-y+c);s.quadraticCurveTo(-x,-y,-x+c,-y);
   const geo=new T.ExtrudeGeometry(s,{depth:d-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:3});geo.translate(0,0,-d/2+b);return geo;
  }
- const clothTiles={torso:[0,0,128,85],thigh:[128,0,128,85],shin:[0,85,128,85],sleeve:[128,85,128,85],forearm:[0,170,128,86],patch:[128,170,128,86]};
- let fabricCanvas;
  function woven(){
-  if(!fabricCanvas){
-   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const c=canvas.getContext('2d'),image=c.createImageData(256,256);
-   const spot=(u,v,x,y,w,h)=>Math.exp(-Math.pow((u-x)/w,2)-Math.pow((v-y)/h,2));
-   for(const [kind,[ox,oy,w,h]]of Object.entries(clothTiles))for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    const u=B.clamp((x-4)/(w-8),0,1),v=B.clamp((y-4)/(h-8),0,1),front=spot(u,v,.5,.5,.22,2);
-    const grain=((Math.imul(x+ox+17,73856093)^Math.imul(y+oy+31,19349663))>>>0)%101/100;
-    let dirt=0,crease=0,seam=0;
-    const stitch=(line,width=.009)=>Math.exp(-Math.pow(line/width,2));
-    if(kind==='thigh'||kind==='shin'){
-     seam=stitch(u-.25)+stitch(u-.75);
-     dirt=kind==='thigh'?.65*spot(u,v,.48,.83,.22,.12)*(1-B.clamp((v-.90)/.10,0,1))+.16*spot(u,v,.76,.30,.08,.25):.56*Math.pow(v,5)+.32*spot(u,v,.50,.73,.27,.20);
-     for(const [height,slope,strength]of kind==='thigh'?[[.19,.35,.18],[.70,-.30,.24],[.87,.18,.15]]:[[.24,-.25,.20],[.76,.24,.23],[.91,-.14,.16]]){
-      const d=v-height-(u-.5)*slope;crease+=strength*front*(stitch(d,.017)-.3*stitch(d-.025,.025));
-     }
-    }else if(kind==='sleeve'||kind==='forearm'){
-     seam=stitch(u-.25)+.6*stitch(u-.75);
-     dirt=kind==='sleeve'?.24*spot(u,v,.74,.82,.13,.16):.48*Math.pow(v,7)+.24*spot(u,v,.25,.65,.13,.20);
-     for(const [height,slope,strength]of kind==='sleeve'?[[.53,.42,.22],[.75,-.32,.30],[.89,.24,.15]]:[[.28,-.4,.21],[.57,.30,.25],[.83,-.2,.24]]){
-      const d=v-height-(u-.5)*slope;crease+=strength*front*(stitch(d,.02)-.3*stitch(d-.025,.026));
-     }
-    }else if(kind==='torso'){
-     seam=stitch(u-.25)+stitch(u-.75);dirt=.2*spot(u,v,.5,.89,.24,.18)+.12*spot(u,v,.12,.72,.1,.18);
-     for(const height of [.65,.81]){const d=v-height+.11*Math.sin(u*7);crease+=.18*front*(stitch(d,.015)-.5*stitch(d-.02,.019));}
-    }else{
-     seam=.6*(stitch(u-.045,.011)+stitch(u-.955,.011)+stitch(v-.94,.014));dirt=.22*spot(u,v,.75,.79,.25,.18);
-    }
-    // The broad wear follows garment contact; fine fibres stay quieter than seams.
-    const weave=((x%2?1:-1)+(y%3===0?-1:0))*1.4+(grain-.5)*11,broken=.68+.16*Math.sin(u*53+v*17)+.16*Math.sin(v*41-u*29),dust=dirt*broken,shade=Math.max(.25,1-crease-.18*seam);
-    const base=[197,196,185],mud=[103,92,72],at=((oy+y)*256+ox+x)*4;
-    for(let k=0;k<3;k++)image.data[at+k]=(base[k]*(1-dust)+mud[k]*dust)*shade+weave;
-    image.data[at+3]=255;
-   }
-   c.putImageData(image,0,0);fabricCanvas=canvas;
-  }
-  const tex=new T.CanvasTexture(fabricCanvas);tex.encoding=T.sRGBEncoding;tex.anisotropy=4;return tex;
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const c=canvas.getContext('2d');c.fillStyle='#bfc0b9';c.fillRect(0,0,256,256);
+  for(let i=0;i<256;i+=3){c.fillStyle=i%2?'#afafa7':'#cbcbc3';c.fillRect(i,0,1,256);c.fillStyle='rgba(48,50,43,.10)';c.fillRect(0,i,256,1);}
+  let seed=68132;for(let i=0;i<1800;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed%256;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const y=seed%256;c.fillStyle=i%3?'rgba(255,255,235,.13)':'rgba(35,37,32,.15)';c.fillRect(x,y,2,1);}
+  const tex=new T.CanvasTexture(canvas);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(2,2);tex.encoding=T.sRGBEncoding;tex.anisotropy=4;return tex;
  }
- function clothUV(geometry){
-  const kind=geometry.userData.workerCloth||'patch',tile=clothTiles[kind.replace('joint-','')]||clothTiles.patch,p=geometry.attributes.position,uv=geometry.attributes.uv,n=geometry.attributes.normal;
-  geometry.computeBoundingBox();const box=geometry.boundingBox,size=new T.Vector3();box.getSize(size);
-  for(let i=0;i<uv.count;i++){
-   let u,v;
-   if(kind.startsWith('joint-')){u=uv.getX(i);v=uv.getY(i);}
-   else if(geometry.userData.workerCloth){u=uv.getX(i);v=(p.getY(i)-box.min.y)/Math.max(.001,size.y);}
-   else{
-    const axis=Math.abs(n.getZ(i))>=Math.abs(n.getX(i))?'x':'z';u=(p[axis==='x'?'getX':'getZ'](i)-box.min[axis])/Math.max(.001,size[axis]);v=(p.getY(i)-box.min.y)/Math.max(.001,size.y);
-    if(Math.abs(n.getY(i))>.8)v=(p.getZ(i)-box.min.z)/Math.max(.001,size.z);
-   }
-   uv.setXY(i,(tile[0]+4+B.clamp(u,0,1)*(tile[2]-8))/256,1-(tile[1]+tile[3]-4-B.clamp(v,0,1)*(tile[3]-8))/256);
-  }
- }
- function garment(rings,segments,folds=[],kind='torso'){
+ function garment(rings,segments,folds=[]){
   const geo=loft(rings,segments),p=geo.attributes.position;
   for(let i=0;i<p.count;i++){
    const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=Math.hypot(x,z);if(r<.005)continue;
    let tuck=0;for(const [height,width,depth,slope=0]of folds){const d=(y-height-x*slope)/width;tuck+=depth*Math.exp(-d*d);}
    const side=.3+.7*Math.abs(x)/r,scale=1-Math.min(r*.08,tuck*side)/r;p.setX(i,x*scale);p.setZ(i,z*scale);
   }
-  geo.computeVertexNormals();geo.userData.workerCloth=kind;return geo;
+  geo.computeVertexNormals();return geo;
  }
  function bibPanel(){
   // The bib follows the ribcage cross-section, with closed edges and a shaped top.
@@ -181,11 +134,11 @@
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
   const dye=new T.Color(B.CREW_COLORS[color]).convertSRGBToLinear().multiplyScalar(.55);
-  const cloth=new T.MeshStandardMaterial({color:dye,roughness:.95,map:fabric,bumpMap:fabric,bumpScale:.0015});materials.push(cloth);
-  const darkCloth=material('#354746',.98,0,{map:fabric,bumpMap:fabric,bumpScale:.0012}),shirt=material('#a99e81',.97,0,{map:fabric,bumpMap:fabric,bumpScale:.0012}),leather=material('#594635',.87),rubber=material('#252b29',.97),edge=material('#79634b',.85),skin=material('#b98261',.92),skinShadow=material('#8f5e45',.95),hair=material('#403a31',.98),steel=material('#727c79',.47,.72),brass=material('#a58a53',.6,.6),yellow=material('#c38d2f',.74,.08),reflector=material('#d4c6a0',.55,.12),glass=material('#2d444c',.22,.2),lampGlass=material('#e8d5a5',.35,.04,{emissive:new T.Color('#c7a969').convertSRGBToLinear(),emissiveIntensity:.5});
+  const cloth=new T.MeshStandardMaterial({color:dye,roughness:.95,map:fabric,bumpMap:fabric,bumpScale:.003});materials.push(cloth);
+  const darkCloth=material('#354746',.98,0,{map:fabric,bumpMap:fabric,bumpScale:.002}),shirt=material('#a99e81',.97,0,{map:fabric,bumpMap:fabric,bumpScale:.002}),leather=material('#594635',.87),rubber=material('#252b29',.97),edge=material('#79634b',.85),skin=material('#b98261',.92),skinShadow=material('#8f5e45',.95),hair=material('#403a31',.98),steel=material('#727c79',.47,.72),brass=material('#a58a53',.6,.6),yellow=material('#c38d2f',.74,.08),reflector=material('#d4c6a0',.55,.12),glass=material('#2d444c',.22,.2),lampGlass=material('#e8d5a5',.35,.04,{emissive:new T.Color('#c7a969').convertSRGBToLinear(),emissiveIntensity:.5});
   const add=(parent,geometry,m,x=0,y=0,z=0)=>{const mesh=new T.Mesh(geometry,m);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;};
   const block=(parent,m,x,y,z,w,h,d,r=.012)=>add(parent,bevel(w,h,d,r),m,x,y,z);
-  const ball=(parent,m,x,y,z,rx,ry=rx,rz=rx)=>{const geometry=new T.SphereGeometry(1,14,10);if(m===cloth||m===shirt)geometry.userData.workerCloth=m===cloth?'joint-thigh':'joint-sleeve';const mesh=add(parent,geometry,m,x,y,z);mesh.scale.set(rx,ry,rz);return mesh;};
+  const ball=(parent,m,x,y,z,rx,ry=rx,rz=rx)=>{const mesh=add(parent,new T.SphereGeometry(1,14,10),m,x,y,z);mesh.scale.set(rx,ry,rz);return mesh;};
   const wire=(parent,m,points,r=.003)=>add(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),Math.max(6,points.length*4),r,5,false),m);
   const bolt=(parent,x,y,z,r=.007)=>{const mesh=add(parent,new T.CylinderGeometry(r,r,.006,6),steel,x,y,z);mesh.rotation.x=Math.PI/2;return mesh;};
   const torso=new T.Group();root.add(torso);
@@ -249,12 +202,12 @@
   const legs=[],knees=[],feet=[],arms=[],elbows=[];
   for(const side of [-1,1]){
    const leg=new T.Group();leg.position.set(side*.12,.89,0);leg.rotation.z=side*.04;root.add(leg);legs.push(leg);
-   add(leg,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.28,.091,.094],[-.35,.084,.086],[-.395,.082,.083]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22]],'thigh'),cloth);
+   add(leg,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.28,.091,.094],[-.35,.084,.086],[-.395,.082,.083]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22]]),cloth);
    // Continuous cloth volume covers both cut ends when the shin turns at the knee.
    ball(leg,cloth,0,-.38,0,.089,.097,.09);
    wire(leg,edge,[[side*.092,-.05,-.04],[side*.096,-.18,-.042],[side*.077,-.33,-.045]],.002);
    const knee=new T.Group();knee.position.y=-.38;leg.add(knee);knees.push(knee);
-   add(knee,garment([[.03,.083,.085],[-.035,.092,.091],[-.115,.093,.084],[-.21,.087,.081],[-.285,.076,.073],[-.325,.075,.072]],16,[[-.101,.018,.004,.21],[-.254,.013,.003,-.23]],'shin'),cloth);
+   add(knee,garment([[.03,.083,.085],[-.035,.092,.091],[-.115,.093,.084],[-.21,.087,.081],[-.285,.076,.073],[-.325,.075,.072]],16,[[-.101,.018,.004,.21],[-.254,.013,.003,-.23]]),cloth);
    block(knee,rubber,0,-.015,-.088,.151,.17,.046,.026);block(knee,leather,0,-.021,-.115,.112,.124,.018,.02);
    for(const y of [-.059,-.021,.017])block(knee,edge,0,y,-.127,.075,.009,.008,.002);
    for(const y of [-.105,.020])add(knee,garmentBand(y,.095,.096),rubber);
@@ -266,16 +219,15 @@
    for(let j=0;j<4;j++){const y=.131+j*.019,z=-.109+j*.009;for(const x of [-.031,.031])bolt(foot,x,y,z,.005);wire(foot,reflector,[[-.03,y,z-.006],[.03,y+.015,z+.003]],.0025);wire(foot,reflector,[[.03,y,z-.006],[-.03,y+.015,z+.003]],.0025);}
    for(const z of [-.12,-.045,.03,.10])block(foot,rubber,0,.015,z,.19,.018,.019,.003);
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
-   add(arm,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.229,.063,.065],[-.269,.061,.063]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25]],'sleeve'),shirt);
+   add(arm,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.229,.063,.065],[-.269,.061,.063]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25]]),shirt);
    ball(arm,shirt,0,-.245,0,.068,.085,.070);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
-   add(elbow,garment([[.029,.061,.063],[-.036,.069,.068],[-.108,.064,.062],[-.153,.055,.056],[-.205,.047,.05]],18,[[-.077,.015,.003,-.32],[-.163,.014,.003,.27]],'forearm'),shirt);
+   add(elbow,garment([[.029,.061,.063],[-.036,.069,.068],[-.108,.064,.062],[-.153,.055,.056],[-.205,.047,.05]],18,[[-.077,.015,.003,-.32],[-.163,.014,.003,.27]]),shirt);
    add(elbow,loft([[-.188,.052,.054],[-.214,.053,.054]],16),darkCloth);
    const glove=workerGlove(side);for(const geometry of [glove.palm,...glove.fingers,glove.thumb])add(elbow,geometry,leather);for(const geometry of [glove.back,glove.cuff,...glove.pads])add(elbow,geometry,edge);
    for(const x of [-.027,.027])wire(elbow,edge,[[x,-.230,.025],[x,-.245,.023],[x*.9,-.268,.022]],.0014);
   }
-  const fabricMaterials=new Set([cloth,darkCloth,shirt]);root.traverse(node=>{if(node.isMesh&&fabricMaterials.has(node.material))clothUV(node.geometry);});
   for(const group of [torso,head,...legs,...knees,...feet,...arms,...elbows])mergeRigid(group);
   root.name='miner-sculpted-worker';return{root,head,torso,legs,knees,feet,arms,elbows,materials,textures};
  };

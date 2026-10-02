@@ -1,0 +1,13 @@
+# Guest rock contact, 2.51.1
+
+Direct inspection of all eight 2.51.0 public-lobby frames caught a guest HUD reading `undefined`. The connection checks had passed because they cover membership, transport, terrain transfer and migration, not semantic HUD text.
+
+Guest prediction built a contact from the raw ray without its geology label. It also decided whether cutting succeeded from `hit.protected`, which the raw ray never supplies. The corrected path builds the contact first, derives geology from the hit depth, and uses its actual `World.canDig` result for predicted cutting. Protected common ground can no longer produce a successful-cut state or mining load beats. This remains predicted feedback; the host retains excavation authority.
+
+Three new production Game/Crew/HUD checks reproduce both failures against the preserved 2.51.0 source and pass after correction. They cover actual cutter, scoop and lance rim hits, five hit-depth labels, real protected common ground, successful eligible feedback, aiming, air and nonmechanical tools. The protected case preserves the complete density field. The aggregate suite ends with `COMPLETE 567 system checks passed`.
+
+Three fixed native pairs retain identical cameras, capsule poses, draw counts and submitted triangles. They use inert transport and no held input. The real global-lobby audit is separate: four owned browser processes observe automatic joins, bidirectional SCTP traffic, identical terrain bits, owned-host migration, a late arrival and actual guest contact labels. All eight observations pass on the final 2.51.1 portable. The selected routes use host candidates on one computer; they do not prove separate-network NAT traversal or TURN relay allocation.
+
+The 2.51.0 hardware audit is retained with its exact build hash. Combined mean simulation/render submission is 2.87 ms in the yard and 3.82 ms with four moving render-fixture miners. All four scenes have 16.8 ms frame p95 at the capture's 60 Hz cap. Two 33 ms outcrop stalls affect simulation and several render stages together; their cause is unresolved. Read-only GPU snapshots show 20% activity before the audits and 17% after, with about 11 GiB allocated. This is not a quiet-machine FPS test or evidence of a new rendering speedup.
+
+Only multiplayer.js changes executable game behavior. Art, batching, controller, protocol 3, ridge-common-v3 and the crew save key remain unchanged. The [receipts](../tools/out/guest-contact-review.html) distinguish fixed comparisons, public-network observations and the dated performance capture. Physical Firefox feel, separate-network co-op and larger art weaknesses remain open.

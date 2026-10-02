@@ -1,5 +1,9 @@
 # Remake verification
 
+## Guest contact, 2.51.1
+
+The latest [guest contact correction](GUEST-CONTACT.md) fixes undefined rock labels and false successful-cut feedback on protected common ground. All 567 system checks and eight actual global-lobby observations pass. Three matched native pairs preserve cameras and render counts; the dated 2.51.0 performance audit adds no speedup claim. Physical Firefox feel, separate-network co-op and larger art weaknesses remain open.
+
 ## Under pressure, local 2.25.0
 
 ```text

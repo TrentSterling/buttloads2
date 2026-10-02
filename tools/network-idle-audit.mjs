@@ -37,6 +37,9 @@ async function observe(live,label){
  if(active){assert.ok(all.every(s=>s.seed===active.seed&&s.fieldSeq===active.fieldSeq&&s.fieldDigest===active.fieldDigest),'identical mine fields at a common sequence');}
  else report.externalAuthority=true;
  for(let i=0;i<live.length;i++){
+  const contact=await live[i].eval(`(()=>{const g=__buttloads,c=g.cutter.contact;return{hit:!!c,protected:c?.protected,layer:c?.layer,expected:c?B2.geology(c.y).name:null,label:document.getElementById('contact').textContent,edited:g.cutter.edited};})()`);
+  report.states.at(-1).states[i].contactFeedback=contact;assert.equal(contact.edited,false,'idle guest predicts cutting');
+  if(contact.hit&&!contact.protected){assert.equal(contact.layer,contact.expected);assert.equal(contact.label,contact.expected);}
   const rtc=await until(async()=>{const found=await routes(live[i]);report.states.at(-1).states[i].routes=found;return found.length>=live.length-1&&found.every(r=>r.connection==='connected'&&r.channels.some(c=>c.state==='open'&&c.messagesSent>0&&c.messagesReceived>0&&c.bytesSent>0&&c.bytesReceived>0))?found:false;},{timeout:15000,every:500,label:'open RTC data channels and bidirectional traffic'});
   assert.ok(rtc.length>=live.length-1);await live[i].shot(path.join(out,label+'-'+i+'.png'));
  }
@@ -60,6 +63,8 @@ try{
  const late=await open(9544);live.push(late);await observe(live,'late-join');
  check('a fresh standalone browser automatically joins the surviving global crew');
  check('observed miners retain separate arrival positions after joining and migration');
+ assert.ok(report.states.some(p=>p.states?.some(s=>s.role==='guest'&&s.contactFeedback?.hit&&!s.contactFeedback.protected)),'no real guest rock contact observed');
+ check('actual guest rock contacts display their hit stratum with no idle cutting feedback');
  for(const p of pages){assert.deepEqual(p.logs.filter(x=>x.startsWith('EXCEPTION')),[]);if(!closed.has(p))validate([await state(p)]);}
  check('no runtime exceptions, held input, firing or test pointer lock');
  console.log('COMPLETE '+report.checks.length+' current production global WebRTC observations');

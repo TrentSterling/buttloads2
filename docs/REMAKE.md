@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Guest contact, 2.51.1
+
+The latest [guest contact correction](GUEST-CONTACT.md) fixes undefined rock labels and false successful-cut feedback on protected common ground. All 567 system checks and eight actual global-lobby observations pass. Three matched native pairs preserve cameras and render counts; the dated 2.51.0 performance audit adds no speedup claim. Physical Firefox feel, separate-network co-op and larger art weaknesses remain open.
+
 ## Native worker glove construction, local 2.51.0
 
 The latest [miner glove reconstruction](MINER-GLOVES.md): Tapered palms, curled unequal fingers and opposing thumbs replace the box palms and oval blobs. All 564 system checks pass. Thirty-one matched native pairs retain exact cameras, rig poses and draw counts; all 62 final frames were directly inspected. Per miner, the same 52 body meshes, 15 materials and one texture remove 2,008 model triangles and 119,248 geometry bytes. Only miner-art.js changes executable behavior; the other 48 body meshes retain exact buffers and transforms. The six-slide review retains a rejected camera fixture and leads the 52-section hub. Fixed claw-like empty curl, smooth pristine leather, broad pads and repeated anatomy remain criticism. Quiet-machine timing, physical Firefox feel and separate-network co-op remain open.

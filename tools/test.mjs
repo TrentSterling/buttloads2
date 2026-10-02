@@ -128,6 +128,7 @@ passed += (await import('./test-crew-spawn.mjs')).crewSpawnChecks;
 passed += (await import('./test-movement.mjs')).movementChecks;
 passed += (await import('./test-mouse-entry.mjs')).mouseEntryChecks;
 passed += (await import('./test-coop-controller.mjs')).coopControllerChecks;
+passed += (await import('./test-guest-contact.mjs')).guestContactChecks;
 passed += (await import('./test-crew-compat.mjs')).crewCompatChecks;
 passed += (await import('./test-guest-motion.mjs')).guestMotionChecks;
 passed += (await import('./test-authority.mjs')).authorityChecks;

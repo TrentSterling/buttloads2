@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Miner garments, 2.49.0
+
+The latest [miner garment correction](MINER-GARMENTS.md) closes bent knee and elbow gaps, replaces exposed solid strap caps with hollow bands, and fits a curved bib to the chest. All 556 system checks pass. Twenty-nine matched pairs retain exact cameras and rig poses; all 58 final frames were inspected. The first candidate failed visual inspection and remains in the nine-slide review. The same 52 body meshes, 15 materials and one texture add 1,816 model triangles and 30,640 geometry bytes. Native game draws match; two knee profile stress views add one draw. Only miner-art.js changes executable behavior. The review leads the 50-section hub. Pristine cloth, repeated anatomy, restrained upper body, quiet-machine timing, physical Firefox feel and separate-network co-op remain open.
+
 ## Remote miner gait, 2.48.0
 
 Boots plant in world space, knees reach support and the torso carries each equipped weapon through the step. Stopping settles both feet and terrain edits refresh support without restarting the gait. All 551 system checks pass. Thirty-nine matched native pairs preserve cameras, authoritative capsules, roots, source geometry, draws and triangles; all 78 final frames were inspected. [MINER-MOTION.md](MINER-MOTION.md) retains rejected opening/ledge/strafe revisions and added CPU work. Knee caps, repeated anatomy, wide crouched strafe and clean clothing still need art work. Timing and physical Firefox feel remain unverified.

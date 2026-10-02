@@ -21,34 +21,6 @@
   let seed=68132;for(let i=0;i<1800;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed%256;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const y=seed%256;c.fillStyle=i%3?'rgba(255,255,235,.13)':'rgba(35,37,32,.15)';c.fillRect(x,y,2,1);}
   const tex=new T.CanvasTexture(canvas);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(2,2);tex.encoding=T.sRGBEncoding;tex.anisotropy=4;return tex;
  }
- function garment(rings,segments,folds=[]){
-  const geo=loft(rings,segments),p=geo.attributes.position;
-  for(let i=0;i<p.count;i++){
-   const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=Math.hypot(x,z);if(r<.005)continue;
-   let tuck=0;for(const [height,width,depth,slope=0]of folds){const d=(y-height-x*slope)/width;tuck+=depth*Math.exp(-d*d);}
-   const side=.3+.7*Math.abs(x)/r,scale=1-Math.min(r*.08,tuck*side)/r;p.setX(i,x*scale);p.setZ(i,z*scale);
-  }
-  geo.computeVertexNormals();return geo;
- }
- function bibPanel(){
-  // The bib follows the ribcage cross-section, with closed edges and a shaped top.
-  const rows=[[.933,.129,.196,.136],[.981,.145,.197,.139],[1.06,.151,.210,.148],[1.15,.159,.233,.151],[1.213,.155,.240,.148],[1.258,.117,.242,.143]],segments=12,positions=[],uv=[],indices=[];
-  for(const depth of [0,.008])for(let row=0;row<rows.length;row++){
-   const [y,w,rx,rz]=rows[row];for(let j=0;j<=segments;j++){const x=(j/segments*2-1)*w,z=-rz*Math.sqrt(1-x*x/(rx*rx))-.014+depth;positions.push(x,y,z);uv.push(j/segments,row/(rows.length-1));}
-  }
-  const layer=rows.length*(segments+1),quad=(a,b,c,d)=>indices.push(a,c,b,b,c,d);
-  for(let row=0;row<rows.length-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;quad(a,a+1,b,b+1);quad(layer+a,layer+b,layer+a+1,layer+b+1);}
-  for(let j=0;j<segments;j++){quad(j,layer+j,j+1,layer+j+1);const a=(rows.length-1)*(segments+1)+j;quad(a,a+1,layer+a,layer+a+1);}
-  for(let row=0;row<rows.length-1;row++){const a=row*(segments+1),b=a+segments+1;quad(a,b,layer+a,layer+b);quad(a+segments,layer+a+segments,b+segments,layer+b+segments);}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;
- }
- function garmentBand(y,rx,rz,height=.016,thickness=.006,segments=16){
-  const p=[],uv=[],indices=[],n=segments+1;
-  for(const [inner,top]of [[false,false],[false,true],[true,false],[true,true]])for(let j=0;j<=segments;j++){const a=j/segments*Math.PI*2;p.push(Math.sin(a)*(rx-(inner?thickness:0)),y+(top?height:0),Math.cos(a)*(rz-(inner?thickness:0)));uv.push(j/segments,top?1:0);}
-  const quad=(a,b,c,d)=>indices.push(a,b,c,b,d,c);
-  for(let j=0;j<segments;j++){const a=j,b=n+j,c=2*n+j,d=3*n+j;quad(a,a+1,b,b+1);quad(c,d,c+1,d+1);quad(a,c,a+1,c+1);quad(b,b+1,d,d+1);}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return geo;
- }
  function mergeRigid(group,exclude=new Set(),recursive=false){
   // Callers identify rigid assemblies. Excluded meshes/groups retain their
   // identity, animation, material changes and independent visibility.
@@ -107,7 +79,7 @@
   }
   mesh.parent?.remove(mesh);source.dispose();return result;
  }
- B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,mergeRigid,partitionRigid};
+ B.WorkshopShapes={loft,bevel,mergeRigid,partitionRigid};
  B.buildMinerArt=function(view,color){
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
@@ -121,13 +93,13 @@
   const bolt=(parent,x,y,z,r=.007)=>{const mesh=add(parent,new T.CylinderGeometry(r,r,.006,6),steel,x,y,z);mesh.rotation.x=Math.PI/2;return mesh;};
   const torso=new T.Group();root.add(torso);
   // A waist, abdomen, ribcage and rounded shoulder line, rather than a rectangular shell.
-  add(torso,garment([[.84,.177,.119],[.89,.194,.132],[.96,.188,.132],[1.04,.199,.140],[1.14,.226,.146],[1.24,.241,.140],[1.29,.249,.127],[1.34,.204,.107],[1.38,.105,.079]],20,[[.932,.024,.004,.17],[1.008,.018,.005,-.3],[1.274,.024,.004,.16]]),cloth);
+  add(torso,loft([[.84,.181,.121],[.89,.197,.134],[.96,.192,.135],[1.06,.210,.145],[1.19,.237,.147],[1.29,.242,.13],[1.35,.204,.115],[1.38,.112,.085]],20),cloth);
   add(torso,loft([[.77,.168,.105],[.80,.193,.127],[.85,.197,.132],[.895,.185,.122]],18),darkCloth);
   add(torso,loft([[1.31,.105,.079],[1.37,.091,.068],[1.43,.062,.055]],16),shirt);
   add(torso,loft([[1.38,.06,.056],[1.43,.062,.055],[1.46,.065,.056]],12),skin);
   // Shaped bib, stitched pockets, folded collar and hardware give the clothing a construction.
-  add(torso,bibPanel(),darkCloth);
-  wire(torso,edge,[[-.123,.94,-.124],[-.145,1.07,-.128],[-.150,1.20,-.133],[-.109,1.249,-.144],[0,1.251,-.160],[.109,1.249,-.144],[.150,1.20,-.133],[.145,1.07,-.128],[.123,.94,-.124]],.0022);
+  block(torso,darkCloth,0,1.095,-.137,.295,.335,.034,.025);
+  wire(torso,edge,[[-.13,.94,-.16],[-.135,1.19,-.17],[-.11,1.24,-.161],[.11,1.24,-.161],[.135,1.19,-.17],[.13,.94,-.16]],.0022);
   block(torso,cloth,0,1.092,-.166,.217,.13,.018,.015);block(torso,darkCloth,0,1.165,-.179,.235,.027,.014,.004);
   for(const x of [-.091,.091])bolt(torso,x,1.177,-.19,.006);
   for(const side of [-1,1]){
@@ -180,15 +152,13 @@
   const legs=[],knees=[],feet=[],arms=[],elbows=[];
   for(const side of [-1,1]){
    const leg=new T.Group();leg.position.set(side*.12,.89,0);leg.rotation.z=side*.04;root.add(leg);legs.push(leg);
-   add(leg,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.28,.091,.094],[-.35,.084,.086],[-.395,.082,.083]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22]]),cloth);
-   // Continuous cloth volume covers both cut ends when the shin turns at the knee.
-   ball(leg,cloth,0,-.38,0,.089,.097,.09);
+   add(leg,loft([[0,.101,.103],[-.08,.112,.111],[-.20,.10,.099],[-.31,.085,.087],[-.38,.082,.082]],16),cloth);
    wire(leg,edge,[[side*.092,-.05,-.04],[side*.096,-.18,-.042],[side*.077,-.33,-.045]],.002);
    const knee=new T.Group();knee.position.y=-.38;leg.add(knee);knees.push(knee);
-   add(knee,garment([[.03,.083,.085],[-.035,.092,.091],[-.115,.093,.084],[-.21,.087,.081],[-.285,.076,.073],[-.325,.075,.072]],16,[[-.101,.018,.004,.21],[-.254,.013,.003,-.23]]),cloth);
+   add(knee,loft([[.012,.085,.087],[-.07,.092,.086],[-.19,.087,.081],[-.27,.073,.068],[-.31,.074,.067]],16),cloth);
    block(knee,rubber,0,-.015,-.088,.151,.17,.046,.026);block(knee,leather,0,-.021,-.115,.112,.124,.018,.02);
    for(const y of [-.059,-.021,.017])block(knee,edge,0,y,-.127,.075,.009,.008,.002);
-   for(const y of [-.105,.020])add(knee,garmentBand(y,.095,.096),rubber);
+   for(const y of [-.105,.069])add(knee,loft([[y,.088,.089],[y+.016,.089,.089]],16),rubber);
    const foot=new T.Group();foot.position.y=-.50;foot.rotation.y=-side*.10;knee.add(foot);feet.push(foot);
    add(foot,loft([[0,.095,.148,-.028],[.024,.103,.165,-.039],[.060,.105,.165,-.037],[.077,.096,.151,-.031]],20),rubber);
    add(foot,loft([[.065,.091,.149,-.03],[.105,.096,.142,-.031],[.153,.089,.106,-.008],[.185,.075,.076,.012],[.241,.072,.074,.015]],20),leather);
@@ -197,11 +167,10 @@
    for(let j=0;j<4;j++){const y=.131+j*.019,z=-.109+j*.009;for(const x of [-.031,.031])bolt(foot,x,y,z,.005);wire(foot,reflector,[[-.03,y,z-.006],[.03,y+.015,z+.003]],.0025);wire(foot,reflector,[[.03,y,z-.006],[-.03,y+.015,z+.003]],.0025);}
    for(const z of [-.12,-.045,.03,.10])block(foot,rubber,0,.015,z,.19,.018,.019,.003);
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
-   add(arm,garment([[.078,.027,.035],[.051,.064,.067],[.013,.083,.081],[-.035,.084,.083],[-.106,.077,.076],[-.173,.068,.068],[-.229,.063,.065],[-.269,.061,.063]],18,[[-.148,.018,.003,.32],[-.219,.014,.004,-.25]]),shirt);
-   ball(arm,shirt,0,-.245,0,.068,.085,.070);
+   add(arm,loft([[.078,.026,.034],[.058,.059,.063],[.025,.079,.077],[-.015,.087,.086],[-.11,.078,.077],[-.217,.064,.064],[-.257,.061,.062]],18),shirt);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
-   add(elbow,garment([[.029,.061,.063],[-.036,.069,.068],[-.108,.064,.062],[-.153,.055,.056],[-.205,.047,.05]],18,[[-.077,.015,.003,-.32],[-.163,.014,.003,.27]]),shirt);
+   add(elbow,loft([[.02,.060,.061],[-.055,.068,.067],[-.13,.06,.061],[-.205,.047,.05]],18),shirt);
    add(elbow,loft([[-.188,.052,.054],[-.214,.053,.054]],16),darkCloth);
    block(elbow,leather,0,-.254,-.01,.102,.113,.078,.02);block(elbow,edge,0,-.237,.033,.079,.035,.014,.005);
    for(let finger=0;finger<4;finger++){const x=-.034+finger*.022;ball(elbow,leather,x,-.31,-.018,.011,.029,.022);ball(elbow,edge,x,-.285,-.046,.012,.013,.008);}

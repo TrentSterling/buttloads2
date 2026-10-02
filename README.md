@@ -1,6 +1,8 @@
 # BUTTLOADS 2: The Deepening
 
-**Current build 2.48.0.** A first-person excavation game about turning a backyard hole into a shared mine, recovering oversized machinery, and finding something alive underneath it.
+**Current build 2.49.0.** A first-person excavation game about turning a backyard hole into a shared mine, recovering oversized machinery, and finding something alive underneath it.
+
+The latest [miner garment correction](docs/MINER-GARMENTS.md) closes bent knee and elbow gaps, replaces exposed solid strap caps with hollow bands, and fits a curved bib to the chest. All 556 system checks pass. Twenty-nine matched pairs retain exact cameras and rig poses; all 58 final frames were inspected. The first candidate failed visual inspection and remains in the nine-slide review. The same 52 body meshes, 15 materials and one texture add 1,816 model triangles and 30,640 geometry bytes. Native game draws match; two knee profile stress views add one draw. Only miner-art.js changes executable behavior. The review leads the 50-section hub. Pristine cloth, repeated anatomy, restrained upper body, quiet-machine timing, physical Firefox feel and separate-network co-op remain open.
 
 Remote miners now plant their boots, bend their knees, carry body weight through steps and settle after stopping. All seven weapons retain moving grips. All 551 checks pass; 39 native pairs preserve exact root/camera traces, draw counts and triangles. All 78 final frames were personally inspected, including rejected strafe overlap before the final correction. The [six-slide motion receipts](tools/out/miner-motion-review.html) and [MINER-MOTION.md](docs/MINER-MOTION.md) retain criticism and added animation CPU costs. Broader character art, quiet-machine timing, physical Firefox feel and separate-network co-op remain open.
 

@@ -1,5 +1,7 @@
 # Buttloads 2: remake direction
 
+Current stopping point: 2.64.0. Trent requested shipment, harness cleanup and a halt. Automatic polishing is paused; see [STOPPING-POINT.md](STOPPING-POINT.md). Historical sections below retain the status and evidence from their original dates.
+
 ## Miner travel, 2.64.0
 
 The latest [miner travel correction](MINER-TRAVEL.md) raises the average walking stance and turns the legs partly toward sideways travel. Lifted feet replan on reversal and recover to neutral after stopping. All 606 system checks pass; 43 native pairs preserve cameras, supported capsules and render counts. The 86-frame inspection retains 68 fresh views and 18 exact-hash inherited views. Only poseMinerTravel changes executable behaviour; geometry, materials, first-person input and networking stay exact. Eight slides lead the 66-section hub. Long-step compression, marching stop recovery and wider art remain criticism. Physical Firefox feel, quiet-machine timing and separate-network co-op remain unverified; no FPS claim.

@@ -1,6 +1,8 @@
 # BUTTLOADS 2: The Deepening
 
-**Current build 2.64.0.** A first-person excavation game about turning a backyard hole into a shared mine, recovering oversized machinery, and finding something alive underneath it.
+**Current build 2.64.0. Polishing paused at Trent's request.** A first-person excavation game about turning a backyard hole into a shared mine, recovering oversized machinery, and finding something alive underneath it.
+
+The [stopping point](docs/STOPPING-POINT.md) retains the shipped game, portable package and dated receipts. Further automatic polishing is halted; resume only on a new request.
 
 The latest [miner travel correction](docs/MINER-TRAVEL.md) raises the average walking stance and turns the legs partly toward sideways travel. Lifted feet replan on reversal and recover to neutral after stopping. All 606 system checks pass; 43 native pairs preserve cameras, supported capsules and render counts. The 86-frame inspection retains 68 fresh views and 18 exact-hash inherited views. Only poseMinerTravel changes executable behaviour; geometry, materials, first-person input and networking stay exact. Eight slides lead the 66-section hub. Long-step compression, marching stop recovery and wider art remain criticism. Physical Firefox feel, quiet-machine timing and separate-network co-op remain unverified; no FPS claim.
 

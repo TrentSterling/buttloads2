@@ -1,6 +1,6 @@
 # Current goal audit, 2.64.0
 
-The objective retains instant global Trystero co-op, visible players and weapons, hard art with harsh native before/after slides, smooth movement, performance cleanup and current packaged builds. The broader goal stays active. Earlier evidence retains its dates in documents, the selector and Git history.
+The objective retains instant global Trystero co-op, visible players and weapons, hard art with harsh native before/after slides, smooth movement, performance cleanup and current packaged builds. Automatic polishing is paused at Trent's explicit request; [the stopping point](STOPPING-POINT.md) records what shipped and what remains unverified. Earlier evidence retains its dates in documents, the selector and Git history.
 
 The latest [miner travel correction](MINER-TRAVEL.md) raises average stance and aligns lateral legs, with lifted-foot reversal and finite recovery. All 606 checks pass; 43 camera/capsule pairs retain 68 fresh and 18 exact-hash inherited views. Long-step compression and marching stops remain criticism.
 
@@ -14,4 +14,4 @@ The latest [miner travel correction](MINER-TRAVEL.md) raises average stance and 
 | Co-op controller | [Latency](LATENCY-MOVEMENT.md), [guest travel](GUEST-MOVEMENT.md), [contact](GUEST-CONTACT.md) | Prediction and feedback corrections remain exact. Replays differ from actual internet-play acceptance. |
 | Packaging/delivery | [Shipment](../tools/out/miner-travel-shipment.json), [deployment](../tools/out/deployment-report.json) | Room, protocol and save stay v3. Shipment must bind successful current Pages head, exact portable/ZIP bytes and all 72 public assets. Firefox records URL requests, not foreground visibility or physical feel. |
 
-The travel correction leaves the broader polish request active.
+Stop at 2.64.0. Remaining criticism is retained for a future requested pass; it does not authorize further automatic work.

@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Miner travel, 2.64.0
+
+The latest [miner travel correction](MINER-TRAVEL.md) raises the average walking stance and turns the legs partly toward sideways travel. Lifted feet replan on reversal and recover to neutral after stopping. All 606 system checks pass; 43 native pairs preserve cameras, supported capsules and render counts. The 86-frame inspection retains 68 fresh views and 18 exact-hash inherited views. Only poseMinerTravel changes executable behaviour; geometry, materials, first-person input and networking stay exact. Eight slides lead the 66-section hub. Long-step compression, marching stop recovery and wider art remain criticism. Physical Firefox feel, quiet-machine timing and separate-network co-op remain unverified; no FPS claim.
+
 ## Miner boot creases, 2.63.0
 
 The latest [miner boot creases](MINER-BOOT-FOLDS.md) remove two floating toe cords and reshape the ankle profile with modest front creases. All 605 system checks pass. Twenty-nine native pairs retain exact cameras and rig traces: 32 frames freshly viewed and 26 baseline frames with exact dated hash provenance. All 40 other meshes, 51 materials and joint shaders stay exact. Per worker: two fewer meshes, sixteen fewer triangles and 640 more geometry bytes. The ten-slide review retains two rejected trials and explicit costs; it leads the 65-section hub. Extreme-bend hooding remains weak. Further tiny boot iterations have diminishing returns; the next substantial target is wide crouched travel. Physical Firefox feel, quiet timing and separate-network co-op remain unverified; no FPS claim.

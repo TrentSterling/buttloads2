@@ -60,7 +60,7 @@
   let g=m.gait;
   if(!g||reset||g.world!==world||g.animated!==animated||g.grounded!==target.grounded){
    g=m.gait={world,revision:world.revision,supportTime:0,animated,grounded:target.grounded,last:p.clone(),lastYaw:yaw,phase:.28,speed:0,weight:0,idle:0,feet:[],delta:new T.Vector3(),local:new T.Vector3(),hip:new T.Vector3(),ankle:new T.Vector3(),u:new T.Vector3(),out:new T.Vector3(),knee:new T.Vector3(),down:new T.Vector3(0,-1,0),up:new T.Vector3(0,1,0),q:new T.Quaternion(),sole:new T.Quaternion(),rest:new T.Vector3(),pivot:new T.Vector3(0,.89,0)};
-   for(let i=0;i<2;i++)g.feet.push({position:new T.Vector3(),from:new T.Vector3(),to:new T.Vector3(),cache:{},swing:false,settling:false,phase:0,yaw,aimYaw:yaw,initialized:false});
+   for(let i=0;i<2;i++)g.feet.push({position:new T.Vector3(),from:new T.Vector3(),to:new T.Vector3(),cache:{},swing:false,settling:false,phase:0,yaw,initialized:false});
   }
   g.supportTime+=dt;
   if(animated&&target.grounded&&g.revision!==world.revision&&g.supportTime>=.12){
@@ -75,66 +75,38 @@
   if(moving)g.stride=Math.min(1.3,.85+actual*.10);const stride=g.stride||.85,prior=g.phase;
   if(moving)g.phase+=travel/stride;
   // Finish a lifted foot after stopping; settle one boot at a time afterwards.
-  else if(animated&&target.grounded&&g.feet.some(f=>f.swing&&!f.settling))g.phase+=dt*Math.max(1.5,g.speed/stride);
+  else if(animated&&target.grounded&&g.feet.some(f=>f.swing&&!f.settling))g.phase+=dt*Math.max(.8,g.speed/stride);
   const wave=Math.sin(g.phase*Math.PI*2),weight=animated?g.weight:0;
   g.local.copy(g.delta).applyAxisAngle(g.up,-yaw);
-  // Keep the lateral stance through an immediate reversal. Swapping both
-  // fore/aft lanes while a boot is planted would make the feet cross.
-  if(g.idle>.4&&!g.feet.some(f=>f.swing))g.laneSign=0;
-  if(moving&&!g.laneSign&&Math.abs(g.local.x)>.1)g.laneSign=Math.sign(g.local.x);
-  const lateral=(g.laneSign||1)*Math.abs(g.local.x),lowerAim=animated&&target.grounded?Math.atan2(-lateral,Math.abs(g.local.z))*.51:0;
-  g.lowerYaw=(g.lowerYaw||0)+(lowerAim-(g.lowerYaw||0))*(1-Math.exp(-dt*9));const footYaw=yaw+g.lowerYaw;
-  let bob=animated?(target.grounded?-.012-weight*(.010+Math.min(1,g.speed/4)*.015)+Math.cos(g.phase*Math.PI*4)*.006*weight:-.045):0;
+  let bob=animated?(target.grounded?-.016-weight*(.034+Math.min(1,g.speed/4)*.035)+Math.cos(g.phase*Math.PI*4)*.009*weight:-.045):0;
   let settling=g.feet.some(f=>f.settling);
   for(let i=0;i<2;i++){
    const side=i?1:-1,f=g.feet[i],phase=(g.phase+i*.5)%1,old=(prior+i*.5)%1;
-   // Legs lead sideways travel while the torso continues to carry the aim.
-   // Staggered lanes still leave space for a boot to pass its planted neighbour.
-   g.rest.set(side*.12,.015,side*.21*lateral).applyAxisAngle(g.up,yaw).add(p);
-   if(!f.initialized||!animated||!target.grounded||Math.abs(yaw-f.aimYaw)>.85||f.position.distanceTo(p)>1.2){
-    f.position.copy(g.rest);f.yaw=footYaw;f.aimYaw=yaw;f.swing=f.settling=f.turning=false;f.initialized=true;
+   // Side steps use staggered fore/aft lanes so the moving boot can pass the
+   // planted boot without crossing the same ankle and knee-pad volume.
+   g.rest.set(side*.12,.015,side*.25*Math.abs(g.local.x)).applyAxisAngle(g.up,yaw).add(p);
+   if(!f.initialized||!animated||!target.grounded||Math.abs(yaw-f.yaw)>.85||f.position.distanceTo(p)>1.2){
+    f.position.copy(g.rest);f.yaw=yaw;f.swing=f.settling=false;f.initialized=true;
     if(animated&&target.grounded)this.minerFootSupport(m,f,f.position,target,world);
    }
    if(animated&&target.grounded){
     if(moving&&!f.swing&&phase>=.55&&(old<.55||travel>0&&g.idle===0)){
-     f.from.copy(f.position);f.to.copy(g.rest).addScaledVector(g.delta,stride*(1-phase+.26));this.minerFootSupport(m,f,f.to,target,world);f.fromYaw=f.yaw;f.toYaw=yaw+lowerAim;f.toAimYaw=yaw;f.dirX=g.delta.x;f.dirZ=g.delta.z;f.swing=true;f.settling=f.turning=false;f.phase=phase;
-    }
-    // A lifted boot can choose a new landing when travel reverses. Retaining
-    // the old forward destination would force a teleport after it lands.
-    if(moving&&f.swing&&!f.settling&&g.delta.x*f.dirX+g.delta.z*f.dirZ<.5){
-     f.from.copy(f.position);f.turnDuration=B.clamp(stride*.35/Math.max(.5,g.speed),.12,.45);f.turnTime=0;f.turning=true;
-     f.to.copy(g.rest).addScaledVector(g.delta,g.speed*f.turnDuration+stride*.20);this.minerFootSupport(m,f,f.to,target,world);f.fromYaw=f.yaw;f.toYaw=yaw+lowerAim;f.toAimYaw=yaw;f.dirX=g.delta.x;f.dirZ=g.delta.z;
+     f.from.copy(f.position);f.to.copy(g.rest).addScaledVector(g.delta,stride*(1-phase+.26));this.minerFootSupport(m,f,f.to,target,world);f.swing=true;f.settling=false;f.phase=phase;
     }
     if(f.swing&&!f.settling){
-     if(f.turning)f.turnTime+=dt;
-     if(f.turning?f.turnTime>=f.turnDuration:phase<f.phase){f.position.copy(f.to);f.swing=f.turning=false;f.yaw=f.toYaw;f.aimYaw=f.toAimYaw;}
-     else{const t=f.turning?B.clamp(f.turnTime/f.turnDuration,0,1):B.clamp((phase-f.phase)/(1-f.phase),0,1),ease=t*t*(3-2*t);f.position.copy(f.from).lerp(f.to,ease);f.position.y+=Math.sin(Math.PI*t)*(.09+Math.min(.05,g.speed*.012));f.yaw=f.fromYaw+Math.atan2(Math.sin(f.toYaw-f.fromYaw),Math.cos(f.toYaw-f.fromYaw))*ease;}
+     if(phase<f.phase){f.position.copy(f.to);f.swing=false;f.yaw=yaw;}
+     else{const t=B.clamp((phase-f.phase)/(1-f.phase),0,1),ease=t*t*(3-2*t);f.position.copy(f.from).lerp(f.to,ease);f.position.y+=Math.sin(Math.PI*t)*(.09+Math.min(.05,g.speed*.012));}
     }
-    if(!moving&&g.idle>.20&&!f.swing&&!settling&&(Math.hypot(f.position.x-g.rest.x,f.position.z-g.rest.z)>.035||Math.abs(Math.atan2(Math.sin(f.yaw-yaw),Math.cos(f.yaw-yaw)))>.2)){
-     const other=g.feet[1-i],ownTurn=Math.abs(Math.atan2(Math.sin(f.yaw-yaw),Math.cos(f.yaw-yaw)))>.2,otherTurn=Math.abs(Math.atan2(Math.sin(other.yaw-yaw),Math.cos(other.yaw-yaw)))>.2;
-     if(otherTurn&&!ownTurn)continue;
-     f.from.copy(f.position);f.to.copy(g.rest);
-     // Turn each lifted sole in its own lane first. Then recover the stance
-     // outside the support boot before closing the final small gap.
-     if(ownTurn)f.to.copy(f.position);
-     else{
-      g.ankle.copy(other.position).sub(p).applyAxisAngle(g.up,-yaw);const gap=.12-side*g.ankle.x;
-      g.ankle.copy(f.position).sub(p).applyAxisAngle(g.up,-yaw);
-      // Recover the boot nearest the neutral stance first. Sending the other
-      // boot farther out could put it beyond the articulated leg's reach.
-      if(gap<.24-1e-6&&.12+side*g.ankle.x>=.24-1e-6)continue;
-      const width=gap>=.24-1e-6?.12:.42-gap;
-      f.to.copy(g.ankle.set(side*width,.015,0).applyAxisAngle(g.up,yaw).add(p));
-     }
-     this.minerFootSupport(m,f,f.to,target,world);f.fromYaw=f.yaw;f.toYaw=yaw+lowerAim;f.toAimYaw=yaw;f.swing=f.settling=settling=true;f.turning=false;f.phase=0;
+    if(!moving&&g.idle>.20&&!f.swing&&!settling&&Math.hypot(f.position.x-g.rest.x,f.position.z-g.rest.z)>.035){
+     f.from.copy(f.position);f.to.copy(g.rest);this.minerFootSupport(m,f,f.to,target,world);f.swing=f.settling=settling=true;f.phase=0;
     }
-    if(f.settling){f.phase=Math.min(1,f.phase+dt/.20);if(f.phase>1-1e-8)f.phase=1;const t=f.phase,ease=t*t*(3-2*t);f.position.copy(f.from).lerp(f.to,ease);f.position.y+=Math.sin(Math.PI*t)*.14;f.yaw=f.fromYaw+Math.atan2(Math.sin(f.toYaw-f.fromYaw),Math.cos(f.toYaw-f.fromYaw))*ease;if(t===1){f.swing=f.settling=false;f.aimYaw=f.toAimYaw;}}
+    if(f.settling){f.phase=Math.min(1,f.phase+dt/.24);const t=f.phase,ease=t*t*(3-2*t);f.position.copy(f.from).lerp(f.to,ease);f.position.y+=Math.sin(Math.PI*t)*.065;if(t===1){f.swing=f.settling=false;f.yaw=yaw;}}
    }else if(animated){f.position.y+=.12+(i?.015:0);}
   }
   // Let the pelvis yield to a long planted step. The root stays on the same
   // authoritative floor; only the articulated body compresses.
   if(animated)for(let i=0;i<2;i++){
-   g.ankle.copy(g.feet[i].position).sub(p).applyAxisAngle(g.up,-footYaw);const horizontal=Math.hypot(g.ankle.x-(i?1:-1)*.12,g.ankle.z);
+   g.ankle.copy(g.feet[i].position).sub(p).applyAxisAngle(g.up,-yaw);const horizontal=Math.hypot(g.ankle.x-(i?1:-1)*.12,g.ankle.z);
    bob=Math.min(bob,g.ankle.y+Math.sqrt(Math.max(.01,.876*.876-horizontal*horizontal))-.89);
   }
   bob=Math.max(-.28,bob);
@@ -145,13 +117,13 @@
   const armSwing=wave*(.30+Math.min(1,g.speed/4)*.24)*weight;
   m.arms[0].rotation.set(armSwing*g.local.z,0,.10-Math.max(0,armSwing*g.local.x));m.arms[0].quaternion.premultiply(m.torso.quaternion);m.elbows[0].rotation.set(.16+Math.max(0,-armSwing*g.local.z)*.28,0,0);
   for(let i=0;i<2;i++){
-   const side=i?1:-1,f=g.feet[i],leg=m.legs[i],joint=m.knees[i],foot=m.feet[i];leg.position.set(side*.12,.89+bob,0).applyAxisAngle(g.up,g.lowerYaw);
+   const side=i?1:-1,f=g.feet[i],leg=m.legs[i],joint=m.knees[i],foot=m.feet[i];leg.position.set(side*.12,.89+bob,0);
    if(!animated){leg.rotation.set(0,0,side*.04);joint.rotation.set(0,0,0);foot.rotation.set(0,-side*.10,0);continue;}
    // Two-link solve keeps the entire sole level during support, independently of hip swing.
    g.ankle.copy(f.position).sub(p).applyAxisAngle(g.up,-yaw);g.hip.copy(leg.position);g.u.copy(g.ankle).sub(g.hip);const d=B.clamp(g.u.length(),.03,.879);g.u.normalize();
-   g.out.set(-Math.sin(g.lowerYaw),0,-Math.cos(g.lowerYaw)).addScaledVector(g.u,-g.out.dot(g.u)).normalize();const along=(.38*.38-.50*.50+d*d)/(2*d),height=Math.sqrt(Math.max(0,.38*.38-along*along));g.knee.copy(g.hip).addScaledVector(g.u,along).addScaledVector(g.out,height);
+   g.out.set(0,0,-1).addScaledVector(g.u,-g.u.z*-1).normalize();const along=(.38*.38-.50*.50+d*d)/(2*d),height=Math.sqrt(Math.max(0,.38*.38-along*along));g.knee.copy(g.hip).addScaledVector(g.u,along).addScaledVector(g.out,height);
    leg.quaternion.setFromUnitVectors(g.down,g.u.copy(g.knee).sub(g.hip).normalize());g.q.copy(leg.quaternion).invert();joint.quaternion.setFromUnitVectors(g.down,g.u.copy(g.ankle).sub(g.knee).applyQuaternion(g.q).normalize());
-   g.sole.setFromAxisAngle(g.up,B.clamp(f.yaw-yaw,-.85,.85)-side*.10);g.q.copy(leg.quaternion).multiply(joint.quaternion).invert();foot.quaternion.copy(g.q).multiply(g.sole);
+   g.sole.setFromAxisAngle(g.up,B.clamp(f.yaw-yaw,-.6,.6)-side*.10);g.q.copy(leg.quaternion).multiply(joint.quaternion).invert();foot.quaternion.copy(g.q).multiply(g.sole);
   }
   g.last.copy(p);g.lastYaw=yaw;m.phase=g.phase*Math.PI*2;
  };

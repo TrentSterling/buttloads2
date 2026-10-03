@@ -31,6 +31,25 @@ try{
   for(let i=0;i<100;i++)step(p,0,-.025);for(let i=0;i<180;i++)step(p,0,0);assert.ok(m.gait.feet.every(f=>!f.swing));
   for(let i=0;i<2;i++){const local=m.root.worldToLocal(pos(m.feet[i]));assert.ok(Math.abs(local.z)<.036&&Math.abs(local.x-(i?.12:-.12))<.036);}
  });
+ test('sideways starts, reversal and stops preserve each supported sole orientation; turns occur while lifted',()=>{
+  for(const hz of [30,60,144])for(const speed of [.5,1.5,3.8,6])for(const start of [1,-1]){
+   const p=boot(),last=[null,null];let supportedPairs=0,turns=0;
+   for(let i=0;i<hz*6;i++){
+    const direction=i<hz*2?start:i<hz*4?-start:0,m=step(p,direction*speed/hz,0,1/hz);
+    assert.ok(!new T.Box3().setFromObject(m.feet[0]).intersectsBox(new T.Box3().setFromObject(m.feet[1])),JSON.stringify({reason:'reversal boots overlap',hz,speed,i,boxes:m.feet.map(n=>{const b=new T.Box3().setFromObject(n);return [b.min.toArray(),b.max.toArray()];}),feet:m.gait.feet.map(f=>({position:f.position.toArray(),yaw:f.yaw,swing:f.swing,settling:f.settling,turning:f.turning}))}));
+    for(let j=0;j<2;j++){
+     const q=m.feet[j].getWorldQuaternion(new T.Quaternion()),f=m.gait.feet[j],prior=last[j];
+     assert.ok(pos(m.feet[j]).distanceTo(f.position)<.005,JSON.stringify({reason:'reversal sole unreachable',hz,speed,i,j,root:m.root.position.toArray(),hip:pos(m.legs[j]).toArray(),actual:pos(m.feet[j]).toArray(),feet:m.gait.feet.map(f=>({position:f.position.toArray(),yaw:f.yaw,swing:f.swing,settling:f.settling}))}));
+     if(prior&&!prior.lifted&&!f.swing&&!f.settling){assert.ok(q.angleTo(prior.q)<1e-6,JSON.stringify({reason:'planted sole twists',hz,i,j,angle:q.angleTo(prior.q),root:m.root.position.toArray(),f:{yaw:f.yaw,aimYaw:f.aimYaw,phase:f.phase,position:f.position.toArray()},q:q.toArray(),prior:prior.q.toArray()}));supportedPairs++;}
+     if(prior&&q.angleTo(prior.q)>.005){assert.ok(f.swing||f.settling||prior.lifted,'sole turns without a step');turns++;}
+     last[j]={q,lifted:f.swing||f.settling};
+    }
+   }
+   assert.ok(supportedPairs>hz*2,'no sustained supported sole orientations');assert.ok(turns>hz/4,'sideways travel never turns the boots');
+   const m=v.miners.get(p.id);assert.ok(m.gait.feet.every(f=>!f.swing&&!f.settling),JSON.stringify({reason:'sideways stop never settles',hz,speed,start,idle:m.gait.idle,feet:m.gait.feet.map(f=>({position:f.position.toArray(),yaw:f.yaw,swing:f.swing,settling:f.settling,phase:f.phase}))}));
+   m.feet.forEach((n,j)=>{const local=m.root.worldToLocal(pos(n));assert.ok(Math.abs(local.z)<.036&&Math.abs(local.x-(j?.12:-.12))<.036,'sideways stop retains the wide stance');});
+  }
+ });
  test('all seven grips remain attached through moving, firing and steep aiming poses',()=>{
   for(const tool of Object.keys(B2.TOOLS))for(const pitch of [-1.2,0,1.2]){const p=boot(tool);p.player.pitch=pitch;p.fire=true;for(let i=0;i<90;i++){const m=step(p,i%2?.02:-.02,-.04);assert.ok(grip(m)<.025,tool+' grip detached');}}
  });

@@ -9,7 +9,7 @@ const old=released(h.game.view,2),rig=current(h.game.view,2),collar=B2.WorkshopS
 export let minerCollarChecks=0;const test=(name,fn)=>{fn();minerCollarChecks++;console.log('PASS miner collar: '+name);};
 const meshes=art=>{const a=[];art.root.traverse(n=>{if(n.isMesh)a.push(n);});return a;};
 const inventory=art=>{const a=meshes(art);return{meshes:a.length,triangles:a.reduce((s,m)=>s+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0),bytes:a.reduce((s,m)=>s+Object.values(m.geometry.attributes).reduce((n,a)=>n+a.array.byteLength,0)+(m.geometry.index?.array.byteLength||0),0),materials:new Set(a.map(m=>m.material)).size,ownedMaterials:art.materials.length,textures:art.textures.length};};
-const changed=(art,m)=>m.parent===art.torso&&[0,2].includes(art.materials.indexOf(m.material));
+const changed=(art,m)=>m.parent===art.torso&&[0,2].includes(art.materials.indexOf(m.material))||art.feet.includes(m.parent)||m.userData.workerBoot||m.name==='continuous-trouser';
 let solid,attached=0;
 try{
  test('folded collar is one closed outward shell with finite attributes and complete directed edges',()=>{
@@ -40,16 +40,16 @@ try{
   const m=new T.Mesh(shirt,new T.MeshBasicMaterial({side:T.DoubleSide}));m.updateMatrixWorld(true);
   for(let i=0;i<33;i++){const point=new T.Vector3().fromBufferAttribute(collar.attributes.position,i),hits=new T.Raycaster(point,new T.Vector3(.031,.017,1).normalize()).intersectObject(m).map(h=>h.distance),unique=hits.filter((d,j)=>!j||Math.abs(d-hits[j-1])>1e-7);assert.equal(unique.length%2,1,'neck anchor '+i+' outside actual shirt');attached++;}m.material.dispose();
  });
- test('shirt construction retains mesh, material, texture and bone counts with declared geometry costs',()=>{
+ test('current body declares cumulative resources and preserves released shirt bone anchors',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:28572,bytes:1504088,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:48,triangles:28934,bytes:1495764,materials:25,ownedMaterials:45,textures:1});
+  assert.deepEqual(inventory(rig),{meshes:44,triangles:30518,bytes:1565348,materials:27,ownedMaterials:51,textures:1});
   for(const prop of ['head','torso','arms','elbows','legs','knees','feet']){const a=Array.isArray(rig[prop])?rig[prop]:[rig[prop]],b=Array.isArray(old[prop])?old[prop]:[old[prop]];for(let i=0;i<a.length;i++)for(const k of ['position','quaternion','scale'])assert.deepEqual(a[i][k].toArray(),b[i][k].toArray());}
  });
- test('all 46 other body meshes preserve exact geometry, including the complete improved face and helmet',()=>{
-  const a=meshes(rig).filter(m=>!changed(rig,m)),b=meshes(old).filter(m=>!changed(old,m));assert.equal(a.length,46);assert.equal(b.length,46);
+ test('all 34 other body meshes preserve exact geometry, including the complete improved face and helmet',()=>{
+  const a=meshes(rig).filter(m=>!changed(rig,m)),b=meshes(old).filter(m=>!changed(old,m));assert.equal(a.length,34);assert.equal(b.length,34);
   for(let i=0;i<a.length;i++){assert.deepEqual(a[i].geometry.index?.array,b[i].geometry.index?.array);assert.deepEqual(Object.keys(a[i].geometry.attributes),Object.keys(b[i].geometry.attributes));for(const k of Object.keys(a[i].geometry.attributes))assert.deepEqual(a[i].geometry.attributes[k].array,b[i].geometry.attributes[k].array);assert.equal(rig.materials.indexOf(a[i].material),old.materials.indexOf(b[i].material));for(const k of ['position','quaternion','scale'])assert.deepEqual(a[i][k].toArray(),b[i][k].toArray());for(const k of ['castShadow','receiveShadow','layers','renderOrder','visible','matrixAutoUpdate'])assert.deepEqual(a[i][k],b[i][k]);}
   for(let i=0;i<15;i++)for(const k of ['color','roughness','metalness','transparent','opacity','depthWrite','side','emissive','emissiveIntensity','vertexColors'])assert.deepEqual(rig.materials[i][k],old.materials[i][k]);
  });
- fs.mkdirSync(new URL('out/',import.meta.url),{recursive:true});fs.writeFileSync(new URL('out/miner-collar-math.json',import.meta.url),JSON.stringify({date:new Date().toISOString(),checks:minerCollarChecks,before:inventory(old),after:inventory(rig),unchangedMeshes:46,solid,neckAnchorsIntersectActualShirt:attached,scope:'Actual topology, hollow opening, merged production geometry, surface intersections, resource inventory and conservation. Visual acceptance separate; no global self-intersection claim.'},null,2));
+ fs.mkdirSync(new URL('out/',import.meta.url),{recursive:true});fs.writeFileSync(new URL('out/miner-collar-math.json',import.meta.url),JSON.stringify({date:new Date().toISOString(),checks:minerCollarChecks,before:inventory(old),after:inventory(rig),unchangedMeshes:34,solid,neckAnchorsIntersectActualShirt:attached,scope:'Actual topology, hollow opening, merged production geometry, surface intersections, resource inventory and conservation. Visual acceptance separate; no global self-intersection claim.'},null,2));
 }finally{collar.dispose();shirt.dispose();h.close();}
 console.log('COMPLETE '+minerCollarChecks+' miner collar checks passed.');

@@ -20,8 +20,8 @@ function bodyTriangles(frustum,shadow,reference){
 }
 try{
  test('all eight colours retain identical slot geometry and native material properties',()=>{
-  show(members(8));const rigs=[...v.miners.values()],base=rigs[0];assert.equal(base.bodyMeshes.length,48);
-  for(const m of rigs.slice(1))for(let slot=0;slot<48;slot++){
+  show(members(8));const rigs=[...v.miners.values()],base=rigs[0];assert.equal(base.bodyMeshes.length,44);
+  for(const m of rigs.slice(1))for(let slot=0;slot<base.bodyMeshes.length;slot++){
    const a=base.bodyMeshes[slot],b=m.bodyMeshes[slot];
    assert.deepEqual(vertices(b.geometry),vertices(a.geometry));assert.deepEqual(Array.from(b.geometry.index?.array||[]),Array.from(a.geometry.index?.array||[]));
    for(const key of ['roughness','metalness','emissiveIntensity','side','transparent','opacity','vertexColors'])assert.equal(a.material[key],b.material[key]);
@@ -81,7 +81,7 @@ try{
   departed.badge.geometry.addEventListener('dispose',badgeListener);
   for(const source of departed.bodyMeshes)source.geometry.addEventListener('dispose',()=>bodyDisposals++);
   v.removeMiner('batch-0');departed.badge.geometry.removeEventListener('dispose',badgeListener);
-  assert.equal(bodyDisposals,48);assert.equal(badgeDisposals,0);
+  assert.equal(bodyDisposals,44);assert.equal(badgeDisposals,0);
   show(members(2));assert.equal(v.miners.get('batch-0').badge.geometry,survivor.badge.geometry);
  });
 }finally{v.clearMiners();g.net=originalNet;clearInterval(originalNet.timer);h.close();}

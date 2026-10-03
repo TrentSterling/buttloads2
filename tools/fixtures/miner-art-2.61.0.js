@@ -79,7 +79,7 @@
  }
  const jointGLSL=`
  uniform vec4 workerJointQuaternion;
- uniform vec3 workerJointSection;
+ uniform vec2 workerJointSection;
  #ifdef USE_INSTANCING
  attribute vec4 workerInstanceJoint;
  #endif
@@ -92,10 +92,10 @@
  return q.w<0.0?-q:q;
  }
  vec3 workerRotate(vec4 q,vec3 p){return p+2.0*cross(q.xyz,cross(q.xyz,p)+q.w*p);}
- vec4 workerWeightedRotation(vec3 p,vec4 q){float t=clamp((p.y-workerJointSection.z+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0);return normalize(mix(vec4(0.0,0.0,0.0,1.0),q,1.0-t*t*(3.0-2.0*t)));}
+ vec4 workerWeightedRotation(vec3 p,vec4 q){float t=clamp((p.y-workerJointSection.x+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0);return normalize(mix(vec4(0.0,0.0,0.0,1.0),q,1.0-t*t*(3.0-2.0*t)));}
  vec3 workerJointPoint(vec3 p){vec3 pivot=vec3(0.0,workerJointSection.x,0.0);return pivot+workerRotate(workerWeightedRotation(p,workerJointRotation()),p-pivot);}
  vec3 workerJointNormal(vec3 p,vec3 n){
-  vec4 q=workerJointRotation();float t=clamp((p.y-workerJointSection.z+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0),w=1.0-t*t*(3.0-2.0*t),dw=-3.0*t*(1.0-t)/workerJointSection.y;
+  vec4 q=workerJointRotation();float t=clamp((p.y-workerJointSection.x+workerJointSection.y)/(2.0*workerJointSection.y),0.0,1.0),w=1.0-t*t*(3.0-2.0*t),dw=-3.0*t*(1.0-t)/workerJointSection.y;
   vec4 raw=mix(vec4(0.0,0.0,0.0,1.0),q,w);vec3 v=cross(2.0*q.xyz*dw/dot(raw,raw),p-vec3(0.0,workerJointSection.x,0.0));float determinant=1.0+v.y;
   n.y-=dot(v,n)/(abs(determinant)<0.001?(determinant<0.0?-0.001:0.001):determinant);
   return normalize(workerRotate(normalize(raw),n));
@@ -136,10 +136,10 @@
   return normalize(workerRotate(normalize(raw),n));
  }
  `;
- function jointShader(material,joint,pivot,span,shoulder=null,weightPivot=pivot){
-  material.customProgramCacheKey=()=> shoulder?'worker-continuous-shoulder-v4':'worker-continuous-joint-v2';
+ function jointShader(material,joint,pivot,span,shoulder=null){
+  material.customProgramCacheKey=()=> shoulder?'worker-continuous-shoulder-v3':'worker-continuous-joint-v1';
   material.onBeforeCompile=shader=>{
-   shader.uniforms.workerJointQuaternion={value:joint.quaternion};shader.uniforms.workerJointSection={value:new T.Vector3(pivot,span,weightPivot)};
+   shader.uniforms.workerJointQuaternion={value:joint.quaternion};shader.uniforms.workerJointSection={value:new T.Vector2(pivot,span)};
    if(shoulder){
     shader.uniforms.workerShoulderArm={value:shoulder.arm.quaternion};shader.uniforms.workerShoulderBody={value:shoulder.torso.quaternion};shader.uniforms.workerShoulderRadius={value:new T.Vector2(shoulder.radius,shoulder.falloff)};
     shader.uniforms.workerShoulderLateral={value:new T.Vector3(shoulder.side,shoulder.lateral,shoulder.width)};
@@ -149,8 +149,8 @@
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=workerJointPoint(transformed);'+(shoulder?'\ntransformed=workerShoulderPoint(position,transformed);':''));
   };return material;
  }
- function jointPoint(point,quaternion,pivot,span,target=new T.Vector3(),weightPivot=pivot){
-  const t=B.clamp((point.y-weightPivot+span)/(2*span),0,1),w=1-t*t*(3-2*t),sign=quaternion.w<0?-1:1,x=quaternion.x*sign*w,y=quaternion.y*sign*w,z=quaternion.z*sign*w,qw=1+w*(quaternion.w*sign-1),inverse=1/Math.hypot(x,y,z,qw);
+ function jointPoint(point,quaternion,pivot,span,target=new T.Vector3()){
+  const t=B.clamp((point.y-pivot+span)/(2*span),0,1),w=1-t*t*(3-2*t),sign=quaternion.w<0?-1:1,x=quaternion.x*sign*w,y=quaternion.y*sign*w,z=quaternion.z*sign*w,qw=1+w*(quaternion.w*sign-1),inverse=1/Math.hypot(x,y,z,qw);
   const qx=x*inverse,qy=y*inverse,qz=z*inverse,qwN=qw*inverse,px=point.x,py=point.y-pivot,pz=point.z,tx=2*(qy*pz-qz*py),ty=2*(qz*px-qx*pz),tz=2*(qx*py-qy*px);
   return target.set(px+qwN*tx+qy*tz-qz*ty,py+qwN*ty+qz*tx-qx*tz+pivot,pz+qwN*tz+qx*ty-qy*tx);
  }
@@ -357,27 +357,7 @@
   q(0,1,n,n+1);q(n-2,2*n-2,n-1,2*n-1);
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();g.userData.workerCloth='patch';return g;
  }
- const bootSections=[[.065,.091,.149,-.030,1],[.090,.098,.148,-.034,1],[.120,.094,.129,-.021,1],[.150,.087,.108,-.010,1],[.177,.080,.094,.003,.94],[.208,.084,.093,.002,.96],[.249,.093,.094,.002,1],[.283,.098,.099,0,1.30],[.290,.097,.098,0,1.36]];
- function bootSurface(x,y){
-  const next=bootSections.findIndex(r=>r[0]>y),i=Math.max(0,next<0?bootSections.length-2:next-1),a=bootSections[i],b=bootSections[i+1],t=B.clamp((y-a[0])/(b[0]-a[0]),0,1),rx=a[1]+(b[1]-a[1])*t,rz=a[2]+(b[2]-a[2])*t,z=a[3]+(b[3]-a[3])*t;
-  return z-rz*Math.sqrt(Math.max(0,1-x*x/(rx*rx)))-.007;
- }
- function workerBoot(){
-  // Exterior, rolled rim and inward-facing lining form one hollow upper.
-  const sections=[...bootSections,[.290,.087,.088,0,.75],[.282,.086,.087,0,.45],[.248,.082,.083,0,.40],[.208,.075,.082,.002,.36],[.177,.068,.077,.003,.32],[.120,.081,.115,-.021,.30],[.079,.083,.134,-.029,.30]],segments=24,p=[],uv=[],colors=[],indices=[];
-  for(let row=0;row<sections.length;row++)for(let j=0;j<=segments;j++){
-   const [y,rx,rz,z,tint]=sections[row],a=j===segments?0:j/segments*Math.PI*2,x=Math.sin(a)*rx;
-   const crease=row>=3&&row<=6?.0025*Math.sin(a*3+.8)*Math.sin((y-.15)*34):0;
-   p.push(x,y,Math.cos(a)*(rz+crease)+z);uv.push(j/segments,row/(sections.length-1));colors.push(tint,tint,tint);
-  }
-  for(let row=0;row<sections.length-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;indices.push(a,a+1,b,a+1,b+1,b);}
-  for(const row of [0,sections.length-1]){
-   const [y,,,z,tint]=sections[row],center=p.length/3;p.push(0,y,z);uv.push(.5,.5);colors.push(tint,tint,tint);
-   for(let j=0;j<segments;j++){const a=row*(segments+1)+j;indices.push(center,...(row?[a,a+1]:[a+1,a]));}
-  }
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.setIndex(indices);faceSeamNormals(g,segments,sections.length);return g;
- }
- B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,workerFace,workerMoustache,workerCollar,workerShirt,workerBoot,mergeRigid,partitionRigid};
+ B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,workerFace,workerMoustache,workerCollar,workerShirt,mergeRigid,partitionRigid};
  B.buildMinerArt=function(view,color){
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
@@ -389,12 +369,12 @@
   const ball=(parent,m,x,y,z,rx,ry=rx,rz=rx)=>{const geometry=new T.SphereGeometry(1,14,10);if(m===cloth||m===shirt)geometry.userData.workerCloth=m===cloth?'joint-thigh':'joint-sleeve';const mesh=add(parent,geometry,m,x,y,z);mesh.scale.set(rx,ry,rz);return mesh;};
   const wire=(parent,m,points,r=.003)=>add(parent,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p))),Math.max(6,points.length*4),r,5,false),m);
   const bolt=(parent,x,y,z,r=.007)=>{const mesh=add(parent,new T.CylinderGeometry(r,r,.006,6),steel,x,y,z);mesh.rotation.x=Math.PI/2;return mesh;};
-  const jointCloth=(parent,joint,geometry,base,pivot,span,shoulder=null,weightPivot=pivot)=>{
-   if(base.map===fabric)clothUV(geometry);const m=jointShader(base.clone(),joint,pivot,span,shoulder,weightPivot);if(geometry.attributes.color)m.vertexColors=true;materials.push(m);
-   const mesh=add(parent,geometry,m);mesh.userData.workerJoint={joint,pivot,span,weightPivot};mesh.name=base.map===fabric?(pivot===-.38?'continuous-trouser':'continuous-sleeve'):'continuous-knee-equipment';
+  const jointCloth=(parent,joint,geometry,base,pivot,span,shoulder=null)=>{
+   if(base.map===fabric)clothUV(geometry);const m=jointShader(base.clone(),joint,pivot,span,shoulder);materials.push(m);
+   const mesh=add(parent,geometry,m);mesh.userData.workerJoint={joint,pivot,span};mesh.name=base.map===fabric?(pivot===-.38?'continuous-trouser':'continuous-sleeve'):'continuous-knee-equipment';
    if(shoulder)mesh.userData.workerShoulder=shoulder;
-   mesh.customDepthMaterial=jointShader(new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking}),joint,pivot,span,shoulder,weightPivot);
-   mesh.customDistanceMaterial=jointShader(new T.MeshDistanceMaterial(),joint,pivot,span,shoulder,weightPivot);materials.push(mesh.customDepthMaterial,mesh.customDistanceMaterial);
+   mesh.customDepthMaterial=jointShader(new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking}),joint,pivot,span,shoulder);
+   mesh.customDistanceMaterial=jointShader(new T.MeshDistanceMaterial(),joint,pivot,span,shoulder);materials.push(mesh.customDepthMaterial,mesh.customDistanceMaterial);
    // Weighted quaternions preserve distance from the pivot for every vertex.
    const p=geometry.attributes.position;let radiusSquared=0;for(let i=0;i<p.count;i++){
     radiusSquared=Math.max(radiusSquared,p.getX(i)**2+(p.getY(i)-pivot)**2+p.getZ(i)**2);
@@ -457,12 +437,12 @@
   const housing=add(head,new T.CylinderGeometry(.054,.064,.07,20),steel,0,.135,-.194);housing.rotation.x=Math.PI/2;
   const rim=add(head,new T.TorusGeometry(.043,.008,8,20),rubber,0,.135,-.238);
   ball(head,lampGlass,0,.135,-.241,.039,.039,.011);block(head,rubber,0,.193,-.161,.025,.022,.023,.004);
-  const legs=[],knees=[],feet=[],arms=[],elbows=[],bootUppers=[];
+  const legs=[],knees=[],feet=[],arms=[],elbows=[];
   for(const side of [-1,1]){
    const leg=new T.Group();leg.position.set(side*.12,.89,0);leg.rotation.z=side*.04;root.add(leg);legs.push(leg);
    wire(leg,edge,[[side*.092,-.05,-.04],[side*.096,-.18,-.042],[side*.077,-.33,-.045]],.002);
    const knee=new T.Group();knee.position.y=-.38;leg.add(knee);knees.push(knee);
-   jointCloth(leg,knee,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.25,.095,.097],[-.29,.091,.094],[-.33,.088,.09],[-.38,.089,.09],[-.425,.091,.089],[-.465,.092,.086],[-.495,.093,.084],[-.59,.087,.081],[-.602,.083,.080]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22],[-.481,.018,.004,.21]],'thigh',true),cloth,-.38,.19);
+   jointCloth(leg,knee,garment([[0,.101,.103],[-.08,.113,.112],[-.19,.103,.104],[-.25,.095,.097],[-.29,.091,.094],[-.33,.088,.09],[-.38,.089,.09],[-.425,.091,.089],[-.465,.092,.086],[-.495,.093,.084],[-.59,.087,.081],[-.665,.076,.073],[-.705,.075,.072]],16,[[-.072,.014,.003,.30],[-.21,.021,.004,-.38],[-.332,.017,.004,.22],[-.481,.018,.004,.21],[-.634,.013,.003,-.23]],'thigh',true),cloth,-.38,.19);
    const pad=new T.Group();
    block(pad,rubber,0,-.015,-.088,.151,.17,.046,.026);block(pad,leather,0,-.021,-.115,.112,.124,.018,.02);
    for(const y of [-.059,-.021,.017])block(pad,edge,0,y,-.127,.075,.009,.008,.002);
@@ -471,16 +451,11 @@
    for(const piece of pad.children){piece.updateMatrix();piece.geometry.applyMatrix4(piece.matrix).translate(0,-.38,0);jointCloth(leg,knee,piece.geometry,piece.material,-.38,.19);}
    const foot=new T.Group();foot.position.y=-.50;foot.rotation.y=-side*.10;knee.add(foot);feet.push(foot);
    add(foot,loft([[0,.095,.148,-.028],[.024,.103,.165,-.039],[.060,.105,.165,-.037],[.077,.096,.151,-.031]],20),rubber);
-   const upper=new T.Group(),shell=workerBoot(),shellVertices=shell.attributes.position.count,shellIndices=shell.index.count;add(upper,shell,leather);
-   const tinted=(mesh,color)=>{const p=mesh.geometry.attributes.position,values=new Float32Array(p.count*3);for(let i=0;i<p.count;i++)for(let k=0;k<3;k++)values[i*3+k]=color.toArray()[k]/leather.color.toArray()[k];mesh.geometry.setAttribute('color',new T.BufferAttribute(values,3));return mesh;};
-   for(let j=0;j<4;j++){
-    const y=.118+j*.021;
-    for(const x of [-.038,.038]){const eyelet=add(upper,new T.CylinderGeometry(.005,.005,.006,6),leather,x,y,bootSurface(x,y));eyelet.rotation.x=Math.PI/2;tinted(eyelet,steel.color);}
-    for(const direction of [-1,1]){const points=[[-direction*.038,y,bootSurface(-direction*.038,y)-.005],[0,y+.007,bootSurface(0,y+.007)-.007],[direction*.038,y+.012,bootSurface(direction*.038,y+.012)-.005]];tinted(wire(upper,leather,points,.0025),reflector.color);}
-   }
-   mergeRigid(upper);const geometry=upper.children[0].geometry;geometry.userData.workerBootShell={vertices:shellVertices,indices:shellIndices};bootUppers.push({knee,foot,geometry:geometry.translate(0,-.50,0)});
+   add(foot,loft([[.065,.091,.149,-.03],[.105,.096,.142,-.031],[.153,.089,.106,-.008],[.185,.075,.076,.012],[.241,.072,.074,.015]],20),leather);
+   add(foot,loft([[.223,.08,.079,.015],[.245,.08,.08,.015]],16),edge);
    wire(foot,edge,[[-.075,.085,-.101],[-.07,.09,-.171],[0,.095,-.184],[.07,.09,-.171],[.075,.085,-.101]],.003);
-   for(const [z,width]of [[-.12,.15],[-.045,.188],[.03,.18],[.10,.12]])block(foot,rubber,0,.015,z,width,.018,.019,.003);
+   for(let j=0;j<4;j++){const y=.131+j*.019,z=-.109+j*.009;for(const x of [-.031,.031])bolt(foot,x,y,z,.005);wire(foot,reflector,[[-.03,y,z-.006],[.03,y+.015,z+.003]],.0025);wire(foot,reflector,[[.03,y,z-.006],[-.03,y+.015,z+.003]],.0025);}
+   for(const z of [-.12,-.045,.03,.10])block(foot,rubber,0,.015,z,.19,.018,.019,.003);
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);
    const elbow=new T.Group();elbow.position.y=-.245;elbow.rotation.x=side>0?.28:.11;arm.add(elbow);elbows.push(elbow);
@@ -492,9 +467,6 @@
    const glove=workerGlove(side);for(const geometry of [glove.palm,...glove.fingers,glove.thumb])add(elbow,geometry,leather);for(const geometry of [glove.back,glove.cuff,...glove.pads])add(elbow,geometry,edge);
    for(const x of [-.027,.027])wire(elbow,edge,[[x,-.230,.025],[x,-.245,.023],[x*.9,-.268,.022]],.0014);
   }
-  // The shaft follows the shin, while the toe follows the existing level sole.
-  // Weighting is centered at the ankle; rotation retains the original foot pivot.
-  for(const {knee,foot,geometry}of bootUppers){const mesh=jointCloth(knee,foot,geometry,leather,-.50,.106,null,-.316);mesh.name='continuous-boot-upper';mesh.userData.workerBoot=true;}
   const fabricMaterials=new Set([cloth,darkCloth,shirt]);root.traverse(node=>{if(node.isMesh&&fabricMaterials.has(node.material))clothUV(node.geometry);});
   for(const group of [torso,head,...legs,...knees,...feet,...arms,...elbows])mergeRigid(group);
   root.name='miner-sculpted-worker';return{root,head,torso,legs,knees,feet,arms,elbows,materials,textures};

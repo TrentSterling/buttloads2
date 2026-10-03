@@ -42,7 +42,7 @@ try{
  });
  test('current body declares cumulative resources and preserves released shirt bone anchors',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:28572,bytes:1504088,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:44,triangles:30518,bytes:1565348,materials:27,ownedMaterials:51,textures:1});
+  assert.deepEqual(inventory(rig),{meshes:42,triangles:30502,bytes:1565988,materials:27,ownedMaterials:51,textures:1});
   for(const prop of ['head','torso','arms','elbows','legs','knees','feet']){const a=Array.isArray(rig[prop])?rig[prop]:[rig[prop]],b=Array.isArray(old[prop])?old[prop]:[old[prop]];for(let i=0;i<a.length;i++)for(const k of ['position','quaternion','scale'])assert.deepEqual(a[i][k].toArray(),b[i][k].toArray());}
  });
  test('all 34 other body meshes preserve exact geometry, including the complete improved face and helmet',()=>{

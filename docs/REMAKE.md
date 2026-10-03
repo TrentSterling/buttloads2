@@ -1,5 +1,9 @@
 # Buttloads 2: remake direction
 
+## Miner boot creases, 2.63.0
+
+The latest [miner boot creases](MINER-BOOT-FOLDS.md) remove two floating toe cords and reshape the ankle profile with modest front creases. All 605 system checks pass. Twenty-nine native pairs retain exact cameras and rig traces: 32 frames freshly viewed and 26 baseline frames with exact dated hash provenance. All 40 other meshes, 51 materials and joint shaders stay exact. Per worker: two fewer meshes, sixteen fewer triangles and 640 more geometry bytes. The ten-slide review retains two rejected trials and explicit costs; it leads the 65-section hub. Extreme-bend hooding remains weak. Further tiny boot iterations have diminishing returns; the next substantial target is wide crouched travel. Physical Firefox feel, quiet timing and separate-network co-op remain unverified; no FPS claim.
+
 ## Articulated miner boots, 2.62.0
 
 The latest [articulated miner boots](MINER-BOOTS.md) replace exposed flat caps with hollow shafts that follow the shins. Laces and eyelets merge into the upper, removing four meshes per miner. All 605 system checks pass; 29 native pairs retain exact cameras and rig traces, and all 58 final frames were directly inspected. The rebuild adds 1,584 model triangles, 69,584 geometry bytes, two main materials and six owned surface/shadow materials per worker. The ten-slide review retains rejected boots, actual GPU draws and explicit costs; it leads the 64-section hub. Deep bends remain too soft, with a broad dark opening; clean leather, wider art, physical Firefox feel, quiet timing and separate-network co-op remain open. Fewer submissions do not establish an FPS improvement.

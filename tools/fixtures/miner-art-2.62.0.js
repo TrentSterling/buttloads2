@@ -357,7 +357,7 @@
   q(0,1,n,n+1);q(n-2,2*n-2,n-1,2*n-1);
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();g.userData.workerCloth='patch';return g;
  }
- const bootSections=[[.065,.091,.149,-.030,.82],[.090,.098,.148,-.034,1.15],[.120,.094,.129,-.021,1.06],[.150,.087,.108,-.010,.96],[.164,.085,.098,-.006,.90],[.177,.084,.097,.001,1.05],[.191,.084,.089,.003,.91],[.208,.086,.094,.002,1.06],[.228,.089,.092,.002,.98],[.249,.093,.094,.002,1.04],[.277,.095,.096,0,1.10],[.286,.098,.099,0,1.25],[.290,.097,.098,0,1.30]];
+ const bootSections=[[.065,.091,.149,-.030,1],[.090,.098,.148,-.034,1],[.120,.094,.129,-.021,1],[.150,.087,.108,-.010,1],[.177,.080,.094,.003,.94],[.208,.084,.093,.002,.96],[.249,.093,.094,.002,1],[.283,.098,.099,0,1.30],[.290,.097,.098,0,1.36]];
  function bootSurface(x,y){
   const next=bootSections.findIndex(r=>r[0]>y),i=Math.max(0,next<0?bootSections.length-2:next-1),a=bootSections[i],b=bootSections[i+1],t=B.clamp((y-a[0])/(b[0]-a[0]),0,1),rx=a[1]+(b[1]-a[1])*t,rz=a[2]+(b[2]-a[2])*t,z=a[3]+(b[3]-a[3])*t;
   return z-rz*Math.sqrt(Math.max(0,1-x*x/(rx*rx)))-.007;
@@ -367,10 +367,8 @@
   const sections=[...bootSections,[.290,.087,.088,0,.75],[.282,.086,.087,0,.45],[.248,.082,.083,0,.40],[.208,.075,.082,.002,.36],[.177,.068,.077,.003,.32],[.120,.081,.115,-.021,.30],[.079,.083,.134,-.029,.30]],segments=24,p=[],uv=[],colors=[],indices=[];
   for(let row=0;row<sections.length;row++)for(let j=0;j<=segments;j++){
    const [y,rx,rz,z,tint]=sections[row],a=j===segments?0:j/segments*Math.PI*2,x=Math.sin(a)*rx;
-   const exterior=row<bootSections.length,front=Math.max(0,-Math.cos(a)),fold=exterior&&y>.135&&y<.25?front*front*.0025*Math.sin(a*3+.8)*Math.sin((y-.14)*43):0;
-   p.push(x,y+fold*.32,Math.cos(a)*(rz+fold)+z);uv.push(j/segments,row/(sections.length-1));
-   const scuff=exterior?(.045+.035*Math.sin(a*7+y*103))*(.25+front)*Math.exp(-Math.pow((y-.108)/.052,2)):0,grain=exterior?.018*Math.sin(a*13+y*197)+.013*Math.sin(a*23-y*139):0,dirt=exterior?.13*Math.exp(-Math.pow((y-.068)/.025,2))*(1+.25*Math.sin(a*9)):0;
-   colors.push(tint*(1+grain-dirt)+scuff,tint*(1+grain-dirt)+scuff*.88,tint*(1+grain-dirt)+scuff*.63);
+   const crease=row>=3&&row<=6?.0025*Math.sin(a*3+.8)*Math.sin((y-.15)*34):0;
+   p.push(x,y,Math.cos(a)*(rz+crease)+z);uv.push(j/segments,row/(sections.length-1));colors.push(tint,tint,tint);
   }
   for(let row=0;row<sections.length-1;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=a+segments+1;indices.push(a,a+1,b,a+1,b+1,b);}
   for(const row of [0,sections.length-1]){
@@ -481,6 +479,7 @@
     for(const direction of [-1,1]){const points=[[-direction*.038,y,bootSurface(-direction*.038,y)-.005],[0,y+.007,bootSurface(0,y+.007)-.007],[direction*.038,y+.012,bootSurface(direction*.038,y+.012)-.005]];tinted(wire(upper,leather,points,.0025),reflector.color);}
    }
    mergeRigid(upper);const geometry=upper.children[0].geometry;geometry.userData.workerBootShell={vertices:shellVertices,indices:shellIndices};bootUppers.push({knee,foot,geometry:geometry.translate(0,-.50,0)});
+   wire(foot,edge,[[-.075,.085,-.101],[-.07,.09,-.171],[0,.095,-.184],[.07,.09,-.171],[.075,.085,-.101]],.003);
    for(const [z,width]of [[-.12,.15],[-.045,.188],[.03,.18],[.10,.12]])block(foot,rubber,0,.015,z,width,.018,.019,.003);
    const arm=new T.Group();arm.position.set(side*.251,1.30,.018);arm.rotation.z=side*-.10;root.add(arm);arms.push(arm);
    add(arm,loft([[-.08,.088,.086],[-.095,.086,.084]],18),reflector);

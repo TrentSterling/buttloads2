@@ -40,7 +40,7 @@ try{
  test('unchanged head equipment and cuff shapes, texture count, body draw inventory and released motion anchors are conserved; face, fabric UVs, gloves and boots are checked separately',()=>{
   const compare=(a,b)=>{assert.equal(a.length,b.length);for(let j=0;j<a.length;j++){const x=a[j].geometry,y=b[j].geometry;assert.deepEqual(x.index?.array,y.index?.array);for(const n of Object.keys(x.attributes)){if(n==='uv'&&a[j].material===rig.materials[1])continue;assert.deepEqual(x.attributes[n].array,y.attributes[n].array);}}};
   const equipment=art=>meshes(art.head).filter(n=>![6,7,8].includes(art.materials.indexOf(n.material)));compare(equipment(rig),equipment(old));for(let k=0;k<2;k++){compare(meshes(rig.elbows[k]).filter(n=>![2,3,5].includes(rig.materials.indexOf(n.material))),meshes(old.elbows[k]).filter(n=>![2,3,5].includes(old.materials.indexOf(n.material))));for(const prop of ['legs','knees','feet','arms','elbows'])assert.deepEqual(rig[prop][k].position.toArray(),old[prop][k].position.toArray());}
-  assert.equal(meshes(rig.root).length,44);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,27);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),5166);
+  assert.equal(meshes(rig.root).length,42);assert.equal(new Set(meshes(rig.root).map(n=>n.material)).size,27);assert.equal(rig.textures.length,old.textures.length);assert.equal(trisWithoutGloves(rig)-trisWithoutGloves(old),5150);
   for(const m of meshes(rig.root))assert.ok(m.castShadow&&m.receiveShadow);
  });
 }finally{clearInterval(h.game.net.timer);h.close();}

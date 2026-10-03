@@ -18,7 +18,7 @@ function pose(tool,pitch,lean){
 try{
  test('current body declares cumulative resources and preserves the two shoulder meshes',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:26224,geometryBytes:1431792,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:44,triangles:30518,geometryBytes:1565348,materials:27,ownedMaterials:51,textures:1});assert.equal(sleeves.length,2);
+  assert.deepEqual(inventory(rig),{meshes:42,triangles:30502,geometryBytes:1565988,materials:27,ownedMaterials:51,textures:1});assert.equal(sleeves.length,2);
  });
  test('the buried seam follows the torso and distal cuffs retain complete elbow and arm travel',()=>{
   for(const tool of ['cutter','scoop','lance','resonance','gravity','axe','sling'])for(const pitch of [-1.54,0,1.54]){
@@ -55,7 +55,7 @@ try{
   }
  });
  test('each visible sleeve batch uploads independent body-relative shoulder rotations and owns its extra buffers',()=>{
-  gFixture();const groups=[...v.crewBodyBatches.values()].filter(g=>g.mesh?.visible&&g.mesh.geometry.attributes.workerInstanceShoulder);assert.equal(groups.length,2);assert.equal(v.crewBatchStats.instanceBytes,12160);
+  gFixture();const groups=[...v.crewBodyBatches.values()].filter(g=>g.mesh?.visible&&g.mesh.geometry.attributes.workerInstanceShoulder);assert.equal(groups.length,2);assert.equal(v.crewBatchStats.instanceBytes,11648);
   for(const group of groups){const a=group.mesh.geometry.attributes.workerInstanceShoulder,expected=new T.Quaternion();assert.equal(a.itemSize,4);assert.equal(a.usage,T.DynamicDrawUsage);
    for(let i=0;i<group.mesh.count;i++){const s=group.active[i].source.userData.workerShoulder;expected.copy(s.arm.quaternion).invert().multiply(s.torso.quaternion);for(let k=0;k<4;k++)assert.ok(Math.abs(a.array[i*4+k]-expected.toArray()[k])<1e-7);}assert.notDeepEqual(a.array.slice(0,4),a.array.slice(4,8));
    let owned=0,native=0;group.mesh.geometry.addEventListener('dispose',()=>owned++);group.active[0].source.geometry.addEventListener('dispose',()=>native++);group.disposalCheck=()=>{assert.equal(owned,1);assert.equal(native,0);};

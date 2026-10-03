@@ -46,7 +46,7 @@ try{
  });
  test('current body declares cumulative resources and preserves released face bone anchors',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:26512,bytes:1438384,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:44,triangles:30518,bytes:1565348,materials:27,ownedMaterials:51,textures:1});
+  assert.deepEqual(inventory(rig),{meshes:42,triangles:30502,bytes:1565988,materials:27,ownedMaterials:51,textures:1});
   assert.equal(rig.materials[6].vertexColors,true);assert.equal(old.materials[6].vertexColors,false);
   for(const p of ['head','torso','arms','elbows','legs','knees','feet']){
    const a=Array.isArray(rig[p])?rig[p]:[rig[p]],b=Array.isArray(old[p])?old[p]:[old[p]];

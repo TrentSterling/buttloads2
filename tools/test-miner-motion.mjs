@@ -49,7 +49,7 @@ try{
   v.minerFloor=()=>0;
  });
  test('body and weapon allocations stay stable through motion and source triangles are conserved',()=>{
-  const p=boot(),m=v.miners.get(p.id),body=m.bodyMeshes.slice(),weapon=m.weapon.children[0],geometries=body.map(n=>n.geometry),materials=body.map(n=>n.material);let tri=0;for(const n of body)tri+=(n.geometry.index?.count||n.geometry.attributes.position.count)/3;assert.equal(body.length,44);
+  const p=boot(),m=v.miners.get(p.id),body=m.bodyMeshes.slice(),weapon=m.weapon.children[0],geometries=body.map(n=>n.geometry),materials=body.map(n=>n.material);let tri=0;for(const n of body)tri+=(n.geometry.index?.count||n.geometry.attributes.position.count)/3;assert.equal(body.length,42);
   for(let i=0;i<240;i++){step(p,0,-.025);assert.equal(m.weapon.children[0],weapon);assert.deepEqual(m.bodyMeshes,body);assert.deepEqual(m.bodyMeshes.map(n=>n.geometry),geometries);assert.deepEqual(m.bodyMeshes.map(n=>n.material),materials);}assert.equal(tri,body.reduce((sum,n)=>sum+(n.geometry.index?.count||n.geometry.attributes.position.count)/3,0));
  });
  test('render rates of 30, 60 and 144 preserve planted endpoints and complete stop shadows',()=>{

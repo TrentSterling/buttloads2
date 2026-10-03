@@ -1,0 +1,19 @@
+// Compare the actual production rig to the immediately preceding release.
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {nodeGame} from './node-game.mjs';
+const h=await nodeGame(),current=B2.buildMinerArt,source=fs.readFileSync(new URL('../src/miner-art.js',import.meta.url),'utf8'),prior=fs.readFileSync(new URL('fixtures/miner-art-2.62.0.js',import.meta.url),'utf8');
+vm.runInThisContext(prior);const released=B2.buildMinerArt;vm.runInThisContext(source);const old=released(h.game.view,2),rig=current(h.game.view,2);
+const meshes=a=>{const rows=[];a.root.traverse(m=>{if(m.isMesh)rows.push(m);});return rows;},changed=(a,m)=>m.userData.workerBoot||a.feet.includes(m.parent)&&m.material===a.materials[5];
+const inventory=a=>{const rows=meshes(a);return{meshes:rows.length,triangles:rows.reduce((n,m)=>n+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0),bytes:rows.reduce((n,m)=>n+Object.values(m.geometry.attributes).reduce((s,a)=>s+a.array.byteLength,0)+(m.geometry.index?.array.byteLength||0),0),materials:new Set(rows.map(m=>m.material)).size,ownedMaterials:a.materials.length,textures:a.textures.length};};
+try{
+ const a=meshes(old).filter(m=>!changed(old,m)),b=meshes(rig).filter(m=>!changed(rig,m));assert.equal(a.length,40);assert.equal(b.length,40);
+ for(let i=0;i<a.length;i++){assert.deepEqual(a[i].geometry.index?.array,b[i].geometry.index?.array);assert.deepEqual(Object.keys(a[i].geometry.attributes),Object.keys(b[i].geometry.attributes));for(const k of Object.keys(a[i].geometry.attributes))assert.deepEqual(a[i].geometry.attributes[k].array,b[i].geometry.attributes[k].array);for(const k of ['position','quaternion','scale'])assert.deepEqual(a[i][k].toArray(),b[i][k].toArray());for(const k of ['castShadow','receiveShadow','visible','renderOrder','matrixAutoUpdate'])assert.equal(a[i][k],b[i][k]);assert.equal(a[i].layers.mask,b[i].layers.mask);assert.equal(old.materials.indexOf(a[i].material),rig.materials.indexOf(b[i].material));}
+ for(let i=0;i<51;i++)for(const k of ['color','roughness','metalness','transparent','opacity','depthWrite','side','emissive','emissiveIntensity','vertexColors'])assert.deepEqual(old.materials[i][k],rig.materials[i][k]);
+ const shaderSource=s=>s.slice(s.indexOf(' const jointGLSL='),s.indexOf(' function bibPanel('));assert.equal(shaderSource(source),shaderSource(prior));
+ const oldJ=meshes(old).filter(m=>m.userData.workerJoint),newJ=meshes(rig).filter(m=>m.userData.workerJoint);assert.equal(oldJ.length,12);assert.equal(newJ.length,12);
+ for(let i=0;i<12;i++)for(const [k,kind]of [['material','standard'],['customDepthMaterial','depth'],['customDistanceMaterial','distanceRGBA']]){const compile=m=>{const s={vertexShader:THREE.ShaderLib[kind].vertexShader,uniforms:{}};m.onBeforeCompile(s);return{vertexShader:s.vertexShader,section:s.uniforms.workerJointSection.value.toArray(),cache:m.customProgramCacheKey()};};assert.deepEqual(compile(oldJ[i][k]),compile(newJ[i][k]));}
+ assert.deepEqual(inventory(old),{meshes:44,triangles:30518,bytes:1565348,materials:27,ownedMaterials:51,textures:1});assert.deepEqual(inventory(rig),{meshes:42,triangles:30502,bytes:1565988,materials:27,ownedMaterials:51,textures:1});
+ fs.writeFileSync(new URL('out/miner-boot-folds-assets.json',import.meta.url),JSON.stringify({date:new Date().toISOString(),before:inventory(old),after:inventory(rig),unchangedMeshes:40,unchangedOwnedMaterials:51,compiledJointPasses:36,jointShaderSourceExact:true,scope:'Actual released rig comparison; all other geometry, material properties and joint shader variants remain exact.'},null,2));console.log('COMPLETE production conservation: 40 exact body meshes, all 51 owned materials and 36 exact joint shader passes.');
+}finally{B2.buildMinerArt=current;h.close();}

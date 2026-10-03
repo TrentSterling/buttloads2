@@ -317,47 +317,7 @@
   for(const row of [0,rows-1]){const at=positions.length/3,start=row*(segments+1);let y=0,z=0;for(let j=0;j<segments;j++){y+=positions[(start+j)*3+1]/segments;z+=positions[(start+j)*3+2]/segments;}positions.push(positions[start*3],y,z);uv.push(row/(rows-1),.5);for(let j=0;j<segments;j++)indices.push(at,...(row?[start+j,start+j+1]:[start+j+1,start+j]));}
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);faceSeamNormals(g,segments,rows);return g;
  }
- function workerCollar(){
-  // A folded hollow band, with its hem buried in the connected upper shirt.
-  const sections=[[1.374,.069,.059],[1.420,.068,.059],[1.425,.074,.065],[1.397,.098,.077],[1.373,.132,.094],[1.369,.129,.091],[1.392,.095,.074],[1.415,.067,.057],[1.374,.066,.056]],segments=32,positions=[],uv=[],indices=[];
-  for(let row=0;row<sections.length;row++)for(let j=0;j<=segments;j++){
-   const a=Math.PI+.50+j/segments*(Math.PI*2-1),[height,rx,rz]=sections[row],front=Math.max(0,-Math.cos(a)),hem=row>=4&&row<=5,drop=(hem?.095:.039)*front*front*front;
-   const y=height-drop,fit=shirtSection(y),outer=row===3||row===4,under=row===5||row===6;
-   const fold=(row===3||row===6)?.027*front**3:0,offset=outer?.004+fold:-.002+fold;
-   positions.push(Math.sin(a)*((outer||under)?fit.rx+offset:rx),y,Math.cos(a)*((outer||under)?fit.rz+offset:rz));uv.push(j/segments,row/(sections.length-1));
-  }
-  for(let row=0;row<sections.length;row++)for(let j=0;j<segments;j++){const a=row*(segments+1)+j,b=((row+1)%sections.length)*(segments+1)+j;indices.push(a,b,a+1,a+1,b,b+1);}
-  for(const end of [0,segments]){
-   const ids=sections.map((_,row)=>row*(segments+1)+end);
-   for(const triangle of [[0,1,8],[1,7,8],[1,2,7],[2,3,7],[3,6,7],[3,4,6],[4,5,6]]){const vertices=triangle.map(i=>ids[i]);indices.push(...(end?vertices:vertices.reverse()));}
-  }
-  // Keep a crease between the folded layers; smooth only along each curved band.
-  const pieces=[];
-  for(let row=0;row<sections.length;row++){
-   const ids=[row,(row+1)%sections.length].flatMap(r=>Array.from({length:segments+1},(_,j)=>r*(segments+1)+j)),g=new T.BufferGeometry(),ix=[];
-   g.setAttribute('position',new T.Float32BufferAttribute(ids.flatMap(i=>positions.slice(i*3,i*3+3)),3));g.setAttribute('uv',new T.Float32BufferAttribute(ids.flatMap(i=>uv.slice(i*2,i*2+2)),2));
-   for(let j=0;j<segments;j++)ix.push(j,j+segments+1,j+1,j+1,j+segments+1,j+segments+2);g.setIndex(ix);g.computeVertexNormals();pieces.push(g);
-  }
-  for(let i=sections.length*segments*6;i<indices.length;i+=3){const ids=indices.slice(i,i+3),g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(ids.flatMap(i=>positions.slice(i*3,i*3+3)),3));g.setAttribute('uv',new T.Float32BufferAttribute(ids.flatMap(i=>uv.slice(i*2,i*2+2)),2));g.setIndex([0,1,2]);g.computeVertexNormals();pieces.push(g);}
-  const geometry=new T.BufferGeometry(),allIndices=[];let offset=0;
-  for(const name of ['position','normal','uv'])geometry.setAttribute(name,new T.Float32BufferAttribute(pieces.flatMap(g=>Array.from(g.attributes[name].array)),name==='uv'?2:3));
-  for(const g of pieces){allIndices.push(...Array.from(g.index.array,i=>i+offset));offset+=g.attributes.position.count;g.dispose();}geometry.setIndex(allIndices);geometry.userData.workerCloth='patch';return geometry;
- }
- const shirtSections=[[1.235,.240,.140],[1.24,.241,.140],[1.29,.249,.127],[1.34,.204,.107],[1.38,.105,.079],[1.405,.061,.052]];
- function shirtSection(y){
-  const next=shirtSections.findIndex(r=>r[0]>y),i=Math.max(0,next<0?shirtSections.length-2:next-1),a=shirtSections[i],b=shirtSections[i+1],t=B.clamp((y-a[0])/(b[0]-a[0]),0,1);
-  return{rx:a[1]+(b[1]-a[1])*t,rz:a[2]+(b[2]-a[2])*t};
- }
- function workerShirt(){return garment(shirtSections,20,[[1.274,.024,.004,.16]],'torso');}
- function workerPlacket(){
-  const ys=[1.249,1.274,1.29,1.318,1.34,1.356],p=[],uv=[],indices=[],n=ys.length*2;
-  for(const depth of [-.003,.001])for(let row=0;row<ys.length;row++)for(const x of [-.011,.011]){const y=ys[row],s=shirtSection(y);p.push(x,y,-s.rz+Math.abs(x)*s.rz/s.rx*.1584+depth);uv.push(x<0?0:1,row/(ys.length-1));}
-  const q=(a,b,c,d)=>indices.push(a,b,c,b,d,c);
-  for(let row=0;row<ys.length-1;row++){const a=row*2,b=a+2;q(a,b,a+1,b+1);q(n+a,n+a+1,n+b,n+b+1);q(a,n+a,b,n+b);q(a+1,b+1,n+a+1,n+b+1);}
-  q(0,1,n,n+1);q(n-2,2*n-2,n-1,2*n-1);
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();g.userData.workerCloth='patch';return g;
- }
- B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,workerFace,workerMoustache,workerCollar,workerShirt,mergeRigid,partitionRigid};
+ B.WorkshopShapes={loft,bevel,garment,bibPanel,garmentBand,gloveDigit,workerGlove,workerFace,workerMoustache,mergeRigid,partitionRigid};
  B.buildMinerArt=function(view,color){
   const root=new T.Group(),materials=[],textures=[],fabric=woven();textures.push(fabric);
   const material=(hex,roughness=.85,metalness=0,extras={})=>{const m=new T.MeshStandardMaterial({color:new T.Color(hex).convertSRGBToLinear(),roughness,metalness,...extras});materials.push(m);return m;};
@@ -385,12 +345,9 @@
   };
   const torso=new T.Group();root.add(torso);
   // A waist, abdomen, ribcage and rounded shoulder line, rather than a rectangular shell.
-  add(torso,garment([[.84,.177,.119],[.89,.194,.132],[.96,.188,.132],[1.04,.199,.140],[1.14,.226,.146],[1.238,.241,.140]],20,[[.932,.024,.004,.17],[1.008,.018,.005,-.3]]),cloth);
+  add(torso,garment([[.84,.177,.119],[.89,.194,.132],[.96,.188,.132],[1.04,.199,.140],[1.14,.226,.146],[1.24,.241,.140],[1.29,.249,.127],[1.34,.204,.107],[1.38,.105,.079]],20,[[.932,.024,.004,.17],[1.008,.018,.005,-.3],[1.274,.024,.004,.16]]),cloth);
   add(torso,loft([[.77,.168,.105],[.80,.193,.127],[.85,.197,.132],[.895,.185,.122]],18),darkCloth);
-  add(torso,workerShirt(),shirt);
-  add(torso,workerCollar(),shirt);
-  add(torso,workerPlacket(),shirt);
-  for(const y of [1.279,1.318]){const button=add(torso,new T.CylinderGeometry(.0045,.0045,.003,10),shirt,0,y,-shirtSection(y).rz-.004);button.rotation.x=Math.PI/2;}
+  add(torso,loft([[1.31,.105,.079],[1.37,.091,.068],[1.43,.062,.055]],16),shirt);
   add(torso,loft([[1.38,.06,.056],[1.43,.062,.055],[1.46,.065,.056]],12),skin);
   // Shaped bib, stitched pockets, folded collar and hardware give the clothing a construction.
   add(torso,bibPanel(),darkCloth);
@@ -400,6 +357,7 @@
   for(const side of [-1,1]){
    const strap=wire(torso,reflector,[[side*.154,.925,-.133],[side*.178,1.18,-.139],[side*.172,1.30,-.101],[side*.135,1.364,.025],[side*.117,1.11,.143]],.015);
    block(torso,leather,side*.153,.951,-.161,.039,.055,.026,.006);bolt(torso,side*.153,.951,-.178);
+   const collar=block(torso,shirt,side*.075,1.352,-.071,.088,.079,.022,.006);collar.rotation.z=side*.37;collar.rotation.x=-.21;
    block(torso,darkCloth,side*.153,.895,-.105,.08,.083,.035,.013);
    block(torso,leather,side*.225,.875,.01,.078,.144,.103,.021);block(torso,edge,side*.225,.95,.01,.085,.027,.109,.007);
    const clip=add(torso,new T.TorusGeometry(.026,.005,6,14,Math.PI*1.7),steel,side*.233,.982,-.025);clip.rotation.y=Math.PI/2;

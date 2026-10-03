@@ -19,7 +19,7 @@ export let minerClothMapChecks=0;
 const test=(name,fn)=>{fn();minerClothMapChecks++;console.log('PASS miner cloth map: '+name);};
 try{
  test('untouched body positions, normals, triangle indices and transforms retain the released construction; continuous joints are checked separately',()=>{
-  const aa=unchangedWorkerMeshes(rig),bb=unchangedWorkerMeshes(old);assert.equal(aa.length,35);assert.equal(aa.length,bb.length);
+  const aa=unchangedWorkerMeshes(rig),bb=unchangedWorkerMeshes(old);assert.equal(aa.length,33);assert.equal(aa.length,bb.length);
   for(let i=0;i<aa.length;i++){
    const a=aa[i],b=bb[i];assert.deepEqual(a.geometry.index?.array,b.geometry.index?.array);
    assert.deepEqual(a.geometry.attributes.position.array,b.geometry.attributes.position.array);assert.deepEqual(a.geometry.attributes.normal.array,b.geometry.attributes.normal.array);
@@ -44,7 +44,7 @@ try{
  });
  test('continuous body asset budget and owned cloth texture allocation retain their declared limits',()=>{
   const inventory=nodes=>({meshes:nodes.length,triangles:nodes.reduce((n,m)=>n+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0),bytes:nodes.reduce((n,m)=>n+Object.values(m.geometry.attributes).reduce((s,a)=>s+a.array.byteLength,0)+(m.geometry.index?.array.byteLength||0),0),materials:new Set(nodes.map(n=>n.material)).size});
-  assert.deepEqual(inventory(after),{meshes:48,triangles:28572,bytes:1504088,materials:25});assert.deepEqual(inventory(before),{meshes:52,triangles:27168,bytes:1457744,materials:15});assert.equal(rig.textures.length,1);
+  assert.deepEqual(inventory(after),{meshes:48,triangles:28934,bytes:1495764,materials:25});assert.deepEqual(inventory(before),{meshes:52,triangles:27168,bytes:1457744,materials:15});assert.equal(rig.textures.length,1);
   assert.equal(rig.textures[0].image.width,old.textures[0].image.width);assert.equal(rig.textures[0].image.height,old.textures[0].image.height);
   assert.equal(new Set(rigs.map(r=>r.textures[0])).size,8,'each rig must retain its independently disposable texture');
   assert.equal(new Set(rigs.map(r=>r.textures[0].image)).size,1,'atlas pixels are built once for the shared deterministic artwork');

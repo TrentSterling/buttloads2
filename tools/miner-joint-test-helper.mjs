@@ -3,6 +3,9 @@ export function unchangedWorkerMeshes(art){
   // Face skin, inner detail and hair were reconstructed in 2.60; their current
   // topology and all other head parts are checked by test-miner-face.mjs.
   if(n.parent===art.head&&[6,7,8].includes(art.materials.indexOf(n.material)))return;
+  // Shirt collar and upper torso were reconstructed in 2.61 and are checked
+  // against the released 2.60 factory by test-miner-collar.mjs.
+  if(n.parent===art.torso&&[0,2].includes(art.materials.indexOf(n.material)))return;
   if(art.knees.includes(n.parent)||art.legs.includes(n.parent)&&n.material===art.materials[0]||art.arms.includes(n.parent)&&n.material===art.materials[2]||art.elbows.includes(n.parent)&&n.material===art.materials[2])return;
   list.push(n);
  });return list;

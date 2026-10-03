@@ -9,7 +9,7 @@ const old=released(h.game.view,2),rig=current(h.game.view,2),face=B2.WorkshopSha
 export let minerFaceChecks=0;const test=(name,fn)=>{fn();minerFaceChecks++;console.log('PASS miner face: '+name);};
 const meshes=art=>{const a=[];art.root.traverse(n=>{if(n.isMesh)a.push(n);});return a;};
 const inventory=art=>{const a=meshes(art);return{meshes:a.length,triangles:a.reduce((s,m)=>s+(m.geometry.index?.count||m.geometry.attributes.position.count)/3,0),bytes:a.reduce((s,m)=>s+Object.values(m.geometry.attributes).reduce((n,a)=>n+a.array.byteLength,0)+(m.geometry.index?.array.byteLength||0),0),materials:new Set(a.map(m=>m.material)).size,ownedMaterials:art.materials.length,textures:art.textures.length};};
-const changed=(art,m)=>m.parent===art.head&&[6,7,8].includes(art.materials.indexOf(m.material));
+const changed=(art,m)=>m.parent===art.head&&[6,7,8].includes(art.materials.indexOf(m.material))||m.parent===art.torso&&[0,2].includes(art.materials.indexOf(m.material));
 const solidReport=[];
 try{
  test('face and tapered moustache are closed outward volumes with complete finite attributes',()=>{
@@ -46,15 +46,15 @@ try{
  });
  test('the added face detail retains body mesh, material and texture counts with declared geometry costs',()=>{
   assert.deepEqual(inventory(old),{meshes:48,triangles:26512,bytes:1438384,materials:25,ownedMaterials:45,textures:1});
-  assert.deepEqual(inventory(rig),{meshes:48,triangles:28572,bytes:1504088,materials:25,ownedMaterials:45,textures:1});
+  assert.deepEqual(inventory(rig),{meshes:48,triangles:28934,bytes:1495764,materials:25,ownedMaterials:45,textures:1});
   assert.equal(rig.materials[6].vertexColors,true);assert.equal(old.materials[6].vertexColors,false);
   for(const p of ['head','torso','arms','elbows','legs','knees','feet']){
    const a=Array.isArray(rig[p])?rig[p]:[rig[p]],b=Array.isArray(old[p])?old[p]:[old[p]];
    for(let i=0;i<a.length;i++)for(const k of ['position','quaternion','scale'])assert.deepEqual(a[i][k].toArray(),b[i][k].toArray());
   }
  });
- test('all 45 other body meshes, including helmet and goggles, retain exact released geometry and material boundaries',()=>{
-  const a=meshes(rig).filter(m=>!changed(rig,m)),b=meshes(old).filter(m=>!changed(old,m));assert.equal(a.length,45);assert.equal(b.length,45);
+ test('all 43 other body meshes, including helmet and goggles, retain exact released geometry and material boundaries',()=>{
+  const a=meshes(rig).filter(m=>!changed(rig,m)),b=meshes(old).filter(m=>!changed(old,m));assert.equal(a.length,43);assert.equal(b.length,43);
   for(let i=0;i<a.length;i++){
    assert.deepEqual(a[i].geometry.index?.array,b[i].geometry.index?.array);assert.deepEqual(Object.keys(a[i].geometry.attributes),Object.keys(b[i].geometry.attributes));
    for(const k of Object.keys(a[i].geometry.attributes))assert.deepEqual(a[i].geometry.attributes[k].array,b[i].geometry.attributes[k].array);
@@ -69,6 +69,6 @@ try{
   const skin=rig.head.children.find(n=>n.material===rig.materials[6]),colors=skin.geometry.attributes.color;assert.ok(colors&&colors.count===skin.geometry.attributes.position.count);
   assert.ok(colors.array.slice(face.attributes.position.count*3).every(v=>v===1),'merged ear volumes must retain the original skin colour');
  });
- fs.mkdirSync(new URL('out/',import.meta.url),{recursive:true});fs.writeFileSync(new URL('out/miner-face-math.json',import.meta.url),JSON.stringify({date:new Date().toISOString(),checks:minerFaceChecks,before:inventory(old),after:inventory(rig),unchangedMeshes:45,solids:solidReport,moustacheSectionsIntersectSkin:19,scope:'Actual indexed geometry topology, volumes, surface ray intersections, attachments, conservation and declared resources. Visual acceptance remains separate.'},null,2));
+ fs.mkdirSync(new URL('out/',import.meta.url),{recursive:true});fs.writeFileSync(new URL('out/miner-face-math.json',import.meta.url),JSON.stringify({date:new Date().toISOString(),checks:minerFaceChecks,before:inventory(old),after:inventory(rig),unchangedMeshes:43,solids:solidReport,moustacheSectionsIntersectSkin:19,scope:'Actual indexed geometry topology, volumes, surface ray intersections, attachments, conservation and declared resources. Visual acceptance remains separate.'},null,2));
 }finally{face.dispose();hair.dispose();h.close();}
 console.log('COMPLETE '+minerFaceChecks+' miner face checks passed (continuous skin, real attachments, topology and costs; visual verdict separate).');

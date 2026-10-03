@@ -1,8 +1,12 @@
 # Buttloads 2: remake direction
 
+## Connected miner shirt collar, 2.61.0
+
+The latest [connected miner shirt collar](MINER-COLLAR.md) removes the detached bowtie-like blocks and adds a matching upper shirt, fitted placket and buttons. The complete improved face stays exact. All 599 system checks pass; 31 matched native pairs preserve exact cameras, rig traces and draw counts, with all 62 final frames individually inspected. The same 48 meshes, 25 main materials and one atlas add 362 model triangles while removing 8,324 geometry bytes per worker. The ten-slide review retains three rejected collar studies and front-facing native GPU evidence; it leads the 63-section hub. Graphic collar edges, smooth anatomy, fixed glove curl, clean leather, boot tops, broad strafe and wider art remain criticism. Physical Firefox feel, quiet timing and separate-network co-op remain unverified.
+
 ## Continuous miner face, 2.60.0
 
-The latest [continuous miner face](MINER-FACE.md) removes detached nostril pieces, fits a tapered moustache and connects nose, mouth and jaw. All 594 system checks pass; all 58 final frames were directly inspected across 29 matched native pairs. Exact cameras, rig traces and draw counts survive. The same 48 meshes, 25 main materials and one texture add 2,060 model triangles and 65,704 geometry bytes per worker. The ten-slide review retains rejected faces, a disclosed stale capture and native GPU evidence and leads the 62-section hub. The collar still reads as a bowtie. Smooth anatomy, wider art, physical Firefox feel, quiet timing and separate-network co-op remain open.
+The preceding [continuous miner face](MINER-FACE.md) removes detached nostril pieces, fits a tapered moustache and connects nose, mouth and jaw. All 594 system checks pass; all 58 final frames were directly inspected across 29 matched native pairs. Exact cameras, rig traces and draw counts survive. The same 48 meshes, 25 main materials and one texture add 2,060 model triangles and 65,704 geometry bytes per worker. The ten-slide review retains rejected faces, a disclosed stale capture and native GPU evidence and leads the 62-section hub. The collar still reads as a bowtie. Smooth anatomy, wider art, physical Firefox feel, quiet timing and separate-network co-op remain open.
 
 ## Miner shoulder construction, 2.59.0
 

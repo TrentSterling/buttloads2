@@ -1,4 +1,4 @@
-/* World-space strata, excavated cave geology, a painted sky and the Bell Works tool finish. Cosmetic only. */
+/* World-space strata, a painted sky and the Bell Works tool finish. Cosmetic only. */
 'use strict';
 (function(B){
  const T=THREE;
@@ -34,78 +34,159 @@
   if(!groundMap){groundMap=new T.DataTexture(groundData(),512,512,T.RGBAFormat);groundMap.wrapS=groundMap.wrapT=T.RepeatWrapping;groundMap.magFilter=T.LinearFilter;groundMap.minFilter=T.LinearMipmapLinearFilter;groundMap.generateMipmaps=true;groundMap.anisotropy=8;groundMap.needsUpdate=true;}
   return groundMap;
  }};
+
+ // Dedicated periodic rock data. RGBA = albedo, height, roughness, micro-cavity.
+ // CPU bake once; world-space sampling means a fresh cut needs no UV regeneration.
+ let rockMap,rockNormalMap;
+ function rockData(size=512){
+  if(!Number.isInteger(size)||size<32||size>1024||(size&(size-1)))throw new RangeError('Rock map size must be a power of two from 32 to 1024');
+  const data=new Uint8Array(size*size*4),normalData=new Uint8Array(size*size*4),heights=new Float32Array(size*size),wrap=(v,n)=>(v%n+n)%n;
+  const hash=(x,y,s)=>{let h=Math.imul(x+s,374761393)^Math.imul(y,668265263);h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;};
+  const smooth=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x);};
+  const noise=(u,v,n,seed)=>{const x=u*n,y=v*n,ix=Math.floor(x),iy=Math.floor(y),a=smooth(0,1,x-ix),b=smooth(0,1,y-iy);const h=(x,y)=>hash(wrap(x,n),wrap(y,n),seed);return (h(ix,iy)*(1-a)+h(ix+1,iy)*a)*(1-b)+(h(ix,iy+1)*(1-a)+h(ix+1,iy+1)*a)*b;};
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   const u=(x+.5)/size,v=(y+.5)/size;
+   const broad=noise(u,v,4,19),middle=noise(u,v,17,43),grain=noise(u,v,83,79),grit=noise(u,v,197,113);
+   const px=u*9+(noise(u,v,7,173)-.5)*1.35,py=v*9+(noise(u,v,7,251)-.5)*1.35;
+   const ix=Math.floor(px),iy=Math.floor(py);let first=99,second=99,cellTone=0;
+   for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){
+    const hx=wrap(ix+i,9),hy=wrap(iy+j,9),dx=ix+i+.16+.68*hash(hx,hy,349)-px,dy=iy+j+.16+.68*hash(hx,hy,571)-py,d=dx*dx+dy*dy;
+    if(d<first){second=first;first=d;cellTone=hash(hx,hy,823);}else if(d<second)second=d;
+   }
+   const edge=Math.sqrt(second)-Math.sqrt(first),joint=1-smooth(.014,.078,edge);
+   const plate=smooth(.02,.38,edge),grainHeight=(middle-.5)*.18+(grain-.5)*.050+(grit-.5)*.006;
+   const broken=joint*smooth(.52,.70,noise(u,v,7,997));
+   const height=.28+plate*.006+grainHeight+(broad-.5)*.46-broken*.075;
+   const value=.63+(broad-.5)*.20+(middle-.5)*.30+(grain-.5)*.17+(grit-.5)*.08+(cellTone-.5)*.04-broken*.045;
+   const p=(x+y*size)*4;
+   data[p]=Math.round(255*Math.max(0,Math.min(1,value)));
+   heights[x+y*size]=height;
+   data[p+1]=Math.round(255*Math.max(0,Math.min(1,height)));
+   data[p+2]=Math.round(255*Math.max(0,Math.min(1,.72+(grain-.5)*.22+broken*.18)));
+   data[p+3]=Math.round(255*(1-broken*.78));
+  }
+  // Derive normals from unquantized heights before packing. Screen derivatives of
+  // an 8-bit height texture caused visible stepping in the rejected first pass.
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   const dx=(heights[wrap(x+1,size)+y*size]-heights[wrap(x-1,size)+y*size])*size*.055;
+   const dy=(heights[x+wrap(y+1,size)*size]-heights[x+wrap(y-1,size)*size])*size*.055;
+   const inv=1/Math.hypot(dx,dy,1),p=(x+y*size)*4;
+   normalData[p]=Math.round(127.5*(1-dx*inv));normalData[p+1]=Math.round(127.5*(1-dy*inv));normalData[p+2]=Math.round(127.5*(1+inv));normalData[p+3]=255;
+  }
+  return {data,normalData};
+ }
+ function ensureRockMaps(){
+  if(rockMap)return;
+  const bake=rockData(),make=data=>{const map=new T.DataTexture(data,512,512,T.RGBAFormat);map.wrapS=map.wrapT=T.RepeatWrapping;map.magFilter=T.LinearFilter;map.minFilter=T.LinearMipmapLinearFilter;map.generateMipmaps=true;map.anisotropy=8;map.needsUpdate=true;return map;};
+  rockMap=make(bake.data);rockNormalMap=make(bake.normalData);
+ }
+ B.ROCK_DETAIL={data:size=>rockData(size).data,normalData:size=>rockData(size).normalData,texture(){ensureRockMaps();return rockMap;},normalTexture(){ensureRockMaps();return rockNormalMap;}};
+
+ // Camera-local density lighting. The scalar field is clamped, so use bounded
+ // fixed-distance visibility probes, NOT sphere tracing or distance-field claims.
+ B.createCaveLighting=function(renderer){
+  if(!renderer?.capabilities?.isWebGL2)return null;
+  const size=32,step=.5,data=new Uint8Array(size**3).fill(255);
+  const texture=new T.Data3DTexture(data,size,size,size);texture.format=T.RedFormat;
+  texture.type=T.UnsignedByteType;texture.minFilter=texture.magFilter=T.LinearFilter;
+  texture.unpackAlignment=1;texture.generateMipmaps=false;texture.needsUpdate=true;
+  const origin=new T.Vector3(),strength={value:0};let worldRef=null,revision=-1,key='',last=-Infinity;
+  const api={texture,origin,strength,samples:0,updates:0,update(world,camera,now=performance.now()){
+   if(!world||typeof world.density!=='function'||!Number.isFinite(camera.x+camera.y+camera.z)||camera.y> -1){strength.value=0;return false;}
+   const x=Math.floor(camera.x)-8,y=Math.floor(camera.y)-8,z=Math.floor(camera.z)-8,nextKey=`${x},${y},${z}`;
+   if(worldRef===world&&key===nextKey&&revision===world.revision){strength.value=1;return false;}
+   if(worldRef===world&&now-last<100){strength.value=1;return false;}
+   let at=0;for(let iz=0;iz<size;iz++)for(let iy=0;iy<size;iy++)for(let ix=0;ix<size;ix++){
+    const d=world.density(x+ix*step,y+iy*step,z+iz*step);
+    data[at++]=Number.isFinite(d)?Math.round(255*Math.max(0,Math.min(1,d*.25+.5))):255;
+   }
+   origin.set(x,y,z);texture.needsUpdate=true;worldRef=world;revision=world.revision;key=nextKey;last=now;
+   strength.value=1;api.samples+=at;api.updates++;return true;
+  },dispose(){texture.dispose();strength.value=0;worldRef=null;}};
+  return api;
+ };
  const glsl=`
  uniform sampler2D b2GroundDetail;
+ uniform sampler2D b2RockDetail;
+ uniform sampler2D b2RockNormal;
  uniform float b2GroundJoin;
+ #ifdef B2_DENSITY_LIGHTING
+ uniform highp sampler3D b2DensityVolume;
+ uniform vec3 b2DensityOrigin;
+ uniform float b2DensityStrength;
+ float b2DensityFade(vec3 p){
+  vec3 cell=(p-b2DensityOrigin)*2.;
+  vec3 edge=min(cell,vec3(31.)-cell);
+  return smoothstep(0.,5.,min(min(edge.x,edge.y),edge.z))*b2DensityStrength;
+ }
+ float b2FieldDensity(vec3 p){
+  vec3 cell=(p-b2DensityOrigin)*2.;
+  float inside=step(0.,min(min(cell.x,cell.y),cell.z))*step(max(max(cell.x,cell.y),cell.z),31.);
+  return mix(2.,texture(b2DensityVolume,(cell+.5)/32.).r*4.-2.,inside);
+ }
+ float b2FieldAmbient(vec3 p,vec3 n){
+  float fade=b2DensityFade(p);if(fade<=0.)return 1.;
+  vec3 t=normalize(cross(n,abs(n.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.))),b=cross(n,t);
+  vec3 start=p+n*.24;
+  float occ=1.-smoothstep(-.14,.28,b2FieldDensity(start+n*.65));
+  occ+=1.-smoothstep(-.14,.28,b2FieldDensity(start+n*.85+t*.85));
+  occ+=1.-smoothstep(-.14,.28,b2FieldDensity(start+n*.85-t*.85));
+  occ+=1.-smoothstep(-.14,.28,b2FieldDensity(start+n*.85+b*.85));
+  occ+=1.-smoothstep(-.14,.28,b2FieldDensity(start+n*.85-b*.85));
+  return 1.-occ*.13*fade;
+ }
+ float b2FieldContact(vec3 p,vec3 n,vec3 lightDir,float distanceToLight){
+  float fade=b2DensityFade(p);if(fade<=0.)return 1.;
+  vec3 start=p+n*.24;float visibility=1.,reach=min(2.5,max(0.,distanceToLight-.24));
+  for(int j=1;j<=5;j++)visibility=min(visibility,smoothstep(-.18,.16,b2FieldDensity(start+lightDir*(reach*float(j)/5.))));
+  return mix(1.,.22+.78*visibility,fade);
+ }
+ #endif
+
  float b2Hash(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
  float b2Noise(vec3 p){
   vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
   return mix(mix(mix(b2Hash(i),b2Hash(i+vec3(1,0,0)),f.x),mix(b2Hash(i+vec3(0,1,0)),b2Hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(b2Hash(i+vec3(0,0,1)),b2Hash(i+vec3(1,0,1)),f.x),mix(b2Hash(i+vec3(0,1,1)),b2Hash(i+vec3(1,1,1)),f.x),f.y),f.z);
  }
- float b2Fbm(vec3 p){
-  float f=b2Noise(p)*.56;
-  p=p*2.03+vec3(17.1,-9.2,4.7);f+=b2Noise(p)*.29;
-  p=p*2.11+vec3(-7.7,13.4,19.2);f+=b2Noise(p)*.15;
-  return f;
- }
- vec3 b2TriWeights(vec3 n){vec3 w=abs(n);w=w*w*w+.0001;return w/(w.x+w.y+w.z);}
- vec4 b2TriDetail(vec3 p,vec3 n,float scale,vec3 offset){
-  vec3 w=b2TriWeights(n);
-  return texture2D(b2GroundDetail,p.yz*scale+offset.yz)*w.x+texture2D(b2GroundDetail,p.xz*scale+offset.xz)*w.y+texture2D(b2GroundDetail,p.xy*scale+offset.xy)*w.z;
- }
- vec4 b2SurfaceDetail(vec3 p,vec3 n){return b2TriDetail(p,n,.36,vec3(0.));}
- float b2StrataPhase(vec3 p){
-  float warp=(b2Noise(p*.075+vec3(4.1,11.7,-6.3))-.5)*12.;
-  warp+=(b2Noise(p*.24+vec3(-9.4,2.8,17.2))-.5)*3.5;
-  return (p.y+warp)*5.9+p.x*.105+p.z*.067;
- }
- float b2Beds(vec3 p){
-  float phase=b2StrataPhase(p);
-  return sin(phase)*.72+sin(phase*3.17+b2Noise(p*.47)*3.4)*.28;
- }
- float b2FaultLine(float phase,float width){return 1.-smoothstep(width,width*3.2,abs(sin(phase)));}
- float b2Fractures(vec3 p,vec3 n){
-  float warp=(b2Fbm(p*.13+vec3(7.,-13.,19.))-.5)*7.5;
-  float major=b2FaultLine(p.x*.43+p.y*.17-p.z*.31+warp,.020);
-  float cross=b2FaultLine(-p.x*.19+p.y*.29+p.z*.37-warp*.63+1.7,.016);
-  float hair=b2FaultLine(dot(p,vec3(.73,.41,-.29))*1.7+(b2Noise(p*.61)-.5)*4.8,.012);
-  float walls=1.-smoothstep(.70,.96,abs(n.y));
-  float ceiling=smoothstep(.08,.82,-n.y);
-  float depth=smoothstep(7.,19.,-p.y);
-  return max(max(major,cross*.72),hair*.34)*depth*mix(.72,1.,max(walls,ceiling));
- }
- float b2Wetness(vec3 p,vec3 n,float faults){
-  float depth=smoothstep(22.,58.,-p.y);
-  float ceiling=smoothstep(.05,.82,-n.y),wall=1.-smoothstep(.28,.88,abs(n.y));
-  float seep=smoothstep(.58,.88,b2Fbm(p*.095+vec3(-31.,8.,14.)));
-  return faults*depth*(.46+.54*max(ceiling,wall))*mix(.45,1.,seep);
- }
- float b2Cavity(vec3 p,vec3 n){
-  float depth=smoothstep(8.,34.,-p.y),ceiling=smoothstep(.02,.92,-n.y);
-  float pocket=smoothstep(.42,.88,b2Fbm(p*.065+vec3(12.,-4.,27.)));
-  return depth*(.035+ceiling*.13+pocket*.045);
+ float b2Beds(vec3 p){return sin(p.y*7.5+b2Noise(p*.38)*4.+p.x*.13+p.z*.08);}
+ vec4 b2SurfaceDetail(vec3 p,vec3 n){
+  vec3 w=abs(n);w*=w;w/=max(.0001,w.x+w.y+w.z);
+  return texture2D(b2GroundDetail,p.yz*.36)*w.x+texture2D(b2GroundDetail,p.xz*.36)*w.y+texture2D(b2GroundDetail,p.xy*.36)*w.z;
  }
  float b2Grass(vec3 p,vec3 n,vec3 base){return smoothstep(.02,.10,(base.g-base.r)/max(.001,base.r+base.g))*smoothstep(.3,.72,n.y)*(1.-smoothstep(.45,1.4,-p.y));}
- vec3 b2Mineral(vec3 p,vec3 n,vec3 base,float detailFade,float faults,float wet){
-  vec4 aggregate=b2TriDetail(p,n,.29,vec3(.17,.41,.73));
-  vec4 grain=b2TriDetail(p,n,1.31,vec3(.63,.11,.37));
-  float macro=b2Fbm(p*.19),beds=b2Beds(p),lamina=smoothstep(.68,.98,beds);
-  float grainValue=.78+aggregate.g*.31+(grain.r-.5)*.16*detailFade+b2Noise(p*8.7)*.055*detailFade;
-  vec3 stone=base*grainValue;
-  float facies=b2Noise(vec3(p.x*.035,-p.y*.072,p.z*.035)+vec3(21.,7.,-14.));
-  stone*=mix(vec3(1.07,.94,.82),vec3(.84,.98,1.08),smoothstep(.34,.72,facies));
-  stone*=1.-lamina*(.075+.055*detailFade);
-  float chalk=smoothstep(22.,28.,-p.y)*(1.-smoothstep(39.,45.,-p.y));
-  stone=mix(stone,stone*vec3(.91,1.025,1.065),chalk*(.20+.34*macro));
-  float freshWall=(1.-smoothstep(.58,.94,abs(n.y)))*smoothstep(7.,17.,-p.y);
-  stone*=1.+freshWall*(aggregate.b-.48)*.13;
-  vec3 faultTint=mix(vec3(.26,.20,.16),vec3(.16,.24,.27),smoothstep(35.,70.,-p.y));
-  stone=mix(stone,faultTint*(.70+.22*aggregate.g),faults*(.48+.16*detailFade));
-  stone=mix(stone,stone*vec3(.55,.64,.67),wet*.58);
-  stone*=1.-b2Cavity(p,n);
+
+ vec4 b2RockSample(vec3 p,vec3 n){
+  vec3 w=abs(n);w*=w;w*=w;w/=max(.0001,w.x+w.y+w.z);
+  return texture2D(b2RockDetail,p.yz*.24+vec2(.31,.17))*w.x+texture2D(b2RockDetail,p.xz*.24+vec2(.11,.53))*w.y+texture2D(b2RockDetail,p.xy*.24+vec2(.73,.29))*w.z;
+ }
+ vec3 b2RockGradient(vec3 p,vec3 n){
+  vec3 w=abs(n);w*=w;w*=w;w/=max(.0001,w.x+w.y+w.z);
+  vec3 a=texture2D(b2RockNormal,p.yz*.24+vec2(.31,.17)).rgb*2.-1.;
+  vec3 b=texture2D(b2RockNormal,p.xz*.24+vec2(.11,.53)).rgb*2.-1.;
+  vec3 c=texture2D(b2RockNormal,p.xy*.24+vec2(.73,.29)).rgb*2.-1.;
+  vec2 ga=-a.xy/max(a.z,.2),gb=-b.xy/max(b.z,.2),gc=-c.xy/max(c.z,.2);
+  vec3 g=vec3(0.,ga.x,ga.y)*w.x+vec3(gb.x,0.,gb.y)*w.y+vec3(gc.x,gc.y,0.)*w.z;
+  return g-n*dot(n,g);
+ }
+ float b2RockBeds(vec3 p){
+  float phase=p.y*4.1+p.x*.18+p.z*.11+(b2Noise(p*.11)-.5)*4.;
+  float bed=sin(phase+sin(phase*.39)*.65);
+  return smoothstep(.69,.99,bed)*( .45+.55*b2Noise(p*.72));
+ }
+ float b2Wetness(vec3 p,vec3 n,vec4 rock){
+  float patch=smoothstep(.59,.78,b2Noise(vec3(p.x*.29,p.y*.045,p.z*.29)+vec3(13.,7.,-9.)));
+  return smoothstep(20.,65.,-p.y)*patch*(1.-smoothstep(.35,.92,n.y))*(.35+.65*(1.-rock.a));
+ }
+ vec3 b2Mineral(vec3 p,vec3 n,vec3 base,vec4 rock){
+  float macro=b2Noise(p*.16),bed=b2RockBeds(p);
+  vec3 stone=base*(.55+rock.r*.87);
+  stone*=mix(vec3(1.05,.96,.86),vec3(.91,1.,1.05),macro);
+  stone*=1.-bed*.10;
+  float chalk=smoothstep(23.,28.,-p.y)*(1.-smoothstep(39.,45.,-p.y));
+  stone=mix(stone,stone*vec3(.97,1.02,1.06),chalk*.35);
   return stone;
  }
- vec3 b2Terrain(vec3 p,vec3 n,vec3 base,float detailFade,float faults,float wet){
+ vec3 b2Terrain(vec3 p,vec3 n,vec3 base,vec4 rock){
   // Both the editable field and its clipped common-land neighbour use this
   // world-space paint at their join. Other stone, paving and path finishes do not.
   if(b2GroundJoin>.5&&p.y> -1.5){
@@ -116,7 +197,7 @@
    paint*=.91+.09*sin(p.y*3.1+sin(p.x*.4)+sin(p.z*.3));
    base=mix(base,paint,join);
   }
-  if(p.y<=-13.)return b2Mineral(p,n,base,detailFade,faults,wet);
+  if(p.y<=-7.)return b2Mineral(p,n,base,rock);
   vec4 detail=b2SurfaceDetail(p,n);
   float grass=b2Grass(p,n,base),top=1.-smoothstep(8.,13.,-p.y);
   float cover=b2Noise(p*.085)*.72+b2Noise(p*.21+vec3(19.,0.,-11.))*.28;
@@ -126,51 +207,62 @@
   float worn=smoothstep(.58,.76,detail.a*.35+b2Noise(p*.28)*.65);
   turf=mix(turf,vec3(.18,.13,.075)*(.81+detail.g*.37),worn*.55);
   vec3 upper=mix(earth,turf,grass);
-  if(p.y>=-8.)return upper;
-  return mix(b2Mineral(p,n,base,detailFade,faults,wet),upper,top);
+  if(p.y>=-1.5)return upper;
+  return mix(upper,b2Mineral(p,n,base,rock),smoothstep(1.5,7.,-p.y));
  }
- float b2Height(vec3 p){
-  if(p.y>=-8.)return 0.;
-  float depth=smoothstep(.5,8.,-p.y),beds=smoothstep(.66,.98,b2Beds(p));
-  return ((b2Noise(p*10.7)-.5)*.020+(b2Noise(p*2.15)-.5)*.062+beds*.024)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);
- }
+ float b2Height(vec3 p){if(p.y>=-8.)return 0.;float depth=smoothstep(.5,8.,-p.y);return (b2Noise(p*11.5)*.012+b2Noise(p*2.3)*.035+smoothstep(.7,.98,b2Beds(p))*.018)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);}
  float b2SurfaceHeight(vec3 p,vec3 n,vec3 base){if(p.y<=-13.)return 0.;vec4 d=b2SurfaceDetail(p,n);return mix(d.g*.006+d.b*.002,d.r*.006,b2Grass(p,n,base))*(1.-smoothstep(8.,13.,-p.y));}
- float b2TerrainRoughness(vec3 p,vec3 n,float faults,float wet){
-  if(p.y>-8.)return 1.;
-  float compact=mix(1.035,.93,smoothstep(34.,76.,-p.y));
-  compact=mix(compact,.68,wet);
-  compact=mix(compact,.86,faults*(1.-wet)*.35);
-  return compact;
- }
  `;
- B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false){
+ B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false,lighting=null){
   material.extensions={...material.extensions,derivatives:true};
-  material.customProgramCacheKey=()=> 'b2-cave-geology-1';
+  material.customProgramCacheKey=()=> 'b2-cave-geology-3-'+(lighting?'field':'material');
+  material.defines={...material.defines};if(lighting)material.defines.B2_DENSITY_LIGHTING=1;else delete material.defines.B2_DENSITY_LIGHTING;material.needsUpdate=true;
   material.onBeforeCompile=shader=>{
-   shader.uniforms=shader.uniforms||{};shader.uniforms.b2GroundDetail={value:B.GROUND_DETAIL.texture()};shader.uniforms.b2GroundJoin={value:groundJoin?1:0};
+   shader.uniforms=shader.uniforms||{};shader.uniforms.b2GroundDetail={value:B.GROUND_DETAIL.texture()};shader.uniforms.b2GroundJoin={value:groundJoin?1:0};shader.uniforms.b2RockDetail={value:B.ROCK_DETAIL.texture()};shader.uniforms.b2RockNormal={value:B.ROCK_DETAIL.normalTexture()};
+   if(lighting){shader.uniforms.b2DensityVolume={value:lighting.texture};shader.uniforms.b2DensityOrigin={value:lighting.origin};shader.uniforms.b2DensityStrength=lighting.strength;}
    shader.vertexShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+shader.vertexShader;
-   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGround=(modelMatrix*vec4(transformed,1.)).xyz;vGroundNormal=normalize(mat3(modelMatrix)*normal);');
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGround=(modelMatrix*vec4(transformed,1.)).xyz;vGroundNormal=normalize(vec3(dot(normalMatrix*normal,viewMatrix[0].xyz),dot(normalMatrix*normal,viewMatrix[1].xyz),dot(normalMatrix*normal,viewMatrix[2].xyz)));');
    shader.fragmentShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+glsl+shader.fragmentShader;
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
     vec3 b2WorldNormal=normalize(vGroundNormal);
-    float b2DetailFade=1.-smoothstep(16.,68.,length(vViewPosition));
-    float b2FaultMask=0.,b2WetMask=0.;
-    if(vGround.y< -7.5){b2FaultMask=b2Fractures(vGround,b2WorldNormal);b2WetMask=b2Wetness(vGround,b2WorldNormal,b2FaultMask);}
-    diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2DetailFade,b2FaultMask,b2WetMask);`);
+    float b2RockBlend=smoothstep(1.5,7.,-vGround.y);
+    // Keep texture derivatives defined across depth transitions.
+    vec4 b2RockData=b2RockSample(vGround,b2WorldNormal);
+    float b2WetMask=b2Wetness(vGround,b2WorldNormal,b2RockData);
+    diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2RockData);
+    diffuseColor.rgb*=1.-b2WetMask*.21;`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
-    roughnessFactor=clamp(roughnessFactor*b2TerrainRoughness(vGround,b2WorldNormal,b2FaultMask,b2WetMask),.55,1.);`);
+    float b2DryRoughness=.67+.30*b2RockData.b;
+    roughnessFactor=mix(roughnessFactor,mix(b2DryRoughness,.48,b2WetMask),b2RockBlend);`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-    float strataHeight=b2Height(vGround)*b2DetailFade;
-    strataHeight+=b2SurfaceHeight(vGround,b2WorldNormal,diffuseColor.rgb)*b2DetailFade;
-    strataHeight-=b2FaultMask*(.014+.012*b2DetailFade)+b2WetMask*.008;
+    float strataHeight=b2Height(vGround)*(1.-smoothstep(5.,22.,length(vViewPosition)))*(1.-b2RockBlend);
+    strataHeight+=b2SurfaceHeight(vGround,b2WorldNormal,diffuseColor.rgb)*(1.-smoothstep(5.,22.,length(vViewPosition)))*(1.-b2RockBlend);
+    strataHeight-=b2RockBeds(vGround)*.009*b2RockBlend;
     vec3 strataQ0=dFdx(-vViewPosition),strataQ1=dFdy(-vViewPosition),strataR0=cross(strataQ1,normal),strataR1=cross(normal,strataQ0);
     float strataDet=dot(strataQ0,strataR0);
-    if(abs(strataDet)>1e-8)normal=normalize(abs(strataDet)*normal-sign(strataDet)*(dFdx(strataHeight)*strataR0+dFdy(strataHeight)*strataR1));`);
+    if(abs(strataDet)>1e-8)normal=normalize(abs(strataDet)*normal-sign(strataDet)*(dFdx(strataHeight)*strataR0+dFdy(strataHeight)*strataR1));
+    vec3 b2RockSlope=b2RockGradient(vGround,b2WorldNormal);
+    normal=normalize(normal-mat3(viewMatrix)*b2RockSlope*b2RockBlend*(1.-smoothstep(12.,45.,length(vViewPosition))));`);
+   // This is texture micro-occlusion, not geometric AO or a GI solution.
+   shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>',`#include <aomap_fragment>
+    reflectedLight.indirectDiffuse*=mix(1.,.68+.32*b2RockData.a,b2RockBlend);
+    #ifdef B2_DENSITY_LIGHTING
+    reflectedLight.indirectDiffuse*=mix(1.,b2FieldAmbient(vGround,b2WorldNormal),b2RockBlend);
+    #endif
+    `);
+   if(lighting){
+    const contact=`
+     { if(directLight.visible&&b2RockBlend>.001){ vec3 b2LightWorld=inverseTransformDirection(directLight.direction,viewMatrix);
+     directLight.color*=mix(1.,b2FieldContact(vGround,b2WorldNormal,b2LightWorld,length(LIGHT.position-geometry.position)),b2RockBlend); }}`;
+    const chunk=T.ShaderChunk.lights_fragment_begin.replace('getPointLightInfo( pointLight, geometry, directLight );','getPointLightInfo( pointLight, geometry, directLight );'+contact.replace('LIGHT','pointLight')).replace('getSpotLightInfo( spotLight, geometry, directLight );','getSpotLightInfo( spotLight, geometry, directLight );'+contact.replace('LIGHT','spotLight'));
+    shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_begin>',chunk);
+   }
   };
  }};
  B.SKY_LOOK={zenith:'#7599a2',horizon:'#d8cbb0',sun:'#fff0c4'};
  B.View.prototype.makeLook=function(){
-  B.TERRAIN_LOOK.apply(this.terrainMaterial,true);
+  this.caveLighting=B.createCaveLighting(this.renderer);
+  B.TERRAIN_LOOK.apply(this.terrainMaterial,true,this.caveLighting);
   this.palette.grass.color.set('#71854e').convertSRGBToLinear();
   B.TERRAIN_LOOK.apply(this.palette.grass,true);
   this.palette.leaf.color.set('#526e49').convertSRGBToLinear();
@@ -190,6 +282,7 @@
 
  };
  B.View.prototype.renderLook=function(game,daylight){
+  this.caveLighting?.update(game.world,this.camera.position);
   this.skyDome.position.copy(this.camera.position);this.skyDome.visible=daylight>.01;
   this.skyDome.material.uniforms.daylight.value=daylight;this.skyDome.material.uniforms.deepFog.value.copy(this.scene.fog.color);
   this.toolKey.color.copy(this.lamp.color).lerp(new T.Color('#fff1d4'),daylight);this.toolKey.intensity=1.3+.3*daylight;

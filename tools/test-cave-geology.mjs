@@ -1,0 +1,37 @@
+// Isolated terrain checks: no browser, DOM, pointer lock, network or live save.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),root=path.resolve(import.meta.dirname,'..');
+const T=require(path.join(root,'vendor/three.min.js'));
+const source=fs.readFileSync(path.join(root,'src/beauty.js'),'utf8');
+const B={View:function(){},random(seed){let s=seed>>>0;return()=>{s+=0x6d2b79f5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}};
+const scope=vm.createContext({B2:B,THREE:T,performance});vm.runInContext(source,scope);
+export let caveGeologyChecks=0;
+function test(name,fn){fn();caveGeologyChecks++;console.log('PASS cave geology: '+name);}
+function shader(lighting=null){const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.96});B.TERRAIN_LOOK.apply(mat,true,lighting);const s={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};mat.onBeforeCompile(s);return {mat,s};}
+test('rock data is deterministic and has useful range in every packed channel',()=>{const a=B.ROCK_DETAIL.data(64),b=B.ROCK_DETAIL.data(64);assert.deepEqual(a,b);for(let c=0;c<4;c++){let lo=255,hi=0;for(let i=c;i<a.length;i+=4){lo=Math.min(lo,a[i]);hi=Math.max(hi,a[i]);}assert.ok(hi-lo>20);}});
+test('texture dimensions reject invalid and excessive requests',()=>{for(const n of [0,16,33,2048,NaN])assert.throws(()=>B.ROCK_DETAIL.data(n));});
+test('baked normals remain finite, normalized and forward facing',()=>{const a=B.ROCK_DETAIL.normalData(128);for(let i=0;i<a.length;i+=4){const x=a[i]/127.5-1,y=a[i+1]/127.5-1,z=a[i+2]/127.5-1;assert.ok(Math.abs(Math.hypot(x,y,z)-1)<.014);assert.ok(z>0);assert.equal(a[i+3],255);}});
+test('rock maps are cached independently from the original ground map',()=>{assert.equal(B.ROCK_DETAIL.texture(),B.ROCK_DETAIL.texture());assert.equal(B.ROCK_DETAIL.normalTexture(),B.ROCK_DETAIL.normalTexture());assert.notEqual(B.ROCK_DETAIL.texture(),B.GROUND_DETAIL.texture());assert.notEqual(B.ROCK_DETAIL.normalTexture(),B.ROCK_DETAIL.texture());});
+test('scalar and normal maps use linear data, mipmaps and repeat wrapping',()=>{for(const t of [B.ROCK_DETAIL.texture(),B.ROCK_DETAIL.normalTexture()]){assert.equal(t.image.width,512);assert.equal(t.image.data.length,512*512*4);assert.equal(t.encoding,T.LinearEncoding);assert.equal(t.wrapS,T.RepeatWrapping);assert.equal(t.wrapT,T.RepeatWrapping);assert.equal(t.generateMipmaps,true);assert.equal(t.minFilter,T.LinearMipmapLinearFilter);}});
+test('rock texture seam variation is bounded relative to interior neighbors',()=>{const a=B.ROCK_DETAIL.data(128),n=128;let seam=0,interior=0;for(let y=0;y<n;y++){seam+=Math.abs(a[(y*n)*4]-a[(y*n+n-1)*4]);for(let x=1;x<n;x++)interior+=Math.abs(a[(y*n+x)*4]-a[(y*n+x-1)*4]);}assert.ok(seam/n<interior/(n*(n-1))*2.5+1);});
+test('surface blend starts below 1.5 m and does not replace grass coloring',()=>{assert.ok(source.includes('smoothstep(1.5,7.,-vGround.y)'));assert.ok(source.includes('if(p.y>=-1.5)return upper;'));assert.ok(source.includes('b2GroundJoin>.5&&p.y> -1.5'));});
+test('normal map gradients replace quantized height derivatives underground',()=>{const {s}=shader();assert.ok(s.fragmentShader.includes('b2RockGradient(vGround,b2WorldNormal)'));assert.ok(!s.fragmentShader.includes('(b2RockData.g-.5)*'));assert.ok(s.fragmentShader.includes('strataHeight=b2Height(vGround)'));});
+test('geometry, material base color and mesh draw ranges are untouched by apply',()=>{const g=new T.BoxGeometry(),before=JSON.stringify(g.toJSON()),m=new T.MeshStandardMaterial({color:0x765432,roughness:.96});const color=m.color.clone();B.TERRAIN_LOOK.apply(m);assert.equal(JSON.stringify(g.toJSON()),before);assert.ok(m.color.equals(color));assert.equal(m.roughness,.96);});
+test('WebGL1 and inert renderers do not allocate a density volume',()=>{assert.equal(B.createCaveLighting(null),null);assert.equal(B.createCaveLighting({capabilities:{isWebGL2:false}}),null);const {mat,s}=shader();assert.ok(!mat.defines?.B2_DENSITY_LIGHTING);assert.ok(!s.uniforms.b2DensityVolume);assert.equal(mat.customProgramCacheKey(),'b2-cave-geology-3-material');});
+const light=B.createCaveLighting({capabilities:{isWebGL2:true}}),camera=new T.Vector3(0,-30,0);let reads=0;
+const world={revision:0,marker:17,density(x,y,z){reads++;return x<0?-2:2;}};
+test('density texture is a bounded 32 cubed single channel field',()=>{assert.equal(light.texture.image.data.length,32768);assert.equal(light.texture.format,T.RedFormat);assert.equal(light.texture.generateMipmaps,false);assert.equal(light.texture.minFilter,T.LinearFilter);});
+test('first underground frame samples once without mutating world state',()=>{assert.equal(light.update(world,camera,0),true);assert.equal(reads,32768);assert.equal(world.revision,0);assert.equal(world.marker,17);assert.equal(light.texture.image.data[0],0);assert.equal(light.texture.image.data[31],255);});
+test('idle frames skip resampling the unchanged density field',()=>{assert.equal(light.update(world,camera,1000),false);assert.equal(reads,32768);});
+test('an excavation revision invalidates local lighting and respects the 100 ms cap',()=>{world.revision++;assert.equal(light.update(world,camera,50),false);assert.equal(light.update(world,camera,101),true);assert.equal(reads,65536);});
+test('sub-cell camera motion reuses the volume; whole metre motion rebakes',()=>{camera.x=.4;assert.equal(light.update(world,camera,250),false);camera.x=1.1;assert.equal(light.update(world,camera,300),true);assert.equal(light.origin.x,-7);});
+test('returning above ground disables lighting without sampling',()=>{const before=reads;camera.y=1;assert.equal(light.update(world,camera,500),false);assert.equal(light.strength.value,0);assert.equal(reads,before);camera.y=-30;});
+test('a new world and nonfinite samples cannot reuse stale darkness',()=>{const air={revision:0,density(){return NaN;}};assert.equal(light.update(air,camera,501),true);assert.ok(light.texture.image.data.every(v=>v===255));});
+test('WebGL2 hooks bind the actual field and shadow both point and spot lights',()=>{const {mat,s}=shader(light);assert.equal(mat.customProgramCacheKey(),'b2-cave-geology-3-field');assert.equal(s.uniforms.b2DensityVolume.value,light.texture);assert.equal(s.uniforms.b2DensityOrigin.value,light.origin);assert.ok(s.fragmentShader.includes('length(pointLight.position-geometry.position)'));assert.ok(s.fragmentShader.includes('length(spotLight.position-geometry.position)'));assert.ok(s.fragmentShader.includes('b2FieldAmbient(vGround,b2WorldNormal)'));});
+test('local field lighting has a smooth edge fade and a bounded trace length',()=>{assert.ok(source.includes('smoothstep(0.,5.'));assert.ok(source.includes('min(2.5,max(0.,distanceToLight-.24))'));assert.ok(source.includes('for(int j=1;j<=5;j++)'));});
+test('all standard shader includes resolve with both lighting variants',()=>{const expand=s=>s.replace(/^[ \t]*#include +<([\w\d_]+)>/gm,(_,n)=>{assert.ok(T.ShaderChunk[n],n);return expand(T.ShaderChunk[n]);});for(const l of [null,light]){const {s}=shader(l);assert.ok(!expand(s.vertexShader).includes('#include'));assert.ok(!expand(s.fragmentShader).includes('#include'));}});
+light.dispose();console.log(`COMPLETE ${caveGeologyChecks} cave geology checks passed (isolated shader/field tests; not the complete game suite)`);

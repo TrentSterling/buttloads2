@@ -8,8 +8,10 @@ Status: pushed to `codex/cave-geology-20261017`, draft PR #1; not merged into ma
 - `src/beauty.js` blob: `4065f2b164376ec53de4b924777a5189303a13d2`.
 - Complete standalone size: 1,598,324 bytes.
 - Standalone SHA-256: `d61255932db1a0b616abd4bb7e06cb640f47e20e2922fd3d082038d569828201`.
-- Native build/capture run: https://github.com/TrentSterling/buttloads2/actions/runs/39115377143
-- Native artifact: `buttloads2-cave-native`, ID `12131829802` (Actions retention is three days; a copy was delivered in the conversation).
+- Successful systems and native-render run: https://github.com/TrentSterling/buttloads2/actions/runs/39115377143
+- Native artifact: `buttloads2-cave-native`, ID `12131829802`.
+- System artifact: `buttloads2-cave-systems`, ID `12132087770`.
+- Actions retention is three days; copies and the complete playable were delivered in the conversation.
 - Shipped comparison baseline: `a28fa21085ddcf30e9d7f77cec74fd99e3657b2b`, version 2.64.0.
 
 ## Reference
@@ -38,9 +40,9 @@ The complete game—not a synthetic fixture—built and rendered in headless Chr
 
 The surface control differs at five pixels, each by one 8-bit channel value. Dust is hidden above ground. The HUD is deliberately hidden for scene review; the real viewmodel is retained. The harness blocks external requests and uses the game's offline mode, with no OS input, clicks or pointer lock. These are static render/excavation checks, not continuous human play or multiplayer-over-the-internet verification.
 
-The exact final rendering source also passes 20 isolated geology checks and 14 isolated mineral/art checks. The preceding R4 checkpoint `040d2e9ebeddbdcd41d23e55f16e2ff1cb0ff9d4` completed all 627 full-system checks plus the separate 14 art checks. Its overall Actions job was marked cancelled around the 20-minute limit during cleanup after successful test steps and report upload. Those earlier full-suite results are not relabelled as tests of the final shader finish; its complete-system rerun was still in progress when this note was written.
+The exact delivered runtime `be98ff9` completed **all 627 full-system checks and the separate 14 R4 art checks**. Both Actions jobs concluded successfully, including upload and cleanup. The twenty geology checks are already included in the 627, not an extra twenty to add to that total. The exact final source also passed the twenty geology and fourteen art checks independently in the local isolated test setup.
 
-The workflow-only follow-up `2f930040cfce75f914b64b8f0702549b16a29518` gives future system runs 30 minutes, retires temporary shadow-diagnostic injection and adds a manual trigger. It does not change the playable bytes or pretend that an older cancelled job was green.
+An earlier slower R4 run at `040d2e9` completed its tests but reached the 20-minute limit around cleanup. The workflow-only follow-up `2f930040cfce75f914b64b8f0702549b16a29518` gives future system runs 30 minutes, retires temporary shadow-diagnostic injection and adds a manual trigger. It does not change the validated playable bytes or alter an older job's recorded status.
 
 ## Capture correction
 
@@ -54,4 +56,4 @@ Two shared 512x512 RGBA8 maps cost about 2.67 MiB with mipmaps, plus a 32 KiB sc
 
 Both local volumes are throttled to one refresh per 100 ms. Lighting or inclusions may briefly lag rapid edits. Density contact reach is 2.5 m, not a full scene shadow or GI solution. WebGL1 omits the volumes but retains rock/ore materials; the final native capture run tests WebGL2, not real WebGL1 hardware.
 
-The comparison is an improvement, not reference parity. Some nearest headlamp highlights are too washed out, the cellular pattern remains regular in places, and the original broad cave silhouettes are unchanged. No radiance-cascade GI, reflected scene capture or refractive crystal transport is implemented. Hardware profiling, continuous excavation/camera-motion review, full latest system completion and a human playtest remain separate acceptance items before merge.
+The comparison is an improvement, not reference parity. Some nearest headlamp highlights are too washed out, the cellular pattern remains regular in places, and the original broad cave silhouettes are unchanged. No radiance-cascade GI, reflected scene capture or refractive crystal transport is implemented. Hardware profiling, continuous excavation/camera-motion review and a human playtest remain separate acceptance items before merge.

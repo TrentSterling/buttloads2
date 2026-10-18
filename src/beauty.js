@@ -1,4 +1,4 @@
-/* World-space strata, a painted sky and the Bell Works tool finish. Cosmetic only. */
+/* World-space strata, excavated cave geology, a painted sky and the Bell Works tool finish. Cosmetic only. */
 'use strict';
 (function(B){
  const T=THREE;
@@ -42,24 +42,70 @@
   vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
   return mix(mix(mix(b2Hash(i),b2Hash(i+vec3(1,0,0)),f.x),mix(b2Hash(i+vec3(0,1,0)),b2Hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(b2Hash(i+vec3(0,0,1)),b2Hash(i+vec3(1,0,1)),f.x),mix(b2Hash(i+vec3(0,1,1)),b2Hash(i+vec3(1,1,1)),f.x),f.y),f.z);
  }
- float b2Beds(vec3 p){return sin(p.y*7.5+b2Noise(p*.38)*4.+p.x*.13+p.z*.08);}
- vec4 b2SurfaceDetail(vec3 p,vec3 n){
-  vec3 w=abs(n);w*=w;w/=max(.0001,w.x+w.y+w.z);
-  return texture2D(b2GroundDetail,p.yz*.36)*w.x+texture2D(b2GroundDetail,p.xz*.36)*w.y+texture2D(b2GroundDetail,p.xy*.36)*w.z;
+ float b2Fbm(vec3 p){
+  float f=b2Noise(p)*.56;
+  p=p*2.03+vec3(17.1,-9.2,4.7);f+=b2Noise(p)*.29;
+  p=p*2.11+vec3(-7.7,13.4,19.2);f+=b2Noise(p)*.15;
+  return f;
+ }
+ vec3 b2TriWeights(vec3 n){vec3 w=abs(n);w=w*w*w+.0001;return w/(w.x+w.y+w.z);}
+ vec4 b2TriDetail(vec3 p,vec3 n,float scale,vec3 offset){
+  vec3 w=b2TriWeights(n);
+  return texture2D(b2GroundDetail,p.yz*scale+offset.yz)*w.x+texture2D(b2GroundDetail,p.xz*scale+offset.xz)*w.y+texture2D(b2GroundDetail,p.xy*scale+offset.xy)*w.z;
+ }
+ vec4 b2SurfaceDetail(vec3 p,vec3 n){return b2TriDetail(p,n,.36,vec3(0.));}
+ float b2StrataPhase(vec3 p){
+  float warp=(b2Noise(p*.075+vec3(4.1,11.7,-6.3))-.5)*12.;
+  warp+=(b2Noise(p*.24+vec3(-9.4,2.8,17.2))-.5)*3.5;
+  return (p.y+warp)*5.9+p.x*.105+p.z*.067;
+ }
+ float b2Beds(vec3 p){
+  float phase=b2StrataPhase(p);
+  return sin(phase)*.72+sin(phase*3.17+b2Noise(p*.47)*3.4)*.28;
+ }
+ float b2FaultLine(float phase,float width){return 1.-smoothstep(width,width*3.2,abs(sin(phase)));}
+ float b2Fractures(vec3 p,vec3 n){
+  float warp=(b2Fbm(p*.13+vec3(7.,-13.,19.))-.5)*7.5;
+  float major=b2FaultLine(p.x*.43+p.y*.17-p.z*.31+warp,.020);
+  float cross=b2FaultLine(-p.x*.19+p.y*.29+p.z*.37-warp*.63+1.7,.016);
+  float hair=b2FaultLine(dot(p,vec3(.73,.41,-.29))*1.7+(b2Noise(p*.61)-.5)*4.8,.012);
+  float walls=1.-smoothstep(.70,.96,abs(n.y));
+  float ceiling=smoothstep(.08,.82,-n.y);
+  float depth=smoothstep(7.,19.,-p.y);
+  return max(max(major,cross*.72),hair*.34)*depth*mix(.72,1.,max(walls,ceiling));
+ }
+ float b2Wetness(vec3 p,vec3 n,float faults){
+  float depth=smoothstep(22.,58.,-p.y);
+  float ceiling=smoothstep(.05,.82,-n.y),wall=1.-smoothstep(.28,.88,abs(n.y));
+  float seep=smoothstep(.58,.88,b2Fbm(p*.095+vec3(-31.,8.,14.)));
+  return faults*depth*(.46+.54*max(ceiling,wall))*mix(.45,1.,seep);
+ }
+ float b2Cavity(vec3 p,vec3 n){
+  float depth=smoothstep(8.,34.,-p.y),ceiling=smoothstep(.02,.92,-n.y);
+  float pocket=smoothstep(.42,.88,b2Fbm(p*.065+vec3(12.,-4.,27.)));
+  return depth*(.035+ceiling*.13+pocket*.045);
  }
  float b2Grass(vec3 p,vec3 n,vec3 base){return smoothstep(.02,.10,(base.g-base.r)/max(.001,base.r+base.g))*smoothstep(.3,.72,n.y)*(1.-smoothstep(.45,1.4,-p.y));}
- vec3 b2Mineral(vec3 p,vec3 base){
-  float macro=b2Noise(p*.72),fine=b2Noise(p*11.5),beds=b2Beds(p);
-  float rock=smoothstep(2.,14.,-p.y),lamina=smoothstep(.73,.98,beds);
-  float grain=.87+.16*macro+.09*fine+.045*b2Noise(p*43.);
-  vec3 stone=base*grain*(1.-lamina*.14*rock);
+ vec3 b2Mineral(vec3 p,vec3 n,vec3 base,float detailFade,float faults,float wet){
+  vec4 aggregate=b2TriDetail(p,n,.29,vec3(.17,.41,.73));
+  vec4 grain=aggregate;if(detailFade>.02)grain=b2TriDetail(p,n,1.31,vec3(.63,.11,.37));
+  float macro=b2Fbm(p*.19),beds=b2Beds(p),lamina=smoothstep(.68,.98,beds);
+  float grainValue=.78+aggregate.g*.31+(grain.r-.5)*.16*detailFade+b2Noise(p*8.7)*.055*detailFade;
+  vec3 stone=base*grainValue;
+  float facies=b2Noise(vec3(p.x*.035,-p.y*.072,p.z*.035)+vec3(21.,7.,-14.));
+  stone*=mix(vec3(1.07,.94,.82),vec3(.84,.98,1.08),smoothstep(.34,.72,facies));
+  stone*=1.-lamina*(.075+.055*detailFade);
   float chalk=smoothstep(22.,28.,-p.y)*(1.-smoothstep(39.,45.,-p.y));
-  stone=mix(stone,stone*vec3(.90,1.01,1.045),chalk*macro*.45);
-  float seams=smoothstep(.87,.99,sin(p.x*2.2+p.z*1.8+b2Noise(p*.9)*8.));
-  stone*=1.-seams*.095*rock;
+  stone=mix(stone,stone*vec3(.91,1.025,1.065),chalk*(.20+.34*macro));
+  float freshWall=(1.-smoothstep(.58,.94,abs(n.y)))*smoothstep(7.,17.,-p.y);
+  stone*=1.+freshWall*(aggregate.b-.48)*.13;
+  vec3 faultTint=mix(vec3(.26,.20,.16),vec3(.16,.24,.27),smoothstep(35.,70.,-p.y));
+  stone=mix(stone,faultTint*(.70+.22*aggregate.g),faults*(.48+.16*detailFade));
+  stone=mix(stone,stone*vec3(.55,.64,.67),wet*.58);
+  stone*=1.-b2Cavity(p,n);
   return stone;
  }
- vec3 b2Terrain(vec3 p,vec3 n,vec3 base){
+ vec3 b2Terrain(vec3 p,vec3 n,vec3 base,float detailFade,float faults,float wet){
   // Both the editable field and its clipped common-land neighbour use this
   // world-space paint at their join. Other stone, paving and path finishes do not.
   if(b2GroundJoin>.5&&p.y> -1.5){
@@ -70,7 +116,7 @@
    paint*=.91+.09*sin(p.y*3.1+sin(p.x*.4)+sin(p.z*.3));
    base=mix(base,paint,join);
   }
-  if(p.y<=-13.)return b2Mineral(p,base);
+  if(p.y<=-13.)return b2Mineral(p,n,base,detailFade,faults,wet);
   vec4 detail=b2SurfaceDetail(p,n);
   float grass=b2Grass(p,n,base),top=1.-smoothstep(8.,13.,-p.y);
   float cover=b2Noise(p*.085)*.72+b2Noise(p*.21+vec3(19.,0.,-11.))*.28;
@@ -81,23 +127,42 @@
   turf=mix(turf,vec3(.18,.13,.075)*(.81+detail.g*.37),worn*.55);
   vec3 upper=mix(earth,turf,grass);
   if(p.y>=-8.)return upper;
-  return mix(b2Mineral(p,base),upper,top);
+  return mix(b2Mineral(p,n,base,detailFade,faults,wet),upper,top);
  }
- float b2Height(vec3 p){if(p.y>=-8.)return 0.;float depth=smoothstep(.5,8.,-p.y);return (b2Noise(p*11.5)*.012+b2Noise(p*2.3)*.035+smoothstep(.7,.98,b2Beds(p))*.018)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);}
+ float b2Height(vec3 p){
+  if(p.y>=-8.)return 0.;
+  float depth=smoothstep(.5,8.,-p.y),beds=smoothstep(.66,.98,b2Beds(p));
+  return ((b2Noise(p*10.7)-.5)*.020+(b2Noise(p*2.15)-.5)*.062+beds*.024)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);
+ }
  float b2SurfaceHeight(vec3 p,vec3 n,vec3 base){if(p.y<=-13.)return 0.;vec4 d=b2SurfaceDetail(p,n);return mix(d.g*.006+d.b*.002,d.r*.006,b2Grass(p,n,base))*(1.-smoothstep(8.,13.,-p.y));}
+ float b2TerrainRoughness(vec3 p,vec3 n,float faults,float wet){
+  if(p.y>-8.)return 1.;
+  float compact=mix(1.035,.93,smoothstep(34.,76.,-p.y));
+  compact=mix(compact,.68,wet);
+  compact=mix(compact,.86,faults*(1.-wet)*.35);
+  return compact;
+ }
  `;
  B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false){
   material.extensions={...material.extensions,derivatives:true};
-  material.customProgramCacheKey=()=> 'b2-strata-ground-2';
+  material.customProgramCacheKey=()=> 'b2-cave-geology-1';
   material.onBeforeCompile=shader=>{
    shader.uniforms=shader.uniforms||{};shader.uniforms.b2GroundDetail={value:B.GROUND_DETAIL.texture()};shader.uniforms.b2GroundJoin={value:groundJoin?1:0};
    shader.vertexShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+shader.vertexShader;
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGround=(modelMatrix*vec4(transformed,1.)).xyz;vGroundNormal=normalize(mat3(modelMatrix)*normal);');
    shader.fragmentShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+glsl+shader.fragmentShader;
-   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=b2Terrain(vGround,normalize(vGroundNormal),diffuseColor.rgb);');
+   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+    vec3 b2WorldNormal=normalize(vGroundNormal);
+    float b2DetailFade=1.-smoothstep(16.,68.,length(vViewPosition));
+    float b2FaultMask=b2Fractures(vGround,b2WorldNormal);
+    float b2WetMask=b2Wetness(vGround,b2WorldNormal,b2FaultMask);
+    diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2DetailFade,b2FaultMask,b2WetMask);`);
+   shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+    roughnessFactor=clamp(roughnessFactor*b2TerrainRoughness(vGround,b2WorldNormal,b2FaultMask,b2WetMask),.55,1.);`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-    float strataHeight=b2Height(vGround)*(1.-smoothstep(5.,22.,length(vViewPosition)));
-    strataHeight+=b2SurfaceHeight(vGround,normalize(vGroundNormal),diffuseColor.rgb)*(1.-smoothstep(5.,22.,length(vViewPosition)));
+    float strataHeight=b2Height(vGround)*b2DetailFade;
+    strataHeight+=b2SurfaceHeight(vGround,b2WorldNormal,diffuseColor.rgb)*b2DetailFade;
+    strataHeight-=b2FaultMask*(.014+.012*b2DetailFade)+b2WetMask*.008;
     vec3 strataQ0=dFdx(-vViewPosition),strataQ1=dFdy(-vViewPosition),strataR0=cross(strataQ1,normal),strataR1=cross(normal,strataQ0);
     float strataDet=dot(strataQ0,strataR0);
     if(abs(strataDet)>1e-8)normal=normalize(abs(strataDet)*normal-sign(strataDet)*(dFdx(strataHeight)*strataR0+dFdy(strataHeight)*strataR1));`);

@@ -88,7 +88,7 @@
  float b2Grass(vec3 p,vec3 n,vec3 base){return smoothstep(.02,.10,(base.g-base.r)/max(.001,base.r+base.g))*smoothstep(.3,.72,n.y)*(1.-smoothstep(.45,1.4,-p.y));}
  vec3 b2Mineral(vec3 p,vec3 n,vec3 base,float detailFade,float faults,float wet){
   vec4 aggregate=b2TriDetail(p,n,.29,vec3(.17,.41,.73));
-  vec4 grain=aggregate;if(detailFade>.02)grain=b2TriDetail(p,n,1.31,vec3(.63,.11,.37));
+  vec4 grain=b2TriDetail(p,n,1.31,vec3(.63,.11,.37));
   float macro=b2Fbm(p*.19),beds=b2Beds(p),lamina=smoothstep(.68,.98,beds);
   float grainValue=.78+aggregate.g*.31+(grain.r-.5)*.16*detailFade+b2Noise(p*8.7)*.055*detailFade;
   vec3 stone=base*grainValue;
@@ -154,8 +154,8 @@
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
     vec3 b2WorldNormal=normalize(vGroundNormal);
     float b2DetailFade=1.-smoothstep(16.,68.,length(vViewPosition));
-    float b2FaultMask=b2Fractures(vGround,b2WorldNormal);
-    float b2WetMask=b2Wetness(vGround,b2WorldNormal,b2FaultMask);
+    float b2FaultMask=0.,b2WetMask=0.;
+    if(vGround.y< -7.5){b2FaultMask=b2Fractures(vGround,b2WorldNormal);b2WetMask=b2Wetness(vGround,b2WorldNormal,b2FaultMask);}
     diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2DetailFade,b2FaultMask,b2WetMask);`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
     roughnessFactor=clamp(roughnessFactor*b2TerrainRoughness(vGround,b2WorldNormal,b2FaultMask,b2WetMask),.55,1.);`);

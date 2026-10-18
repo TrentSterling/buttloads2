@@ -16,7 +16,7 @@ if(fs.existsSync(baselinePath)){
  assert.equal(built.split(escaped).length,2,'exact rendering module must occur once in standalone');
  pages.MAIN=built.replace(escaped,old.replace(/<\/script/gi,'<\\/script'));
 }
-const report={buildSHA256:crypto.createHash('sha256').update(built).digest('hex'),baseline:'a28fa21085ddcf30e9d7f77cec74fd99e3657b2b',method:'Actual generated game, offline, explicit render calls; no input/RAF/simulation loop or hardware FPS claim',variants:{},errors:[]};
+const report={buildSHA256:crypto.createHash('sha256').update(built).digest('hex'),baseline:'a28fa21085ddcf30e9d7f77cec74fd99e3657b2b',method:'Actual generated game, offline, explicit render calls; frame accounting advances before EVERY render; no input/RAF/simulation loop or hardware FPS claim',variants:{},errors:[]};
 const server=http.createServer((req,res)=>{const key=new URL(req.url,'http://localhost').pathname.slice(1)||'R4';if(pages[key]){res.writeHead(200,{'Content-Type':'text/html'});res.end(pages[key]);}else{res.writeHead(204);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;let browser;
 try{
@@ -64,7 +64,9 @@ try{
     window.__caveCaptureTime=Math.max(performance.now()+10000,(window.__caveCaptureTime||0)+1000);const now=window.__caveCaptureTime;
     v.caveLighting?.update(w,{x:eye[0],y:eye[1],z:eye[2]},now);
     v.caveMinerals?.update(w,{x:eye[0],y:eye[1],z:eye[2]},v.caveOreNodes||[],v.caveOreRevision||0,now);
-    for(let i=0;i<2;i++)v.render(g,0,12);
+    // WebGLObjects uses info.render.frame as its geometry-upload epoch. Freezing
+    // that epoch during warm-up can cache a shadow from the PREVIOUS excavation.
+    for(let i=0;i<2;i++){v.renderer.info.reset();v.render(g,0,12);}
     v.renderer.info.reset();v.render(g,0,12);const gl=v.renderer.getContext();gl.finish();
     const bytes=new Uint8Array(w.field.buffer,w.field.byteOffset,w.field.byteLength),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
     const n=window.__caveGold;
@@ -89,7 +91,7 @@ try{
      if(mode==='no-density'&&v.caveLighting)v.caveLighting.update=()=>{v.caveLighting.strength.value=0;};
      if(mode==='no-mineral'&&v.caveMinerals)v.caveMinerals.update=()=>{v.caveMinerals.strength.value=0;};
      if(mode==='no-clearcoat'){v.terrainMaterial.clearcoat=0;v.terrainMaterial.needsUpdate=true;}
-     for(let i=0;i<2;i++)v.render(g,0,12);const gl=v.renderer.getContext();gl.finish();
+     for(let i=0;i<2;i++){v.renderer.info.reset();v.render(g,0,12);}const gl=v.renderer.getContext();gl.finish();
      return {mode,glError:gl.getError(),note:'Nonshipping feature-isolation diagnostic; same last excavation/camera'};
     },mode);
     report.variants[name].diagnostics.push(rec);await page.screenshot({path:path.join(out,`diagnostic-${mode}.png`)});assert.equal(rec.glError,0);

@@ -12,8 +12,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cave-material-${{ github.ref }}
-  cancel-in-progress: true
+  group: cave-material-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   systems:
     runs-on: ubuntu-latest
@@ -70,11 +70,29 @@ jobs:
         run: |
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.57.0
           npx playwright install --with-deps chromium
+      - name: Prepare nonshipping shadow isolation cases
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          let s=fs.readFileSync('tools/test-cave-browser.mjs','utf8');
+          function replace(a,b){assert.equal(s.split(a).length,2,a);s=s.replace(a,b);}
+          replace("['no-shadow-map','no-density','no-mineral','no-clearcoat']","['no-shadow-map','no-density','no-mineral','no-clearcoat','front-shadow','double-shadow','zero-normal-bias','force-shadow-refresh','no-chunk-culling']");
+          replace('v.terrainMaterial.clearcoat=old.coat;',`v.terrainMaterial.shadowSide=null;v.headlamp.shadow.normalBias=.018;v.headlamp.shadow.needsUpdate=true;v.renderer.shadowMap.needsUpdate=true;for(const m of v.terrain.children)m.frustumCulled=true;v.terrainMaterial.clearcoat=old.coat;`);
+          replace("if(mode==='no-clearcoat')",`if(mode==='front-shadow')v.terrainMaterial.shadowSide=THREE.FrontSide;
+              if(mode==='double-shadow')v.terrainMaterial.shadowSide=THREE.DoubleSide;
+              if(mode==='zero-normal-bias')v.headlamp.shadow.normalBias=0;
+              if(mode==='force-shadow-refresh'){v.headlamp.shadow.autoUpdate=true;v.renderer.shadowMap.autoUpdate=true;}
+              if(mode==='no-chunk-culling')for(const m of v.terrain.children)m.frustumCulled=false;
+              if(mode==='no-clearcoat')`);
+          fs.writeFileSync('tools/.test-cave-debug.mjs',s);
+          fs.writeFileSync('cave-reports/executed-browser-harness.mjs',s);
+          JS
       - name: Actual offline game renders (no input or pointer lock)
         shell: bash
         run: |
           set -o pipefail
-          node tools/test-cave-browser.mjs 2>&1 | tee cave-reports/browser-tests.txt
+          node tools/.test-cave-debug.mjs 2>&1 | tee cave-reports/browser-tests.txt
       - name: Save native renders and playable build
         if: always()
         uses: actions/upload-artifact@v4

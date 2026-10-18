@@ -2,15 +2,53 @@ name: Cave material checks
 on:
   push:
     branches: [codex/cave-geology-20261017]
+    paths:
+      - 'src/**'
+      - 'tools/**'
+      - 'vendor/**'
+      - 'index.html'
+      - 'package*.json'
+      - '.github/workflows/cave-material-checks.yml'
 permissions:
   contents: read
 concurrency:
   group: cave-material-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  validate:
+  systems:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare clean-checkout report directories
+        run: mkdir -p cave-reports tools/out
+      - name: Pure system suite (no browser or input)
+        shell: bash
+        run: |
+          set -o pipefail
+          node tools/test.mjs 2>&1 | tee cave-reports/system-tests.txt
+      - name: R4 mineral field and art contracts
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          node tools/test-cave-art.mjs 2>&1 | tee cave-reports/cave-art-tests.txt
+          git rev-parse HEAD > cave-reports/source-commit.txt
+      - name: Save system reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buttloads2-cave-systems
+          path: cave-reports/
+          retention-days: 3
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,38 +57,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Prepare reports
-        run: mkdir -p cave-reports
-      - name: Pure system suite (no browser or input)
+      - name: Build complete standalone game
         shell: bash
         run: |
           set -o pipefail
-          node tools/test.mjs 2>&1 | tee cave-reports/system-tests.txt
-      - name: Build standalone game
-        if: always()
-        shell: bash
-        run: |
-          set -o pipefail
+          mkdir -p cave-reports tools/out
           node tools/build.mjs 2>&1 | tee cave-reports/build.txt
           git rev-parse HEAD > cave-reports/source-commit.txt
           sha256sum dist/index.html > cave-reports/build-sha256.txt
+          git show a28fa21085ddcf30e9d7f77cec74fd99e3657b2b:src/beauty.js > cave-reports/baseline-beauty.js
       - name: Install isolated Chromium verification tools
-        if: always()
         run: |
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.57.0
           npx playwright install --with-deps chromium
-      - name: Actual offline game render checks (no input or pointer lock)
-        if: always()
+      - name: Actual offline game renders (no input or pointer lock)
         shell: bash
         run: |
           set -o pipefail
-          git show a98d15a0bfb25f8d4a17d4351ba6260f4d335d23:src/beauty.js > cave-reports/baseline-beauty.js
           node tools/test-cave-browser.mjs 2>&1 | tee cave-reports/browser-tests.txt
-      - name: Save validation reports and playable build
+      - name: Save native renders and playable build
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: buttloads2-cave-validation
+          name: buttloads2-cave-native
           path: |
             cave-reports/
             dist/index.html

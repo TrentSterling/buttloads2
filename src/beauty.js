@@ -1,4 +1,5 @@
-/* World-space strata, a painted sky and the Bell Works tool finish. Cosmetic only. */
+/* Cave art R4: cellular mineral rock, selective wet specular, ore and atmosphere.
+   Rendering only. See docs/CAVE-R4.md for reference frames and validation limits. */
 'use strict';
 (function(B){
  const T=THREE;
@@ -47,31 +48,66 @@
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
    const u=(x+.5)/size,v=(y+.5)/size;
    const broad=noise(u,v,4,19),middle=noise(u,v,17,43),grain=noise(u,v,83,79),grit=noise(u,v,197,113);
-   const px=u*9+(noise(u,v,7,173)-.5)*1.35,py=v*9+(noise(u,v,7,251)-.5)*1.35;
-   const ix=Math.floor(px),iy=Math.floor(py);let first=99,second=99,cellTone=0;
+   const px=u*9+(noise(u,v,7,173)-.5)*.28,py=v*9+(noise(u,v,7,251)-.5)*.28;
+   const ix=Math.floor(px),iy=Math.floor(py);let first=99,second=99,cellTone=0,fdx=0,fdy=0;
    for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){
     const hx=wrap(ix+i,9),hy=wrap(iy+j,9),dx=ix+i+.16+.68*hash(hx,hy,349)-px,dy=iy+j+.16+.68*hash(hx,hy,571)-py,d=dx*dx+dy*dy;
-    if(d<first){second=first;first=d;cellTone=hash(hx,hy,823);}else if(d<second)second=d;
+    if(d<first){second=first;first=d;cellTone=hash(hx,hy,823);fdx=dx;fdy=dy;}else if(d<second)second=d;
    }
-   const edge=Math.sqrt(second)-Math.sqrt(first),joint=1-smooth(.014,.078,edge);
-   const plate=smooth(.02,.38,edge),grainHeight=(middle-.5)*.18+(grain-.5)*.050+(grit-.5)*.006;
-   const broken=joint*smooth(.52,.70,noise(u,v,7,997));
-   const height=.28+plate*.006+grainHeight+(broad-.5)*.46-broken*.075;
-   const value=.63+(broad-.5)*.20+(middle-.5)*.30+(grain-.5)*.17+(grit-.5)*.08+(cellTone-.5)*.04-broken*.045;
+   const edge=Math.sqrt(second)-Math.sqrt(first),joint=1-smooth(.008,.047,edge);
+   const plate=smooth(.009,.12,edge),grainHeight=(middle-.5)*.023+(grain-.5)*.007+(grit-.5)*.001;
+   const broken=joint*(.35+.65*smooth(.32,.72,noise(u,v,7,997)));
+   const angle=cellTone*6.283,dx=fdx*Math.cos(angle)-fdy*Math.sin(angle),dy=fdx*Math.sin(angle)+fdy*Math.cos(angle);
+   const facet=Math.max(Math.abs(dx),Math.abs(dy)*.87,Math.abs(dx*.62+dy*.73));
+   const height=.32-.20*facet+plate*.052+grainHeight*.5+(broad-.5)*.04;
+   const faceTone=(Math.floor((Math.atan2(dy,dx)+Math.PI)*.955)*.13+cellTone)%1;
+   const value=.54+(faceTone-.5)*.16+(broad-.5)*.10+(middle-.5)*.06+(grain-.5)*.025+(cellTone-.5)*.55-broken*.09;
    const p=(x+y*size)*4;
    data[p]=Math.round(255*Math.max(0,Math.min(1,value)));
    heights[x+y*size]=height;
    data[p+1]=Math.round(255*Math.max(0,Math.min(1,height)));
-   data[p+2]=Math.round(255*Math.max(0,Math.min(1,.72+(grain-.5)*.22+broken*.18)));
-   data[p+3]=Math.round(255*(1-broken*.78));
+   data[p+2]=Math.round(255*Math.max(0,Math.min(1,.68+(cellTone-.5)*.35+(grain-.5)*.035+broken*.13)));
+   data[p+3]=Math.round(255*(1-broken*.69));
   }
-  // Derive normals from unquantized heights before packing. Screen derivatives of
-  // an 8-bit height texture caused visible stepping in the rejected first pass.
+  // Rasterize a jittered triangulated relief mesh into the normal atlas. Broad
+  // planar facets, rather than smooth embossed-cell rims, follow the reference.
+  // Heights are never quantized before differentiation. All lattice hashes wrap.
+  const cells=22,pitch=size/cells;
+  const hAt=(x,y)=>{const ix=Math.floor(x),iy=Math.floor(y),u=x-ix,v=y-iy;
+   const h=(a,b)=>heights[wrap(a,size)+wrap(b,size)*size];
+   return (h(ix,iy)*(1-u)+h(ix+1,iy)*u)*(1-v)+(h(ix,iy+1)*(1-u)+h(ix+1,iy+1)*u)*v;};
+  const vertex=(x,y)=>{const hx=wrap(x,cells),hy=wrap(y,cells);
+   const px=(x+(hash(hx,hy,1933)-.5)*.58)*pitch,py=(y+(hash(hx,hy,2903)-.5)*.58)*pitch;
+   return [px,py,hAt(px,py)];};
+  function triangle(a,b,c,tone){
+   const ux=b[0]-a[0],uy=b[1]-a[1],vx=c[0]-a[0],vy=c[1]-a[1],det=ux*vy-uy*vx;
+   if(Math.abs(det)<1e-6)return;
+   let dx=((b[2]-a[2])*vy-(c[2]-a[2])*uy)/det*size*.085;
+   let dy=((c[2]-a[2])*ux-(b[2]-a[2])*vx)/det*size*.085;
+   const slope=Math.hypot(dx,dy);if(slope>.85){dx*=.85/slope;dy*=.85/slope;}
+   const inv=1/Math.hypot(dx,dy,1),nx=Math.round(127.5*(1-dx*inv)),ny=Math.round(127.5*(1-dy*inv)),nz=Math.round(127.5*(1+inv));
+   for(let y=Math.max(0,Math.floor(Math.min(a[1],b[1],c[1])));y<=Math.min(size-1,Math.ceil(Math.max(a[1],b[1],c[1])));y++)
+    for(let x=Math.max(0,Math.floor(Math.min(a[0],b[0],c[0])));x<=Math.min(size-1,Math.ceil(Math.max(a[0],b[0],c[0])));x++){
+     const px=x+.5-a[0],py=y+.5-a[1],u=(px*vy-py*vx)/det,v=(ux*py-uy*px)/det;
+     if(u<-.00001||v<-.00001||u+v>1.00001)continue;
+     const i=(x+y*size)*4;normalData[i]=nx;normalData[i+1]=ny;normalData[i+2]=nz;normalData[i+3]=255;
+     data[i]=Math.min(255,Math.round(data[i]*(.92+.13*tone)));
+    }
+  }
+  for(let y=-1;y<=cells;y++)for(let x=-1;x<=cells;x++){
+   const a=vertex(x,y),b=vertex(x+1,y),c=vertex(x,y+1),d=vertex(x+1,y+1),hx=wrap(x,cells),hy=wrap(y,cells);
+   if((x+y)&1){triangle(a,b,c,hash(hx,hy,3811));triangle(b,d,c,hash(hx,hy,4391));}
+   else{triangle(a,b,d,hash(hx,hy,3811));triangle(a,d,c,hash(hx,hy,4391));}
+  }
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
-   const dx=(heights[wrap(x+1,size)+y*size]-heights[wrap(x-1,size)+y*size])*size*.055;
-   const dy=(heights[x+wrap(y+1,size)*size]-heights[x+wrap(y-1,size)*size])*size*.055;
-   const inv=1/Math.hypot(dx,dy,1),p=(x+y*size)*4;
-   normalData[p]=Math.round(127.5*(1-dx*inv));normalData[p+1]=Math.round(127.5*(1-dy*inv));normalData[p+2]=Math.round(127.5*(1+inv));normalData[p+3]=255;
+   const i=(x+y*size)*4;
+   const dx=(heights[wrap(x+1,size)+y*size]-heights[wrap(x-1,size)+y*size])*size*.025;
+   const dy=(heights[x+wrap(y+1,size)*size]-heights[x+wrap(y-1,size)*size])*size*.025;
+   const inv=1/Math.hypot(dx,dy,1);
+   const nx=(normalData[i]/127.5-1)*.65-dx*inv*.35;
+   const ny=(normalData[i+1]/127.5-1)*.65-dy*inv*.35;
+   const nz=(normalData[i+2]/127.5-1)*.65+inv*.35,scale=127.5/Math.hypot(nx,ny,nz);
+   normalData[i]=Math.round(127.5+nx*scale);normalData[i+1]=Math.round(127.5+ny*scale);normalData[i+2]=Math.round(127.5+nz*scale);
   }
   return {data,normalData};
  }
@@ -105,11 +141,57 @@
   },dispose(){texture.dispose();strength.value=0;worldRef=null;}};
   return api;
  };
+ // Local host-rock inclusions use EXISTING embedded deposit positions. RGBA is
+ // premultiplied linear ore color + weight, not a second collectible ore system.
+ // Collected/loose nodes contribute nothing. Edge fade and 100 ms cache cap match
+ // the density field; WebGL1 still receives the real clustered ore meshes.
+ B.createMineralField=function(renderer){
+  if(!renderer?.capabilities?.isWebGL2)return null;
+  const size=32,step=.5,data=new Uint8Array(size**3*4),map=new T.Data3DTexture(data,size,size,size);
+  map.format=T.RGBAFormat;map.type=T.UnsignedByteType;map.minFilter=map.magFilter=T.LinearFilter;map.generateMipmaps=false;map.unpackAlignment=1;
+  const origin=new T.Vector3(),strength={value:0};let oldWorld=null,oldNodes=null,key='',revision=-1,terrainRevision=-1,last=-Infinity;
+  const colors=['#d99054','#4f6578','#9bdcf0','#ffd35b','#77f8df'].map(c=>new T.Color(c).convertSRGBToLinear());
+  const api={texture:map,origin,strength,updates:0,inclusions:0,update(world,camera,nodes=[],oreRevision=0,now=performance.now()){
+   if(!world||!Number.isFinite(camera.x+camera.y+camera.z)||camera.y> -1){strength.value=0;return false;}
+   const x=Math.floor(camera.x)-8,y=Math.floor(camera.y)-8,z=Math.floor(camera.z)-8,next=`${x},${y},${z}`;
+   const same=world===oldWorld&&nodes===oldNodes;
+   if(same&&next===key&&oreRevision===revision&&world.revision===terrainRevision){strength.value=1;return false;}
+   if(same&&now-last<100){strength.value=1;return false;}
+   data.fill(0);origin.set(x,y,z);
+   const nearby=[];
+   for(const n of nodes){
+    if(n.collected||n.motion&&n.motion!=='embedded'||!colors[n.kind]||!Number.isFinite(n.x+n.y+n.z+n.radius)||n.radius<=0)continue;
+    const r=Math.min(1.6,n.radius*1.6+.20),d=(n.x-camera.x)**2+(n.y-camera.y)**2+(n.z-camera.z)**2;
+    if(n.x+r<x||n.y+r<y||n.z+r<z||n.x-r>x+15.5||n.y-r>y+15.5||n.z-r>z+15.5)continue;
+    nearby.push({n,r,d});
+   }
+   nearby.sort((a,b)=>a.d-b.d||a.n.id-b.n.id);
+   let used=0;
+   for(const {n,r}of nearby.slice(0,256)){
+    const lo=[n.x-r-x,n.y-r-y,n.z-r-z].map(v=>Math.max(0,Math.ceil(v/step))),hi=[n.x+r-x,n.y+r-y,n.z+r-z].map(v=>Math.min(31,Math.floor(v/step))),c=colors[n.kind];
+    for(let iz=lo[2];iz<=hi[2];iz++)for(let iy=lo[1];iy<=hi[1];iy++)for(let ix=lo[0];ix<=hi[0];ix++){
+     const d=Math.hypot(x+ix*step-n.x,y+iy*step-n.y,z+iz*step-n.z)/r;
+     const w=Math.max(0,Math.min(1,(1-d)/.46));const a=Math.round(255*w*w*(3-2*w));if(!a)continue;
+     const i=(ix+size*(iy+size*iz))*4;if(a<=data[i+3])continue;
+     data[i]=Math.round(c.r*a);data[i+1]=Math.round(c.g*a);data[i+2]=Math.round(c.b*a);data[i+3]=a;
+    }used++;
+   }
+   oldWorld=world;oldNodes=nodes;key=next;revision=oreRevision;terrainRevision=world.revision;last=now;map.needsUpdate=true;strength.value=1;api.updates++;api.inclusions=used;return true;
+  },dispose(){map.dispose();strength.value=0;oldWorld=null;oldNodes=null;}};return api;
+ };
  const glsl=`
  uniform sampler2D b2GroundDetail;
  uniform sampler2D b2RockDetail;
  uniform sampler2D b2RockNormal;
  uniform float b2GroundJoin;
+ #ifdef B2_MINERAL_FIELD
+ uniform highp sampler3D b2MineralVolume;uniform vec3 b2MineralOrigin;uniform float b2MineralStrength;
+ vec4 b2InclusionSample(vec3 p){
+  vec3 cell=(p-b2MineralOrigin)*2.,edge=min(cell,vec3(31.)-cell);
+  float fade=smoothstep(0.,4.,min(min(edge.x,edge.y),edge.z))*b2MineralStrength;
+  return texture(b2MineralVolume,(cell+.5)/32.)*fade;
+ }
+ #endif
  #ifdef B2_DENSITY_LIGHTING
  uniform highp sampler3D b2DensityVolume;
  uniform vec3 b2DensityOrigin;
@@ -174,14 +256,19 @@
   return smoothstep(.69,.99,bed)*( .45+.55*b2Noise(p*.72));
  }
  float b2Wetness(vec3 p,vec3 n,vec4 rock){
-  float patch=smoothstep(.59,.78,b2Noise(vec3(p.x*.29,p.y*.045,p.z*.29)+vec3(13.,7.,-9.)));
-  return smoothstep(20.,65.,-p.y)*patch*(1.-smoothstep(.35,.92,n.y))*(.35+.65*(1.-rock.a));
+  float wetPatch=smoothstep(.30,.68,b2Noise(vec3(p.x*.24,p.y*.052,p.z*.24)+vec3(13.,7.,-9.)));
+  float depth=smoothstep(3.,56.,-p.y);
+  float sides=1.-smoothstep(.45,.95,n.y);
+  return clamp(depth*(.16+.80*wetPatch)*(.55+.45*sides)*(.45+.55*rock.a),0.,.96);
  }
  vec3 b2Mineral(vec3 p,vec3 n,vec3 base,vec4 rock){
   float macro=b2Noise(p*.16),bed=b2RockBeds(p);
-  vec3 stone=base*(.55+rock.r*.87);
+  float mid=smoothstep(18.,32.,-p.y),deep=smoothstep(44.,85.,-p.y);
+  vec3 host=mix(base,vec3(.13,.14,.14),mid*.70);
+  host=mix(host,vec3(.020,.035,.059),deep*.87);
+  vec3 stone=host*(.22+rock.r*1.18);
   stone*=mix(vec3(1.05,.96,.86),vec3(.91,1.,1.05),macro);
-  stone*=1.-bed*.10;
+  stone*=1.-bed*.035;
   float chalk=smoothstep(23.,28.,-p.y)*(1.-smoothstep(39.,45.,-p.y));
   stone=mix(stone,stone*vec3(.97,1.02,1.06),chalk*.35);
   return stone;
@@ -213,13 +300,14 @@
  float b2Height(vec3 p){if(p.y>=-8.)return 0.;float depth=smoothstep(.5,8.,-p.y);return (b2Noise(p*11.5)*.012+b2Noise(p*2.3)*.035+smoothstep(.7,.98,b2Beds(p))*.018)*mix(.15,1.,depth)*smoothstep(8.,13.,-p.y);}
  float b2SurfaceHeight(vec3 p,vec3 n,vec3 base){if(p.y<=-13.)return 0.;vec4 d=b2SurfaceDetail(p,n);return mix(d.g*.006+d.b*.002,d.r*.006,b2Grass(p,n,base))*(1.-smoothstep(8.,13.,-p.y));}
  `;
- B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false,lighting=null){
+ B.TERRAIN_LOOK={glsl,apply(material,groundJoin=false,lighting=null,mineral=null){
   material.extensions={...material.extensions,derivatives:true};
-  material.customProgramCacheKey=()=> 'b2-cave-geology-3-'+(lighting?'field':'material');
-  material.defines={...material.defines};if(lighting)material.defines.B2_DENSITY_LIGHTING=1;else delete material.defines.B2_DENSITY_LIGHTING;material.needsUpdate=true;
+  material.customProgramCacheKey=()=> 'b2-cave-art-4-'+(lighting?'field':'material')+(mineral?'-ore':'');
+  material.defines={...material.defines};if(lighting)material.defines.B2_DENSITY_LIGHTING=1;else delete material.defines.B2_DENSITY_LIGHTING;if(mineral)material.defines.B2_MINERAL_FIELD=1;else delete material.defines.B2_MINERAL_FIELD;material.needsUpdate=true;
   material.onBeforeCompile=shader=>{
    shader.uniforms=shader.uniforms||{};shader.uniforms.b2GroundDetail={value:B.GROUND_DETAIL.texture()};shader.uniforms.b2GroundJoin={value:groundJoin?1:0};shader.uniforms.b2RockDetail={value:B.ROCK_DETAIL.texture()};shader.uniforms.b2RockNormal={value:B.ROCK_DETAIL.normalTexture()};
    if(lighting){shader.uniforms.b2DensityVolume={value:lighting.texture};shader.uniforms.b2DensityOrigin={value:lighting.origin};shader.uniforms.b2DensityStrength=lighting.strength;}
+   if(mineral){shader.uniforms.b2MineralVolume={value:mineral.texture};shader.uniforms.b2MineralOrigin={value:mineral.origin};shader.uniforms.b2MineralStrength=mineral.strength;}
    shader.vertexShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+shader.vertexShader;
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGround=(modelMatrix*vec4(transformed,1.)).xyz;vGroundNormal=normalize(vec3(dot(normalMatrix*normal,viewMatrix[0].xyz),dot(normalMatrix*normal,viewMatrix[1].xyz),dot(normalMatrix*normal,viewMatrix[2].xyz)));');
    shader.fragmentShader='varying vec3 vGround; varying vec3 vGroundNormal;\n'+glsl+shader.fragmentShader;
@@ -230,19 +318,50 @@
     vec4 b2RockData=b2RockSample(vGround,b2WorldNormal);
     float b2WetMask=b2Wetness(vGround,b2WorldNormal,b2RockData);
     diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2RockData);
-    diffuseColor.rgb*=1.-b2WetMask*.21;`);
+    diffuseColor.rgb*=1.-b2WetMask*.21;
+    #ifdef B2_MINERAL_FIELD
+    vec4 b2Inclusion=b2InclusionSample(vGround);float b2OreWeight=b2Inclusion.a*b2RockBlend;
+    diffuseColor.rgb=mix(diffuseColor.rgb,b2Inclusion.rgb/max(.004,b2Inclusion.a)*(.57+.35*b2RockData.r),b2OreWeight*.90);
+    #endif
+    `);
    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
-    float b2DryRoughness=.67+.30*b2RockData.b;
-    roughnessFactor=mix(roughnessFactor,mix(b2DryRoughness,.48,b2WetMask),b2RockBlend);`);
+    float b2DryRoughness=.61+.25*b2RockData.b;
+    float b2WetRoughness=.14+.13*b2RockData.b;
+    roughnessFactor=mix(roughnessFactor,mix(b2DryRoughness,b2WetRoughness,b2WetMask),b2RockBlend);
+    #ifdef B2_MINERAL_FIELD
+    roughnessFactor=mix(roughnessFactor,.27,b2OreWeight*.85);
+    #endif
+    `);
+   shader.fragmentShader=shader.fragmentShader.replace('#include <metalnessmap_fragment>',`#include <metalnessmap_fragment>
+    #ifdef B2_MINERAL_FIELD
+    metalnessFactor=mix(metalnessFactor,.75,b2OreWeight);
+    #endif
+    `);
    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
     float strataHeight=b2Height(vGround)*(1.-smoothstep(5.,22.,length(vViewPosition)))*(1.-b2RockBlend);
     strataHeight+=b2SurfaceHeight(vGround,b2WorldNormal,diffuseColor.rgb)*(1.-smoothstep(5.,22.,length(vViewPosition)))*(1.-b2RockBlend);
-    strataHeight-=b2RockBeds(vGround)*.009*b2RockBlend;
+    strataHeight-=b2RockBeds(vGround)*.003*b2RockBlend;
     vec3 strataQ0=dFdx(-vViewPosition),strataQ1=dFdy(-vViewPosition),strataR0=cross(strataQ1,normal),strataR1=cross(normal,strataQ0);
     float strataDet=dot(strataQ0,strataR0);
     if(abs(strataDet)>1e-8)normal=normalize(abs(strataDet)*normal-sign(strataDet)*(dFdx(strataHeight)*strataR0+dFdy(strataHeight)*strataR1));
+    vec3 b2Face=normalize(cross(dFdx(-vViewPosition),dFdy(-vViewPosition)));
+    b2Face*=gl_FrontFacing?1.:-1.;
+    normal=normalize(mix(normal,b2Face,.20*b2RockBlend));
     vec3 b2RockSlope=b2RockGradient(vGround,b2WorldNormal);
-    normal=normalize(normal-mat3(viewMatrix)*b2RockSlope*b2RockBlend*(1.-smoothstep(12.,45.,length(vViewPosition))));`);
+    normal=normalize(normal-mat3(viewMatrix)*b2RockSlope*b2RockBlend*(1.-smoothstep(12.,45.,length(vViewPosition))));
+    `);
+   shader.fragmentShader=shader.fragmentShader.replace('#include <clearcoat_normal_fragment_maps>',`#include <clearcoat_normal_fragment_maps>
+    #ifdef USE_CLEARCOAT
+    clearcoatNormal=normal;
+    #endif
+    `);
+   // Use the lighting BRDF's own dielectric Fresnel; never add an unlit rim glow.
+   shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>',`#include <lights_physical_fragment>
+    #ifdef USE_CLEARCOAT
+    material.clearcoat=b2WetMask*b2RockBlend*.42;
+    material.clearcoatRoughness=.23+.10*(1.-b2WetMask);
+    #endif
+    `);
    // This is texture micro-occlusion, not geometric AO or a GI solution.
    shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>',`#include <aomap_fragment>
     reflectedLight.indirectDiffuse*=mix(1.,.68+.32*b2RockData.a,b2RockBlend);
@@ -261,8 +380,13 @@
  }};
  B.SKY_LOOK={zenith:'#7599a2',horizon:'#d8cbb0',sun:'#fff0c4'};
  B.View.prototype.makeLook=function(){
+  // World meshes have not been bound yet. Only the editable terrain gets a coat.
+  const oldTerrain=this.terrainMaterial;
+  this.terrainMaterial=new T.MeshPhysicalMaterial({vertexColors:true,color:oldTerrain.color,roughness:oldTerrain.roughness,metalness:0,clearcoat:1,clearcoatRoughness:.2});
+  oldTerrain.dispose();
   this.caveLighting=B.createCaveLighting(this.renderer);
-  B.TERRAIN_LOOK.apply(this.terrainMaterial,true,this.caveLighting);
+  this.caveMinerals=B.createMineralField(this.renderer);
+  B.TERRAIN_LOOK.apply(this.terrainMaterial,true,this.caveLighting,this.caveMinerals);
   this.palette.grass.color.set('#71854e').convertSRGBToLinear();
   B.TERRAIN_LOOK.apply(this.palette.grass,true);
   this.palette.leaf.color.set('#526e49').convertSRGBToLinear();
@@ -283,9 +407,11 @@
  };
  B.View.prototype.renderLook=function(game,daylight){
   this.caveLighting?.update(game.world,this.camera.position);
+  this.caveMinerals?.update(game.world,this.camera.position,this.caveOreNodes||[],this.caveOreRevision||0);
   this.skyDome.position.copy(this.camera.position);this.skyDome.visible=daylight>.01;
   this.skyDome.material.uniforms.daylight.value=daylight;this.skyDome.material.uniforms.deepFog.value.copy(this.scene.fog.color);
   this.toolKey.color.copy(this.lamp.color).lerp(new T.Color('#fff1d4'),daylight);this.toolKey.intensity=1.3+.3*daylight;
+  B.CAVE_ART.renderAtmosphere(this,game,daylight);
  };
  B.View.prototype.makeToolFinish=function(){
   const p=this.palette;
@@ -313,4 +439,117 @@
    for(let i=0;i<3;i++){const h=height*(1-i*.23),seed=root.position.x*.73+root.position.z*1.17+i*2.8,m=add(B.CaveForms.ordinary(radius*(i? .58:1),h,seed,ceiling?'drop':'prism'),i===0?growth:glow,(i-1)*radius*.42,(ceiling?-1:1)*h*.45,0);m.rotation.z=(ceiling?Math.PI:0)+(i-1)*.16;}
   }
  };
+})(B2);
+
+/* R4 ore/atmosphere adapters. Existing ID slots, matrices and culling remain owned
+   by View. No new ore, rewards or lights are spawned by these adapters. */
+(function(B){
+ 'use strict';
+ const T=THREE;
+ const ORE=[
+  {color:'#d99054',roughness:.31,metalness:.83,emission:0,crystal:0},
+  {color:'#4f6578',roughness:.33,metalness:.72,emission:0,crystal:0},
+  {color:'#9bdcf0',roughness:.19,metalness:.50,emission:.016,crystal:.72},
+  {color:'#ffd35b',roughness:.23,metalness:.94,emission:0,crystal:0},
+  {color:'#77f8df',roughness:.16,metalness:.22,emission:.22,crystal:1}
+ ];
+ function oreTraits(kind){const o=ORE[kind];if(!o)throw new RangeError('Unknown ore kind');return [o.roughness,o.metalness,o.emission,o.crystal];}
+ function oreGeometry(){
+  // Constrain both morph targets to the OLD dodecahedron's convex envelope.
+  // Physics remains conservative; the new concavities are visual, not colliders.
+  const hull=new T.DodecahedronGeometry(1,0),pos=hull.attributes.position,planes=[];
+  for(let i=0;i<pos.count;i+=3){const a=new T.Vector3().fromBufferAttribute(pos,i),b=new T.Vector3().fromBufferAttribute(pos,i+1),c=new T.Vector3().fromBufferAttribute(pos,i+2),n=b.sub(a).cross(c.sub(a)).normalize();if(n.dot(a)<0)n.negate();if(!planes.some(p=>p.n.dot(n)>.9999))planes.push({n,d:n.dot(a)});}
+  const clamp=p=>{let k=1;for(const plane of planes){const d=plane.n.dot(p);if(d>plane.d)k=Math.min(k,plane.d/d);}return p.multiplyScalar(k);};
+  const positions=[],crystals=[];
+  const lobes=[[0,-.04,0,.63],[.44,.16,-.10,.39],[-.37,.22,.22,.40],[.07,-.40,.26,.35],[.06,.43,.10,.36]];
+  for(let j=0;j<lobes.length;j++){
+   const [x,y,z,r]=lobes[j],g=new T.IcosahedronGeometry(1,0),a=g.attributes.position;
+   const q=new T.Quaternion().setFromEuler(new T.Euler(j*.71,j*1.17,j*.32));
+   for(let i=0;i<a.count;i++){
+    const v=new T.Vector3().fromBufferAttribute(a,i).applyQuaternion(q);
+    const p=clamp(v.clone().multiplyScalar(r).add(new T.Vector3(x,y,z)));
+    const c=clamp(new T.Vector3(v.x*r*.64+x*.8,v.y*r*1.22+y,v.z*r*.68+z*.8));
+    positions.push(...p.toArray());crystals.push(...c.toArray());
+   }g.dispose();
+  }
+  hull.dispose();const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('b2CrystalPosition',new T.Float32BufferAttribute(crystals,3));geo.computeVertexNormals();geo.computeBoundingBox();geo.computeBoundingSphere();return geo;
+ }
+ function oreMaterial(mat){
+  mat.customProgramCacheKey=()=> 'b2-mineral-ore-4';mat.needsUpdate=true;
+  mat.onBeforeCompile=s=>{
+   s.uniforms=s.uniforms||{};s.uniforms.b2OreRock={value:B.ROCK_DETAIL.texture()};
+   s.vertexShader='attribute vec4 b2OreTraits; attribute vec3 b2CrystalPosition; varying vec4 vOreTraits; varying vec3 vOreLocal;\n'+s.vertexShader;
+   s.vertexShader=s.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+    vOreTraits=b2OreTraits;transformed=mix(position,b2CrystalPosition,b2OreTraits.w);vOreLocal=transformed;`);
+   s.fragmentShader='uniform sampler2D b2OreRock; varying vec4 vOreTraits; varying vec3 vOreLocal;\n'+s.fragmentShader;
+   s.fragmentShader=s.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+    vec4 oreRock=texture2D(b2OreRock,vOreLocal.xy*.43+vOreLocal.z*.13+vec2(.27,.58));
+    float oreCrust=smoothstep(.69,.84,oreRock.r)*(1.-vOreTraits.w*.60);
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.038,.049,.058),oreCrust*.68);
+    diffuseColor.rgb*=.87+oreRock.r*.21;`);
+   s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+    roughnessFactor=mix(vOreTraits.x,.68,oreCrust);`);
+   s.fragmentShader=s.fragmentShader.replace('#include <metalnessmap_fragment>',`#include <metalnessmap_fragment>
+    metalnessFactor=mix(vOreTraits.y,.04,oreCrust);`);
+   s.fragmentShader=s.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
+    totalEmissiveRadiance+=diffuseColor.rgb*vOreTraits.z*(1.-oreCrust);`);
+  };
+ }
+ function decorateOre(view,deposits){
+  view.caveOreNodes=deposits.nodes;view.caveOreRevision=(view.caveOreRevision||0)+1;
+  if(!view.oreMesh)return;
+  const template=oreGeometry(),meshes=[view.oreMesh,...view.oreBatches],materials=new Set();
+  for(const mesh of meshes){
+   const old=mesh.geometry,g=template.clone();
+   // r140 instance culling uses geometry bounds, not the unit template bound.
+   g.boundingBox=old.boundingBox?.clone()||null;g.boundingSphere=old.boundingSphere?.clone()||null;
+   g.setAttribute('b2OreTraits',new T.InstancedBufferAttribute(new Float32Array(mesh.instanceMatrix.count*4),4));
+   mesh.geometry=g;old.dispose();materials.add(mesh.material);
+  }
+  template.dispose();
+  for(const n of deposits.nodes){
+   const slot=view.oreSlots.get(n.id);if(!slot)throw new Error('Missing existing ore ID slot');
+   const values=oreTraits(n.kind),color=new T.Color(ORE[n.kind].color).convertSRGBToLinear();
+   for(const [mesh,i]of [[view.oreMesh,n.id],[slot.mesh,slot.index]]){
+    if(i<0||i>=mesh.instanceMatrix.count)throw new RangeError('Invalid existing ore slot');
+    mesh.geometry.attributes.b2OreTraits.setXYZW(i,...values);mesh.setColorAt(i,color);
+   }
+  }
+  for(const mesh of meshes){mesh.geometry.attributes.b2OreTraits.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;}
+  for(const mat of materials)oreMaterial(mat);
+ }
+ function makeDust(){
+  const count=128,random=B.random(47831),p=new Float32Array(count*3);
+  for(let i=0;i<p.length;i++)p[i]=random()*18;
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(p,3));
+  const m=new T.ShaderMaterial({transparent:true,depthTest:true,depthWrite:false,blending:T.AdditiveBlending,
+   uniforms:{eye:{value:new T.Vector3()},aim:{value:new T.Vector3()},time:{value:0},gain:{value:0},pointScale:{value:1}},
+   vertexShader:`uniform vec3 eye,aim;uniform float time,gain,pointScale;varying float dustAlpha;
+    void main(){vec3 p=eye+mod(position+vec3(time*.021,-time*.034,time*.014)-eye+9.,18.)-9.;
+     vec3 delta=p-eye;float d=length(delta),cone=smoothstep(.82,.98,dot(normalize(delta),aim));
+     dustAlpha=gain*cone*(1.-smoothstep(4.,8.,d))*smoothstep(.6,1.7,d)*.24;
+     vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(pointScale*4.5/max(1.,-mv.z),1.,3.);}`, 
+   fragmentShader:`varying float dustAlpha;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(.59,.75,.86,dustAlpha*(1.-r*r));
+    #include <tonemapping_fragment>
+    #include <encodings_fragment>
+   }`});
+  const points=new T.Points(g,m);points.frustumCulled=false;points.name='cave-air-r4';points.visible=false;return points;
+ }
+ const lampCool=new T.Color('#c6ddf6').convertSRGBToLinear(),lampKey=new T.Color('#e7f1ff').convertSRGBToLinear(),fogCool=new T.Color('#03070e').convertSRGBToLinear();
+ function renderAtmosphere(view,game,daylight){
+  const depth=Math.max(0,-view.camera.position.y),underground=T.MathUtils.smoothstep(depth,2,14);
+  if(!view.caveDust){view.caveDust=makeDust();view.scene.add(view.caveDust);}
+  const u=view.caveDust.material.uniforms;view.caveDust.visible=underground>.01;
+  if(underground<=0)return;
+  if(view.hemi)view.hemi.intensity*=1-underground*.32;
+  if(view.lamp){view.lamp.color.lerp(lampCool,underground*.70);view.lamp.intensity*=1-underground*.76;}
+  if(view.headlamp){view.headlamp.color.lerp(lampKey,underground*.70);view.headlamp.intensity*=1+underground*.12;}
+  if(view.scene.fog){view.scene.fog.color.lerp(fogCool,underground*.84);view.scene.fog.near=T.MathUtils.lerp(view.scene.fog.near,8,underground);view.scene.fog.far=T.MathUtils.lerp(view.scene.fog.far,34,underground);view.scene.background?.copy(view.scene.fog.color);}
+  u.eye.value.copy(view.camera.position);view.camera.getWorldDirection(u.aim.value);u.time.value=Number.isFinite(game.clock)?game.clock:0;u.gain.value=underground*(.5+T.MathUtils.smoothstep(depth,24,85)*.5);u.pointScale.value=view.renderer?.getPixelRatio?.()||1;
+ }
+ B.CAVE_ART={oreTraits,oreGeometry,decorateOre,makeDust,renderAtmosphere};
+ const updateOre=B.View.prototype.updateOre;
+ if(updateOre)B.View.prototype.updateOre=function(n){updateOre.call(this,n);this.caveOreRevision=(this.caveOreRevision||0)+1;};
+ const setDeposits=B.View.prototype.setDeposits;
+ if(setDeposits)B.View.prototype.setDeposits=function(deposits){setDeposits.call(this,deposits);decorateOre(this,deposits);};
 })(B2);

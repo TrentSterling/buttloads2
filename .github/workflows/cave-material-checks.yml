@@ -2,12 +2,6 @@ name: Cave material checks
 on:
   push:
     branches: [codex/cave-geology-20261017]
-  pull_request:
-    paths:
-      - 'src/beauty.js'
-      - 'tools/test-cave*.mjs'
-      - 'tools/test-beauty.mjs'
-      - '.github/workflows/cave-material-checks.yml'
 permissions:
   contents: read
 concurrency:
@@ -20,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -39,6 +34,18 @@ jobs:
           node tools/build.mjs 2>&1 | tee cave-reports/build.txt
           git rev-parse HEAD > cave-reports/source-commit.txt
           sha256sum dist/index.html > cave-reports/build-sha256.txt
+      - name: Install isolated Chromium verification tools
+        if: always()
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Actual offline game render checks (no input or pointer lock)
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          git show a98d15a0bfb25f8d4a17d4351ba6260f4d335d23:src/beauty.js > cave-reports/baseline-beauty.js
+          node tools/test-cave-browser.mjs 2>&1 | tee cave-reports/browser-tests.txt
       - name: Save validation reports and playable build
         if: always()
         uses: actions/upload-artifact@v4

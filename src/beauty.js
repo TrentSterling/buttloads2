@@ -320,8 +320,12 @@
     diffuseColor.rgb=b2Terrain(vGround,b2WorldNormal,diffuseColor.rgb,b2RockData);
     diffuseColor.rgb*=1.-b2WetMask*.21;
     #ifdef B2_MINERAL_FIELD
-    vec4 b2Inclusion=b2InclusionSample(vGround);float b2OreWeight=b2Inclusion.a*b2RockBlend;
-    diffuseColor.rgb=mix(diffuseColor.rgb,b2Inclusion.rgb/max(.004,b2Inclusion.a)*(.57+.35*b2RockData.r),b2OreWeight*.90);
+    vec4 b2Inclusion=b2InclusionSample(vGround);
+    // A tight, broken mineral boundary, not the blurred footprint of the volume.
+    vec4 b2OreRock=b2RockSample(vGround*3.2+vec3(17.,-9.,31.),b2WorldNormal);
+    float b2OreWeight=smoothstep(.12,.50,b2Inclusion.a)*b2RockBlend;
+    b2OreWeight*=mix(.24,1.,smoothstep(.29,.61,b2OreRock.r));
+    diffuseColor.rgb=mix(diffuseColor.rgb,b2Inclusion.rgb/max(.004,b2Inclusion.a)*(.34+.91*b2OreRock.r),b2OreWeight*.95);
     #endif
     `);
    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
@@ -329,7 +333,7 @@
     float b2WetRoughness=.14+.13*b2RockData.b;
     roughnessFactor=mix(roughnessFactor,mix(b2DryRoughness,b2WetRoughness,b2WetMask),b2RockBlend);
     #ifdef B2_MINERAL_FIELD
-    roughnessFactor=mix(roughnessFactor,.27,b2OreWeight*.85);
+    roughnessFactor=mix(roughnessFactor,.25+.16*b2OreRock.b,b2OreWeight);
     #endif
     `);
    shader.fragmentShader=shader.fragmentShader.replace('#include <metalnessmap_fragment>',`#include <metalnessmap_fragment>
@@ -348,6 +352,10 @@
     b2Face*=gl_FrontFacing?1.:-1.;
     normal=normalize(mix(normal,b2Face,.20*b2RockBlend));
     vec3 b2RockSlope=b2RockGradient(vGround,b2WorldNormal);
+    #ifdef B2_MINERAL_FIELD
+    vec3 b2OreSlope=b2RockGradient(vGround*3.2+vec3(17.,-9.,31.),b2WorldNormal);
+    b2RockSlope=mix(b2RockSlope,b2OreSlope,.70*b2OreWeight);
+    #endif
     normal=normalize(normal-mat3(viewMatrix)*b2RockSlope*b2RockBlend*(1.-smoothstep(12.,45.,length(vViewPosition))));
     `);
    shader.fragmentShader=shader.fragmentShader.replace('#include <clearcoat_normal_fragment_maps>',`#include <clearcoat_normal_fragment_maps>
@@ -371,7 +379,7 @@
     `);
    if(lighting){
     const contact=`
-     { if(directLight.visible&&b2RockBlend>.001){ vec3 b2LightWorld=inverseTransformDirection(directLight.direction,viewMatrix);
+     { if(directLight.visible&&b2RockBlend>.001&&dot(directLight.color,vec3(1.))>0.){ vec3 b2LightWorld=inverseTransformDirection(directLight.direction,viewMatrix);
      directLight.color*=mix(1.,b2FieldContact(vGround,b2WorldNormal,b2LightWorld,length(LIGHT.position-geometry.position)),b2RockBlend); }}`;
     const chunk=T.ShaderChunk.lights_fragment_begin.replace('getPointLightInfo( pointLight, geometry, directLight );','getPointLightInfo( pointLight, geometry, directLight );'+contact.replace('LIGHT','pointLight')).replace('getSpotLightInfo( spotLight, geometry, directLight );','getSpotLightInfo( spotLight, geometry, directLight );'+contact.replace('LIGHT','spotLight'));
     shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_begin>',chunk);
@@ -477,18 +485,31 @@
  function oreMaterial(mat){
   mat.customProgramCacheKey=()=> 'b2-mineral-ore-4';mat.needsUpdate=true;
   mat.onBeforeCompile=s=>{
-   s.uniforms=s.uniforms||{};s.uniforms.b2OreRock={value:B.ROCK_DETAIL.texture()};
+   s.uniforms=s.uniforms||{};s.uniforms.b2OreRock={value:B.ROCK_DETAIL.texture()};s.uniforms.b2OreNormal={value:B.ROCK_DETAIL.normalTexture()};
    s.vertexShader='attribute vec4 b2OreTraits; attribute vec3 b2CrystalPosition; varying vec4 vOreTraits; varying vec3 vOreLocal;\n'+s.vertexShader;
    s.vertexShader=s.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     vOreTraits=b2OreTraits;transformed=mix(position,b2CrystalPosition,b2OreTraits.w);vOreLocal=transformed;`);
-   s.fragmentShader='uniform sampler2D b2OreRock; varying vec4 vOreTraits; varying vec3 vOreLocal;\n'+s.fragmentShader;
+   s.fragmentShader='uniform sampler2D b2OreRock,b2OreNormal; varying vec4 vOreTraits; varying vec3 vOreLocal;\n'+s.fragmentShader;
    s.fragmentShader=s.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-    vec4 oreRock=texture2D(b2OreRock,vOreLocal.xy*.43+vOreLocal.z*.13+vec2(.27,.58));
-    float oreCrust=smoothstep(.69,.84,oreRock.r)*(1.-vOreTraits.w*.60);
+    vec3 oreLocalNormal=normalize(cross(dFdx(vOreLocal),dFdy(vOreLocal)));
+    vec3 oreAxes=pow(abs(oreLocalNormal),vec3(4.));oreAxes/=max(.0001,oreAxes.x+oreAxes.y+oreAxes.z);
+    vec2 oreUVx=vOreLocal.yz*1.38+vec2(.31,.17),oreUVy=vOreLocal.xz*1.38+vec2(.11,.53),oreUVz=vOreLocal.xy*1.38+vec2(.73,.29);
+    vec4 oreRock=texture2D(b2OreRock,oreUVx)*oreAxes.x+texture2D(b2OreRock,oreUVy)*oreAxes.y+texture2D(b2OreRock,oreUVz)*oreAxes.z;
+    float oreCrust=(1.-smoothstep(.21,.40,oreRock.r))*(1.-vOreTraits.w*.60);
     diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.038,.049,.058),oreCrust*.68);
-    diffuseColor.rgb*=.87+oreRock.r*.21;`);
+    diffuseColor.rgb*=.60+oreRock.r*.64;`);
    s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
-    roughnessFactor=mix(vOreTraits.x,.68,oreCrust);`);
+    roughnessFactor=mix(clamp(vOreTraits.x+(oreRock.b-.5)*.16,.13,.9),.68,oreCrust);`);
+   s.fragmentShader=s.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+    // Derivatives transform the baked local surface gradient through the actual
+    // instanced, nonuniform ore pose. No quantized-height differentiation.
+    vec3 oreNx=texture2D(b2OreNormal,oreUVx).rgb*2.-1.,oreNy=texture2D(b2OreNormal,oreUVy).rgb*2.-1.,oreNz=texture2D(b2OreNormal,oreUVz).rgb*2.-1.;
+    vec2 oreGx=-oreNx.xy/max(.2,oreNx.z),oreGy=-oreNy.xy/max(.2,oreNy.z),oreGz=-oreNz.xy/max(.2,oreNz.z);
+    vec3 oreGradient=vec3(0.,oreGx.x,oreGx.y)*oreAxes.x+vec3(oreGy.x,0.,oreGy.y)*oreAxes.y+vec3(oreGz.x,oreGz.y,0.)*oreAxes.z;
+    vec3 oreQ0=dFdx(-vViewPosition),oreQ1=dFdy(-vViewPosition),oreR0=cross(oreQ1,normal),oreR1=cross(normal,oreQ0);
+    float oreDet=dot(oreQ0,oreR0);
+    vec2 oreDh=vec2(dot(oreGradient,dFdx(vOreLocal)),dot(oreGradient,dFdy(vOreLocal)));
+    if(abs(oreDet)>1e-8)normal=normalize(abs(oreDet)*normal-sign(oreDet)*(oreDh.x*oreR0+oreDh.y*oreR1)*.065);`);
    s.fragmentShader=s.fragmentShader.replace('#include <metalnessmap_fragment>',`#include <metalnessmap_fragment>
     metalnessFactor=mix(vOreTraits.y,.04,oreCrust);`);
    s.fragmentShader=s.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>

@@ -31,11 +31,13 @@ try{
  });
  await test('terrain hooks expand against the bundled Three.js shaders and export complete GPU compile fixtures',()=>{
   const shader={vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};g.view.terrainMaterial.onBeforeCompile(shader);
-  assert.equal(g.view.terrainMaterial.customProgramCacheKey(),'b2-cave-geology-1');
+  assert.equal(g.view.terrainMaterial.customProgramCacheKey(),'b2-cave-geology-3-material');
   assert.ok(shader.vertexShader.includes('vGround=(modelMatrix*vec4(transformed,1.)).xyz'));assert.ok(shader.fragmentShader.includes('strataHeight=b2Height(vGround)'));assert.ok(shader.fragmentShader.includes('diffuseColor.rgb=b2Terrain'));
-  for(const token of ['float b2Fractures','float b2Wetness','b2FaultMask=b2Fractures','b2WetMask=b2Wetness','roughnessFactor=clamp','strataHeight-=b2FaultMask'])assert.ok(shader.fragmentShader.includes(token),token);
+  for(const token of ['vec4 b2RockSample','vec3 b2RockGradient','float b2Wetness','b2WetMask=b2Wetness','float b2DryRoughness','strataHeight-=b2RockBeds'])assert.ok(shader.fragmentShader.includes(token),token);
+  assert.equal(shader.uniforms.b2RockDetail.value,B.ROCK_DETAIL.texture());assert.equal(shader.uniforms.b2RockNormal.value,B.ROCK_DETAIL.normalTexture());
   const expand=s=>s.replace(/^[ \t]*#include +<([\w\d_]+)>/gm,(_,name)=>{assert.ok(T.ShaderChunk[name],name);return expand(T.ShaderChunk[name]);});
   const out=path.join(import.meta.dirname,'out');fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'beauty-shaders.json'),JSON.stringify({vertex:expand(shader.vertexShader),fragment:expand(shader.fragmentShader),sky:g.view.skyDome.material.fragmentShader}));
  });
 }finally{h.close();}
+beautyChecks += (await import('./test-cave-geology.mjs')).caveGeologyChecks;
 console.log(`COMPLETE ${beautyChecks} beauty checks passed (inert scene and DOM; no browser or OS input)`);
